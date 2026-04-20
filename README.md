@@ -6,16 +6,42 @@
 
 Для начала нужно сделать базу:
 users:
-id, name, password, email, role, status, created_at, update_at
+id: id пользователя,
+name: имя пользователя,
+password: пароль,
+email: почта пользователя, для восстановления пароля,
+role: юсер или админ,
+status: активный или в блоке,
+created_at: дата создания,
+update_at: дата обновления
+
+groups:
+id: id категории,
+name: название категории,
 
 products:
-id, title, group, unit
+id: id товара,
+title: название товара,
+unit: мера измерения товара
+group_id: категория товара,
 
-store:
-id, name
+stores:
+id: id магазина,
+name: название магазина,
 
-buy:
-id, users_id, store_id, products_id, count, added_at
+purchases:
+id: id заказа,
+users_id: пользователь который заказал,
+store_id: из какого мазазина,
+products_id: какой товар,
+count: количество,
+added_at: дата добавления,
 
 history:
-id, user_id, store_id, products_id, count, price, date
+id: id покупки,
+user_id: пользователь который заказал покупку,
+store_id: магазин в котором купили,
+products_id: товар который купили,
+count: количество купленного,
+price: цена по которой купили,
+date: дата покупки,
