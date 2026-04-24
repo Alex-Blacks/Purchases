@@ -11,15 +11,15 @@ type Storage struct {
 	pool *pgxpool.Pool
 }
 
-type Store struct {
-	id   int
-	name string
-}
-
 func NewStorage(pool *pgxpool.Pool) *Storage {
 	return &Storage{
 		pool: pool,
 	}
+}
+
+type Store struct {
+	id   int
+	name string
 }
 
 func (s *Storage) CreateStore(ctx context.Context, name string) error {
@@ -27,8 +27,7 @@ func (s *Storage) CreateStore(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-
-	return err
+	return nil
 }
 
 func (s *Storage) GetStoreById(ctx context.Context, id int) (string, error) {
