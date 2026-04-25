@@ -3,24 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-type Storage struct {
-	pool *pgxpool.Pool
-}
-
-func NewStorage(pool *pgxpool.Pool) *Storage {
-	return &Storage{
-		pool: pool,
-	}
-}
-
-type Store struct {
-	id   int
-	name string
-}
 
 func (s *Storage) CreateStore(ctx context.Context, name string) error {
 	_, err := s.pool.Exec(ctx, "INSERT INTO stores(name) VALUES($1)", name)
@@ -54,17 +37,17 @@ func (s *Storage) DeleteStore(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *Storage) ListStores(ctx context.Context) ([]Store, error) {
+func (s *Storage) ListStores(ctx context.Context) ([]Lists, error) {
 	rows, err := s.pool.Query(ctx, "SELECT id,name FROM stores")
 	if err != nil {
 		return nil, fmt.Errorf("errors get list stores: %w", err)
 	}
 	defer rows.Close()
 
-	var list []Store
+	var list []Lists
 
 	for rows.Next() {
-		var st Store
+		var st Lists
 
 		if err := rows.Scan(&st.id, &st.name); err != nil {
 			return nil, fmt.Errorf("errors get list stores: %w", err)
