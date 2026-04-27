@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"fmt"
+
+	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
 
 func (s *Storage) CreateCategory(ctx context.Context, name string) error {
@@ -36,19 +38,19 @@ func (s *Storage) DeleteCategory(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *Storage) ListCategories(ctx context.Context) ([]Lists, error) {
+func (s *Storage) ListCategories(ctx context.Context) ([]domain.ListStore, error) {
 	rows, err := s.pool.Query(ctx, "SELECT id, name FROM categories")
 	if err != nil {
 		return nil, fmt.Errorf("Error get category: %w", err)
 	}
 	defer rows.Close()
 
-	var list []Lists
+	var list []domain.ListStore
 
 	for rows.Next() {
-		var st Lists
+		var st domain.ListStore
 
-		if err := rows.Scan(&st.id, &st.name); err != nil {
+		if err := rows.Scan(&st.Id, &st.Name); err != nil {
 			return nil, fmt.Errorf("Error get category: %w", err)
 		}
 

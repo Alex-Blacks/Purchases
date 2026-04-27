@@ -11,8 +11,3 @@ func NewStorage(pool *pgxpool.Pool) *Storage {
 		pool: pool,
 	}
 }
-
-type Lists struct {
-	id   int
-	name string
-}
