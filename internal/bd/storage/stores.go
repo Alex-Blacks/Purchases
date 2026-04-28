@@ -2,9 +2,11 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
+	"github.com/jackc/pgx/v5"
 )
 
 func (s *Storage) CreateStore(ctx context.Context, name string) error {
@@ -20,6 +22,9 @@ func (s *Storage) GetStoreById(ctx context.Context, id int) (string, error) {
 
 	err := s.pool.QueryRow(ctx, "SELECT name FROM stores WHERE id=$1", id).Scan(&name)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", domain.ErrNotFound
+		}
 		return "", fmt.Errorf("Error get store: %w", err)
 	}
 
@@ -33,7 +38,7 @@ func (s *Storage) DeleteStore(ctx context.Context, id int) error {
 	}
 
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("store not found")
+		return domain.ErrNotFound
 	}
 
 	return nil

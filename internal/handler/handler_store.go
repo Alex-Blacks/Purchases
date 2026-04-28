@@ -10,8 +10,9 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/service"
 )
 
-func HandlerCreateStore(svc *service.Service) http.Handler {
+func CreateStoreHandler(svc *service.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
 		var req struct {
 			Name string `json:"name"`
 		}
@@ -20,7 +21,6 @@ func HandlerCreateStore(svc *service.Service) http.Handler {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
-		defer r.Body.Close()
 
 		ctx := r.Context()
 
@@ -33,14 +33,17 @@ func HandlerCreateStore(svc *service.Service) http.Handler {
 			return
 		}
 
-		w.WriteHeader(http.StatusCreated)
+		if err := json.NewEncoder(w).Encode(map[string]string{"status": "created"}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 }
 
-func HandlerGetStore(svc *service.Service) http.Handler {
+func GetStoreHandler(svc *service.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		req := r.Header.Get("id")
-		id, err := strconv.Atoi(req)
+		string_id := r.URL.Query().Get("id")
+		id, err := strconv.Atoi(string_id)
 		if err != nil {
 			http.Error(w, domain.ErrInvalidId.Error(), http.StatusBadRequest)
 			return
@@ -50,10 +53,43 @@ func HandlerGetStore(svc *service.Service) http.Handler {
 		if err != nil {
 			if errors.Is(err, domain.ErrInvalidId) {
 				http.Error(w, domain.ErrInvalidId.Error(), http.StatusBadRequest)
+				return
 			}
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
+		if err = json.NewEncoder(w).Encode(name); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	})
+}
+
+func DeleteStoreHandler(svc *service.Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		string_id := r.URL.Query().Get("id")
+		id, err := strconv.Atoi(string_id)
+		if err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+
+		if err := svc.DeleteStore(r.Context(), id); err != nil {
+			switch {
+			case errors.Is(err, domain.ErrInvalidId):
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			case errors.Is(err, domain.ErrNotFound):
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			default:
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	})
 }

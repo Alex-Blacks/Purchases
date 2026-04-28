@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
@@ -40,14 +41,13 @@ func (s *Service) GetStoreById(ctx context.Context, id int) (string, error) {
 
 func (s *Service) DeleteStore(ctx context.Context, id int) error {
 	if id <= 0 {
-		return fmt.Errorf("invalid id")
+		return domain.ErrInvalidId
 	}
 	if err := s.store.DeleteStore(ctx, id); err != nil {
-		if err.Error() == "store not found" {
-			return fmt.Errorf("store not found")
-		} else {
-			return fmt.Errorf("Error delete store")
+		if errors.Is(err, domain.ErrNotFound) {
+			return err
 		}
+		return fmt.Errorf("Error delete store: %w", err)
 	}
 
 	return nil

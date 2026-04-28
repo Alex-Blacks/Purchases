@@ -26,13 +26,16 @@ func main() {
 	mux.Handle("/stores", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			handler.HandlerCreateStore(svc).ServeHTTP(w, r)
-		case http.MethodGet:
-			handler.HandlerGetStore(svc).ServeHTTP(w, r)
+			handler.CreateStoreHandler(svc).ServeHTTP(w, r)
+		//case http.MethodGet:
+		//handler.GetStoreHandler(svc).ServeHTTP(w, r)
+		case http.MethodDelete:
+			handler.DeleteStoreHandler(svc).ServeHTTP(w, r)
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
+	mux.Handle("/stores/{id}", handler.GetStoreHandler(svc))
 
 	server := http.Server{
 		Addr:    ":8080",

@@ -2,5 +2,8 @@ package domain
 
 import "errors"
 
-var ErrEmptyName = errors.New("Empty name")
-var ErrInvalidId = errors.New("Invalid id")
+var (
+	ErrEmptyName = errors.New("empty name")
+	ErrInvalidId = errors.New("invalid id")
+	ErrNotFound  = errors.New("not found")
+)
