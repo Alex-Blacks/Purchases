@@ -3,6 +3,7 @@ create unique index idx_users_emails on users(email);
 create index idx_product_categories on products(category_id);
 create index idx_product_aliases_products on product_aliases(product_id);
 
+create index idx_orders_store on orders(store_id);
 create index idx_orders_users on orders(user_id);
 create index idx_orders_stores on orders(store_id);
 

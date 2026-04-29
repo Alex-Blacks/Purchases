@@ -43,8 +43,9 @@ create table stores(
 create table orders(
     id integer generated always as identity primary key,
     user_id integer not null,
-    store_id integer not null,
+    store_id integer unique not null,
     created_at timestamptz default now(),
+    updated_at timestamptz default now(),
     foreign key(user_id) references users(id),
     foreign key(store_id) references stores(id)
 );
@@ -53,7 +54,7 @@ create table order_items(
     id integer generated always as identity primary key,
     order_id integer not null,
     product_id integer not null,
-    count integer check (count>0) default 1,
+    quantity integer check (quantity > 0) default 1,
     foreign key(order_id) references orders(id),
     foreign key(product_id) references products(id)
 );
@@ -78,7 +79,7 @@ create table purchase_items(
     purchase_id integer not null,
     row_name varchar(100) not null,
     product_id integer null,
-    count integer check (count > 0) default 1,
+    quantity integer check (quantity > 0) default 1,
     price numeric(10,2) check (price > 0) not null,
     foreign key(purchase_id) references purchases(id),
     foreign key(product_id) references products(id) on delete set null

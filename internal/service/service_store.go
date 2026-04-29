@@ -8,14 +8,6 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
 
-type Service struct {
-	store domain.Store
-}
-
-func NewService(store domain.Store) *Service {
-	return &Service{store: store}
-}
-
 func (s *Service) CreateStore(ctx context.Context, name string) error {
 	if name == "" {
 		return domain.ErrEmptyName
