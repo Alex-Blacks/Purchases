@@ -44,27 +44,27 @@ func (s *Storage) DeleteStore(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *Storage) ListStore(ctx context.Context) ([]domain.ListStore, error) {
+func (s *Storage) ListStore(ctx context.Context) ([]domain.StoreDTO, error) {
 	rows, err := s.pool.Query(ctx, "SELECT id,name FROM stores")
 	if err != nil {
-		return nil, fmt.Errorf("errors get list stores: %w", err)
+		return nil, fmt.Errorf("Error get list stores: %w", err)
 	}
 	defer rows.Close()
 
-	var list []domain.ListStore
+	var list []domain.StoreDTO
 
 	for rows.Next() {
-		var st domain.ListStore
+		var st domain.StoreDTO
 
 		if err := rows.Scan(&st.Id, &st.Name); err != nil {
-			return nil, fmt.Errorf("errors get list stores: %w", err)
+			return nil, fmt.Errorf("Error get list stores: %w", err)
 		}
 
 		list = append(list, st)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("errors get list stores: %w", rows.Err())
+		return nil, fmt.Errorf("Error get list stores: %w", rows.Err())
 	}
 
 	return list, nil

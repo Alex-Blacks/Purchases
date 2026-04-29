@@ -33,6 +33,7 @@ func CreateStoreHandler(svc *service.Service) http.Handler {
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(map[string]string{"status": "created"}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -59,7 +60,8 @@ func GetStoreHandler(svc *service.Service) http.Handler {
 			return
 		}
 
-		if err = json.NewEncoder(w).Encode(name); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		if err = json.NewEncoder(w).Encode(map[string]string{"Name Store": name}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -91,5 +93,21 @@ func DeleteStoreHandler(svc *service.Service) http.Handler {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+func ListStoreHandler(svc *service.Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		list, err := svc.ListStore(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err = json.NewEncoder(w).Encode(list); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 }

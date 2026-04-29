@@ -53,10 +53,10 @@ func (s *Service) DeleteStore(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *Service) ListStore(ctx context.Context) ([]domain.ListStore, error) {
+func (s *Service) ListStore(ctx context.Context) ([]domain.StoreDTO, error) {
 	list, err := s.store.ListStore(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("errors get list stores: %w", err)
+		return nil, fmt.Errorf("Error get list stores: %w", err)
 	}
 
 	return list, nil
