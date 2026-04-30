@@ -43,7 +43,7 @@ type OrderWithItemsDTO struct {
 
 type Order interface {
 	CreateOrderTx(ctx context.Context, tx pgx.Tx, userID, storeID int) (int, error)
-	GetOrder(ctx context.Context, userID, orderID int) (OrderWithItemsDTO, error)
+	GetOrderTx(ctx context.Context, userID, orderID int) ([]OrderWithItemsDTO, error)
 	DeleteOrder(ctx context.Context, userID, orderID int) error
 	ListOrder(ctx context.Context, userID int) ([]OrderDTO, error)
 
@@ -52,4 +52,9 @@ type Order interface {
 	DeleteItem(ctx context.Context, userID, orderID, productID int) error
 
 	ClearOrder(ctx context.Context, userID, orderID int) error
+}
+
+type OrderCreator interface {
+	CreateOrderTx(ctx context.Context, tx pgx.Tx, userID, storeID int) (int, error)
+	GetOrderTx(ctx context.Context, userID, orderID int) ([]OrderWithItemsDTO, error)
 }

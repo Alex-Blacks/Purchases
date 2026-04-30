@@ -6,10 +6,14 @@ import (
 
 type Service struct {
 	storage domain.Storage
+	order   domain.OrderCreator
 	store   domain.Store
-	order   domain.Order
 }
 
-func NewService(store domain.Store) *Service {
-	return &Service{store: store}
+func NewService(storage domain.Storage, order domain.OrderCreator, store domain.Store) *Service {
+	return &Service{
+		storage: storage,
+		order:   order,
+		store:   store,
+	}
 }

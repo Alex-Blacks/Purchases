@@ -9,18 +9,28 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func (s *Storage) CreateStore(ctx context.Context, name string) error {
-	_, err := s.pool.Exec(ctx, "INSERT INTO stores(name) VALUES($1)", name)
+type StoreRepo struct {
+	storage *Storage
+}
+
+func NewStoreRepo(storage *Storage) *StoreRepo {
+	return &StoreRepo{
+		storage: storage,
+	}
+}
+
+func (s *StoreRepo) CreateStore(ctx context.Context, name string) error {
+	_, err := s.storage.pool.Exec(ctx, "INSERT INTO stores(name) VALUES($1)", name)
 	if err != nil {
 		return fmt.Errorf("Error created store: %w", err)
 	}
 	return nil
 }
 
-func (s *Storage) GetStoreById(ctx context.Context, id int) (string, error) {
+func (s *StoreRepo) GetStoreById(ctx context.Context, id int) (string, error) {
 	var name string
 
-	err := s.pool.QueryRow(ctx, "SELECT name FROM stores WHERE id=$1", id).Scan(&name)
+	err := s.storage.pool.QueryRow(ctx, "SELECT name FROM stores WHERE id=$1", id).Scan(&name)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", domain.ErrNotFound
@@ -31,8 +41,8 @@ func (s *Storage) GetStoreById(ctx context.Context, id int) (string, error) {
 	return name, nil
 }
 
-func (s *Storage) DeleteStore(ctx context.Context, id int) error {
-	tag, err := s.pool.Exec(ctx, "DELETE FROM stores WHERE id = $1", id)
+func (s *StoreRepo) DeleteStore(ctx context.Context, id int) error {
+	tag, err := s.storage.pool.Exec(ctx, "DELETE FROM stores WHERE id = $1", id)
 	if err != nil {
 		return fmt.Errorf("Error delete store: %w", err)
 	}
@@ -44,8 +54,8 @@ func (s *Storage) DeleteStore(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *Storage) ListStore(ctx context.Context) ([]domain.StoreDTO, error) {
-	rows, err := s.pool.Query(ctx, "SELECT id,name FROM stores")
+func (s *StoreRepo) ListStore(ctx context.Context) ([]domain.StoreDTO, error) {
+	rows, err := s.storage.pool.Query(ctx, "SELECT id,name FROM stores")
 	if err != nil {
 		return nil, fmt.Errorf("Error get list stores: %w", err)
 	}
