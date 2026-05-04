@@ -25,6 +25,7 @@ type Store interface {
 
 type OrderDTO struct {
 	Id         int
+	User       string
 	Store      string
 	ItemsCount int
 	CreatedAt  time.Time
