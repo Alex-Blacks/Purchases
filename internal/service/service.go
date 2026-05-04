@@ -6,11 +6,11 @@ import (
 
 type Service struct {
 	storage domain.Storage
-	order   domain.OrderCreator
+	order   domain.Order
 	store   domain.Store
 }
 
-func NewService(storage domain.Storage, order domain.OrderCreator, store domain.Store) *Service {
+func NewService(storage domain.Storage, order domain.Order, store domain.Store) *Service {
 	return &Service{
 		storage: storage,
 		order:   order,
