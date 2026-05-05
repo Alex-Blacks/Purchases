@@ -9,7 +9,14 @@ import (
 )
 
 type Storage interface {
-	BeginTx(ctx context.Context) (pgx.Tx, error)
+	Querier
+	BeginTx(ctx context.Context) (Tx, error)
+}
+
+type Tx interface {
+	Querier
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
 }
 
 type StoreDTO struct {
@@ -30,7 +37,7 @@ type OrderDTO struct {
 	Store      string
 	ItemsCount int
 	CreatedAt  time.Time
-	UpdateAt   time.Time
+	UpdatedAt  time.Time
 }
 type OrderItemsDTO struct {
 	Id       int
@@ -43,20 +50,21 @@ type OrderWithItemsDTO struct {
 	Items []OrderItemsDTO
 }
 
-type Order interface {
-	CreateOrder(ctx context.Context, q Queryer, userID, storeID int) (int, error)
-	GetOrder(ctx context.Context, q Queryer, userID, orderID int) (OrderWithItemsDTO, error)
-	DeleteOrder(ctx context.Context, q Queryer, userID, orderID int) error
-	ListOrders(ctx context.Context, q Queryer, userID int) ([]OrderDTO, error)
-
-	AddItem(ctx context.Context, q Queryer, orderID, productID int, qty int) error
-	UpdateItem(ctx context.Context, q Queryer, orderID, productID int, qty int) error
-	DeleteItem(ctx context.Context, q Queryer, orderID, productID int) error
-
-	ClearOrder(ctx context.Context, q Queryer, orderID int) error
+type OrderRepository interface {
+	CreateOrder(ctx context.Context, q Querier, userID, storeID int) (int, error)
+	GetOrder(ctx context.Context, q Querier, userID, orderID int) (OrderWithItemsDTO, error)
+	DeleteOrder(ctx context.Context, q Querier, userID, orderID int) error
+	ListOrders(ctx context.Context, q Querier, userID int) ([]OrderDTO, error)
 }
 
-type Queryer interface {
+type OrderItemRepository interface {
+	AddItem(ctx context.Context, q Querier, orderID, productID int, qty int) error
+	UpdateItem(ctx context.Context, q Querier, orderID, productID int, qty int) error
+	DeleteItem(ctx context.Context, q Querier, orderID, productID int) error
+	ClearOrder(ctx context.Context, q Querier, orderID int) error
+}
+
+type Querier interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row

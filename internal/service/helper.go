@@ -7,21 +7,25 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
 
-func (s *Service) WithTx(ctx context.Context, fn func(q domain.Queryer) error) error {
+func (s *Service) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
 	tx, err := s.storage.BeginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("Error begin tx: %w", err)
 	}
 
-	defer tx.Rollback(ctx)
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				err = fmt.Errorf("tx err: %v, rollback err: %w", err, rbErr)
+			}
+			return
+		}
 
-	if err := fn(tx); err != nil {
-		return err
-	}
+		if cmErr := tx.Commit(ctx); cmErr != nil {
+			err = fmt.Errorf("commit err: %w", cmErr)
+		}
+	}()
 
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("Error commit tx: %w", err)
-	}
-
-	return nil
+	err = fn(tx)
+	return err
 }

@@ -10,15 +10,19 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type OrderRepo struct {
-	st *Storage
-}
+type OrderRepo struct{}
 
 func NewOrderRepo() *OrderRepo {
 	return &OrderRepo{}
 }
 
-func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Queryer, userID, storeID int) (int, error) {
+type OrderItemRepo struct{}
+
+func NewOrderItemRepo() *OrderItemRepo {
+	return &OrderItemRepo{}
+}
+
+func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Querier, userID, storeID int) (int, error) {
 	var id int
 	if err := q.QueryRow(ctx, `INSERT INTO orders(user_id, store_id) VALUES ($1, $2) RETURNING id`, userID, storeID).Scan(&id); err != nil {
 		var pgErr *pgconn.PgError
@@ -31,7 +35,7 @@ func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Queryer, userID, s
 	return id, nil
 }
 
-func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Queryer, userID, orderID int) (domain.OrderWithItemsDTO, error) {
+func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orderID int) (domain.OrderWithItemsDTO, error) {
 	var result domain.OrderWithItemsDTO
 	rowsOrder := q.QueryRow(ctx, `
 		SELECT orders.id, users.name, stores.name, orders.created_at, orders.updated_at 
@@ -42,7 +46,7 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Queryer, userID, orde
 	`, userID, orderID)
 
 	var order domain.OrderDTO
-	if err := rowsOrder.Scan(&order.Id, &order.User, &order.Store, &order.CreatedAt, &order.UpdateAt); err != nil {
+	if err := rowsOrder.Scan(&order.Id, &order.User, &order.Store, &order.CreatedAt, &order.UpdatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return result, domain.ErrNotFound
 		}
@@ -83,7 +87,7 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Queryer, userID, orde
 	return result, nil
 }
 
-func (r *OrderRepo) DeleteOrder(ctx context.Context, q domain.Queryer, userID, orderID int) error {
+func (r *OrderRepo) DeleteOrder(ctx context.Context, q domain.Querier, userID, orderID int) error {
 	tag, err := q.Exec(ctx, `DELETE FROM orders WHERE orders.id = $1 AND orders.user_id = $2`, orderID, userID)
 	if err != nil {
 		return fmt.Errorf("Error delete order: %w", err)
@@ -96,7 +100,7 @@ func (r *OrderRepo) DeleteOrder(ctx context.Context, q domain.Queryer, userID, o
 	return nil
 }
 
-func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Queryer, userID int) ([]domain.OrderDTO, error) {
+func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int) ([]domain.OrderDTO, error) {
 	rows, err := q.Query(ctx, `
 		SELECT 
 			o.id, u.name, s.name, o.created_at, o.updated_at, 
@@ -116,7 +120,7 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Queryer, userID int
 	for rows.Next() {
 		var list domain.OrderDTO
 
-		if err := rows.Scan(&list.Id, &list.User, &list.Store, &list.CreatedAt, &list.UpdateAt, &list.ItemsCount); err != nil {
+		if err := rows.Scan(&list.Id, &list.User, &list.Store, &list.CreatedAt, &list.UpdatedAt, &list.ItemsCount); err != nil {
 			return nil, fmt.Errorf("Error scan orders: %w", err)
 		}
 
@@ -129,7 +133,7 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Queryer, userID int
 	return lists, nil
 }
 
-func (r *OrderRepo) AddItem(ctx context.Context, q domain.Queryer, orderID, productID, qty int) error {
+func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, productID, qty int) error {
 	if _, err := q.Exec(ctx, `INSERT INTO order_items(order_id, product_id, quantity) VALUES ($1,$2,$3)`, orderID, productID, qty); err != nil {
 		return fmt.Errorf("Error add item: %w", err)
 	}
@@ -137,7 +141,7 @@ func (r *OrderRepo) AddItem(ctx context.Context, q domain.Queryer, orderID, prod
 	return nil
 }
 
-func (r *OrderRepo) UpdateItem(ctx context.Context, q domain.Queryer, orderID, productID, qty int) error {
+func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderID, productID, qty int) error {
 	tag, err := q.Exec(ctx, `
 		UPDATE order_items o
 		SET o.quantity = $1
@@ -154,7 +158,7 @@ func (r *OrderRepo) UpdateItem(ctx context.Context, q domain.Queryer, orderID, p
 	return nil
 }
 
-func (r *OrderRepo) DeleteItem(ctx context.Context, q domain.Queryer, orderID, productID int) error {
+func (r *OrderItemRepo) DeleteItem(ctx context.Context, q domain.Querier, orderID, productID int) error {
 	tag, err := q.Exec(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1 AND order_items.product_id = $2`, orderID, productID)
 	if err != nil {
 		return fmt.Errorf("Error deleted item: %w", err)
@@ -167,7 +171,7 @@ func (r *OrderRepo) DeleteItem(ctx context.Context, q domain.Queryer, orderID, p
 	return nil
 }
 
-func (r *OrderRepo) ClearOrder(ctx context.Context, q domain.Queryer, orderID int) error {
+func (r *OrderItemRepo) ClearOrder(ctx context.Context, q domain.Querier, orderID int) error {
 	_, err := q.Exec(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1`, orderID)
 	if err != nil {
 		return fmt.Errorf("Error delete items order: %w", err)

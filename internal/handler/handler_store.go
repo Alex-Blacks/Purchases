@@ -46,14 +46,14 @@ func GetStoreHandler(svc *service.Service) http.Handler {
 		string_id := r.URL.Query().Get("id")
 		id, err := strconv.Atoi(string_id)
 		if err != nil {
-			http.Error(w, domain.ErrInvalidId.Error(), http.StatusBadRequest)
+			http.Error(w, domain.ErrInvalidInput.Error(), http.StatusBadRequest)
 			return
 		}
 		ctx := r.Context()
 		name, err := svc.GetStoreById(ctx, id)
 		if err != nil {
-			if errors.Is(err, domain.ErrInvalidId) {
-				http.Error(w, domain.ErrInvalidId.Error(), http.StatusBadRequest)
+			if errors.Is(err, domain.ErrInvalidInput) {
+				http.Error(w, domain.ErrInvalidInput.Error(), http.StatusBadRequest)
 				return
 			}
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -80,7 +80,7 @@ func DeleteStoreHandler(svc *service.Service) http.Handler {
 
 		if err := svc.DeleteStore(r.Context(), id); err != nil {
 			switch {
-			case errors.Is(err, domain.ErrInvalidId):
+			case errors.Is(err, domain.ErrInvalidInput):
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			case errors.Is(err, domain.ErrNotFound):

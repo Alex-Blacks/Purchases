@@ -21,7 +21,7 @@ func (s *Service) CreateStore(ctx context.Context, name string) error {
 
 func (s *Service) GetStoreById(ctx context.Context, id int) (string, error) {
 	if id <= 0 {
-		return "", domain.ErrInvalidId
+		return "", domain.ErrInvalidInput
 	}
 	name, err := s.store.GetStoreById(ctx, id)
 	if err != nil {
@@ -33,7 +33,7 @@ func (s *Service) GetStoreById(ctx context.Context, id int) (string, error) {
 
 func (s *Service) DeleteStore(ctx context.Context, id int) error {
 	if id <= 0 {
-		return domain.ErrInvalidId
+		return domain.ErrInvalidInput
 	}
 	if err := s.store.DeleteStore(ctx, id); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {

@@ -21,31 +21,11 @@ func main() {
 
 	st := storage.NewStorage(pool)
 	orderRepo := storage.NewOrderRepo()
+	orderItemRepo := storage.NewOrderItemRepo()
 	storeRepo := storage.NewStoreRepo(st)
-	svc := service.NewService(st, orderRepo, storeRepo)
-	mux := http.NewServeMux()
+	svc := service.NewService(st, orderRepo, orderItemRepo, storeRepo)
 
-	mux.Handle("/stores/delete", handler.DeleteStoreHandler(svc))
-	mux.Handle("/stores/get", handler.GetStoreHandler(svc))
-	mux.Handle("/stores", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			handler.CreateStoreHandler(svc).ServeHTTP(w, r)
-		case http.MethodGet:
-			handler.ListStoreHandler(svc).ServeHTTP(w, r)
-		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-	}))
-
-	mux.Handle("/orders", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			handler.CreateOrderHandler(svc).ServeHTTP(w, r)
-		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-	}))
+	mux := handler.NewRouter(svc)
 
 	server := http.Server{
 		Addr:    ":8080",
