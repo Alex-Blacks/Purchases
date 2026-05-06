@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/Alex-Blacks/Purchases/internal/bd/storage"
-	"github.com/Alex-Blacks/Purchases/internal/handler"
 	"github.com/Alex-Blacks/Purchases/internal/service"
+	"github.com/Alex-Blacks/Purchases/internal/transport/handler"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -20,8 +20,8 @@ func main() {
 	defer pool.Close()
 
 	st := storage.NewStorage(pool)
-	orderRepo := storage.NewOrderRepo()
-	orderItemRepo := storage.NewOrderItemRepo()
+	orderRepo := storage.NewOrderRepo(st)
+	orderItemRepo := storage.NewOrderItemRepo(st)
 	storeRepo := storage.NewStoreRepo(st)
 	svc := service.NewService(st, orderRepo, orderItemRepo, storeRepo)
 

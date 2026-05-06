@@ -11,7 +11,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 	routOrder.Post("/orders/", CreateOrderHandler(svc))
 	routOrder.Get("/orders/", GetOrderHandler(svc))
 	routOrder.Delete("/orders/", DeleteOrderHandler(svc))
-	routOrder.Post("/orders/list/", ListOrdersHandler(svc))
+	routOrder.Get("/orders/list/", ListOrdersHandler(svc))
 
 	return routOrder
 }

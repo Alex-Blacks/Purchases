@@ -10,16 +10,26 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type OrderRepo struct{}
-
-func NewOrderRepo() *OrderRepo {
-	return &OrderRepo{}
+type OrderRepo struct {
+	st *Storage
 }
 
-type OrderItemRepo struct{}
+func NewOrderRepo(st *Storage) *OrderRepo {
+	if st == nil {
+		panic("storage is nil")
+	}
+	return &OrderRepo{st: st}
+}
 
-func NewOrderItemRepo() *OrderItemRepo {
-	return &OrderItemRepo{}
+type OrderItemRepo struct {
+	st *Storage
+}
+
+func NewOrderItemRepo(st *Storage) *OrderItemRepo {
+	if st == nil {
+		panic("storage is nil")
+	}
+	return &OrderItemRepo{st: st}
 }
 
 func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Querier, userID, storeID int) (int, error) {
