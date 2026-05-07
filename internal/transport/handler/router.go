@@ -12,20 +12,38 @@ import (
 func NewRouter(svc *service.Service) *chi.Mux {
 	router := chi.NewRouter()
 
+	logger := pkg.NewLogger()
+
 	router.Use(middleware.RequestIDMiddleware)
 	router.Use(func(next http.Handler) http.Handler {
-		return middleware.LoggingMiddleware(next, pkg.NewLogger())
+		return middleware.LoggingMiddleware(next, logger)
 	})
 
-	router.Post("/stores", CreateStoreHandler(svc))
-	router.Get("/stores", GetStoreHandler(svc))
-	router.Delete("/stores", DeleteStoreHandler(svc))
-	router.Get("/stores/list", ListStoresHandler(svc))
+	// Stores
+	router.Route("/stores", func(r chi.Router) {
+		r.Post("/", CreateStoreHandler(svc))
+		r.Get("/", ListStoresHandler(svc))
 
-	router.Post("/orders", CreateOrderHandler(svc))
-	router.Get("/orders", GetOrderHandler(svc))
-	router.Delete("/orders", DeleteOrderHandler(svc))
-	router.Get("/orders/list", ListOrdersHandler(svc))
+		r.Get("/{storeId}", GetStoreHandler(svc))
+		r.Delete("/{storeId}", DeleteStoreHandler(svc))
+	})
+
+	// Orders
+	router.Route("/orders", func(r chi.Router) {
+		r.Post("/", CreateOrderHandler(svc))
+		r.Get("/", ListOrdersHandler(svc))
+
+		r.Get("/{orderId}", GetOrderHandler(svc))
+		r.Delete("/{orderId}", DeleteOrderHandler(svc))
+
+		// Order Items
+		r.Route("/{orderId}/items", func(r chi.Router) {
+			r.Post("/", AddItemHandler(svc))
+
+			r.Put("/{productId}", UpdateItemHandler(svc))
+			r.Delete("/{productId}", DeleteItemHandler(svc))
+		})
+	})
 
 	return router
 }

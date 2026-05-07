@@ -2,154 +2,149 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
-	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/pkg"
 )
 
 func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
-		logger.Info("started http handler orders create")
 
-		w.Header().Set("Content-Type", "application/json")
-		var req struct {
-			UserID  int `json:"userid"`
-			StoreID int `json:"storeid"`
-		}
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		defer r.Body.Close()
+
+		var req struct {
+			UserID  int `json:"userId"`
+			StoreID int `json:"storeId"`
+		}
+
 		dec := json.NewDecoder(r.Body)
 		dec.DisallowUnknownFields()
 
 		if err := dec.Decode(&req); err != nil {
-			logger.Error("decode failed", "error", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			logger.Info("decoding failed", "error", err)
+			http.Error(w, "bad request: invalid JSON", http.StatusBadRequest)
 			return
 		}
 
-		type res struct {
-			ID int `json:"id"`
+		if req.UserID <= 0 || req.StoreID <= 0 {
+			logger.Info("invalid input", "userId", req.UserID, "storeId", req.StoreID)
+			http.Error(w, "invalid input: IDs must be > 0", http.StatusBadRequest)
+			return
 		}
 
 		orderID, err := svc.CreateOrder(r.Context(), req.UserID, req.StoreID)
 		if err != nil {
-			if errors.Is(err, domain.ErrAlreadyExists) {
-				logger.Error("already exists", "error", err)
-				w.WriteHeader(http.StatusConflict)
-				_ = json.NewEncoder(w).Encode(res{
-					ID: orderID,
-				})
-				return
-			}
-			logger.Error("create failed", "error", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			domainErrResponse(w, err, logger, map[string]any{
+				"userId":  req.UserID,
+				"storeId": req.StoreID,
+			})
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-
-		if err := json.NewEncoder(w).Encode(&res{
-			ID: orderID,
-		}); err != nil {
-			logger.Error("encoding failed", "error", err)
-			http.Error(w, "error encoding", http.StatusInternalServerError)
-			return
+		if err := json.NewEncoder(w).Encode(map[string]int{"id": orderID}); err != nil {
+			logger.Error("encoding response failed", "error", err)
 		}
-	})
+	}
 }
 
 func GetOrderHandler(svc *service.Service) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
+
+		userID, ok := getIntQuery(w, r, "userId", logger)
+		if !ok {
+			return
+		}
+		orderID, ok := getIntQuery(w, r, "orderId", logger)
+		if !ok {
+			return
+		}
+
+		if userID <= 0 || orderID <= 0 {
+			logger.Info("invalid input", "userId", userID, "orderId", orderID)
+			http.Error(w, "invalid input: IDs must be > 0", http.StatusBadRequest)
+			return
+		}
+
+		order, err := svc.GetOrder(r.Context(), userID, orderID)
+		if err != nil {
+			domainErrResponse(w, err, logger, map[string]any{
+				"userId":  userID,
+				"orderId": orderID,
+			})
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-
-		UserID, err := parseIntQuery(r, "userid")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		OrderID, err := parseIntQuery(r, "orderid")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		order, err := svc.GetOrder(r.Context(), UserID, OrderID)
-		if err != nil {
-			switch {
-			case errors.Is(err, domain.ErrNotFound):
-				http.Error(w, err.Error(), http.StatusNotFound)
-				return
-			case errors.Is(err, domain.ErrInvalidInput):
-				http.Error(w, "invalid input", http.StatusBadRequest)
-				return
-			default:
-				logger.Error("get failed", "error", err)
-				http.Error(w, "internal server error", http.StatusInternalServerError)
-				return
-			}
-		}
-
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(ToResponse(order)); err != nil {
-			http.Error(w, "error encoding", http.StatusInternalServerError)
-			return
+			logger.Error("encoding response failed", "error", err)
 		}
-	})
+	}
 }
 
 func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
-		UserID, err := parseIntQuery(r, "userid")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+
+		userID, ok := getIntQuery(w, r, "userId", logger)
+		if !ok {
+			return
+		}
+		orderID, ok := getIntQuery(w, r, "orderId", logger)
+		if !ok {
 			return
 		}
 
-		OrderID, err := parseIntQuery(r, "orderid")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		if userID <= 0 || orderID <= 0 {
+			logger.Info("invalid input", "userId", userID, "orderId", orderID)
+			http.Error(w, "invalid input: IDs must be > 0", http.StatusBadRequest)
 			return
 		}
 
-		if err := svc.DeleteOrder(r.Context(), UserID, OrderID); err != nil {
-			if errors.Is(err, domain.ErrNotFound) {
-				http.Error(w, "not found", http.StatusNotFound)
-				return
-			}
-			logger.Error("delete failed", "error", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+		if err := svc.DeleteOrder(r.Context(), userID, orderID); err != nil {
+			domainErrResponse(w, err, logger, map[string]any{
+				"userId":  userID,
+				"orderId": orderID,
+			})
 			return
 		}
 
 		w.WriteHeader(http.StatusNoContent)
-	})
+	}
 }
 
 func ListOrdersHandler(svc *service.Service) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger := pkg.LoggerFromContext(r.Context())
+
+		userID, ok := getIntQuery(w, r, "userId", logger)
+		if !ok {
+			return
+		}
+		if userID <= 0 {
+			logger.Info("invalid input", "userId", userID)
+			http.Error(w, "invalid input: ID must be > 0", http.StatusBadRequest)
+			return
+		}
+
+		orders, err := svc.ListOrders(r.Context(), userID)
+		if err != nil {
+			domainErrResponse(w, err, logger, map[string]any{
+				"userId": userID,
+			})
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-
-		UserID, err := parseIntQuery(r, "userid")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(orders); err != nil {
+			logger.Error("encoding response failed", "error", err)
 		}
-
-		order, err := svc.ListOrders(r.Context(), UserID)
-		if err != nil {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		if err := json.NewEncoder(w).Encode(order); err != nil {
-			http.Error(w, "error encoding", http.StatusInternalServerError)
-			return
-		}
-	})
+	}
 }

@@ -25,14 +25,14 @@ create table products(
     title varchar(50) not null,
     unit product_unit not null,
     category_id integer not null,
-    foreign key(category_id) references categories(id)
+    foreign key(category_id) references categories(id) on delete set null
 );
 
 create table product_aliases(
     id integer generated always as identity primary key,
     product_id integer not null,
     alias varchar(50) not null,
-    foreign key(product_id) references products(id)
+    foreign key(product_id) references products(id) on delete cascade
 );
 
 create table stores(
@@ -46,8 +46,8 @@ create table orders(
     store_id integer unique not null,
     created_at timestamptz default now(),
     updated_at timestamptz default now(),
-    foreign key(user_id) references users(id),
-    foreign key(store_id) references stores(id)
+    foreign key(user_id) references users(id) on delete cascade,
+    foreign key(store_id) references stores(id) on delete set null
 );
 
 create table order_items(
@@ -55,8 +55,8 @@ create table order_items(
     order_id integer not null,
     product_id integer not null,
     quantity integer check (quantity > 0) default 1,
-    foreign key(order_id) references orders(id),
-    foreign key(product_id) references products(id)
+    foreign key(order_id) references orders(id) on delete cascade,
+    foreign key(product_id) references products(id) on delete set null
 );
 
 
@@ -68,8 +68,8 @@ create table purchases(
     total_sum numeric(10,2) check (total_sum > 0) not null,
     purchased_at timestamptz default now(),
     raw_qr varchar(100) not null,
-    foreign key(user_id) references users(id),
-    foreign key(store_id) references stores(id)
+    foreign key(user_id) references users(id) on delete cascade,
+    foreign key(store_id) references stores(id) on delete set null
 );
 
 
@@ -81,6 +81,6 @@ create table purchase_items(
     product_id integer null,
     quantity integer check (quantity > 0) default 1,
     price numeric(10,2) check (price > 0) not null,
-    foreign key(purchase_id) references purchases(id),
+    foreign key(purchase_id) references purchases(id) on delete cascade,
     foreign key(product_id) references products(id) on delete set null
 );

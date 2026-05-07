@@ -25,9 +25,6 @@ func (s *Service) GetOrder(ctx context.Context, userID, orderID int) (domain.Ord
 
 func (s *Service) DeleteOrder(ctx context.Context, userID, orderID int) error {
 	return s.WithTx(ctx, func(q domain.Querier) error {
-		if err := s.item.ClearOrder(ctx, q, orderID); err != nil {
-			return err
-		}
 		return s.order.DeleteOrder(ctx, q, userID, orderID)
 	})
 }
@@ -36,32 +33,20 @@ func (s *Service) ListOrders(ctx context.Context, userID int) ([]domain.OrderDTO
 	return s.order.ListOrders(ctx, s.storage, userID)
 }
 
-func (s *Service) AddItem(ctx context.Context, orderID, productID, qty int) error {
-	if qty <= 0 {
-		return domain.ErrInvalidInput
-	}
+func (s *Service) AddItem(ctx context.Context, orderID, productID, quantity int) error {
 	return s.WithTx(ctx, func(q domain.Querier) error {
-		return s.item.AddItem(ctx, q, orderID, productID, qty)
+		return s.item.AddItem(ctx, q, orderID, productID, quantity)
 	})
 }
 
-func (s *Service) UpdateItem(ctx context.Context, orderID, productID, qty int) error {
-	if qty <= 0 {
-		return domain.ErrInvalidInput
-	}
+func (s *Service) UpdateItem(ctx context.Context, orderID, productID, quantity int) error {
 	return s.WithTx(ctx, func(q domain.Querier) error {
-		return s.item.UpdateItem(ctx, q, orderID, productID, qty)
+		return s.item.UpdateItem(ctx, q, orderID, productID, quantity)
 	})
 }
 
 func (s *Service) DeleteItem(ctx context.Context, orderID, productID int) error {
 	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.item.DeleteItem(ctx, q, orderID, productID)
-	})
-}
-
-func (s *Service) ClearOrder(ctx context.Context, orderID int) error {
-	return s.WithTx(ctx, func(q domain.Querier) error {
-		return s.item.ClearOrder(ctx, q, orderID)
 	})
 }

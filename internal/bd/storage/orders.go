@@ -64,7 +64,7 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orde
 	}
 
 	rowsItems, err := q.Query(ctx, `
-		SELECT order_items.id, products.title, order_items.count 
+		SELECT order_items.id, products.title, order_items.quantity 
 		FROM order_items 
 		JOIN orders ON order_items.order_id = orders.id 
 		JOIN products ON order_items.product_id = products.id
@@ -114,7 +114,7 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 	rows, err := q.Query(ctx, `
 		SELECT 
 			o.id, u.name, s.name, o.created_at, o.updated_at, 
-			COUNT(oi.id) AS items_count
+			COUNT(oi.id) AS items_quantity
 		FROM orders o
 		JOIN users u ON o.user_id = u.id
 		JOIN stores s ON o.store_id = s.id
@@ -144,20 +144,20 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 	return lists, nil
 }
 
-func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, productID, qty int) error {
-	if _, err := q.Exec(ctx, `INSERT INTO order_items(order_id, product_id, quantity) VALUES ($1,$2,$3)`, orderID, productID, qty); err != nil {
+func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) error {
+	if _, err := q.Exec(ctx, `INSERT INTO order_items(order_id, product_id, quantity) VALUES ($1,$2,$3)`, orderID, productID, quantity); err != nil {
 		return fmt.Errorf("Error add item: %w", err)
 	}
 
 	return nil
 }
 
-func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderID, productID, qty int) error {
+func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) error {
 	tag, err := q.Exec(ctx, `
 		UPDATE order_items o
-		SET o.quantity = $1
+		SET quantity = $1
 		WHERE o.order_id = $2 AND o.product_id = $3
-	`, qty, orderID, productID)
+	`, quantity, orderID, productID)
 	if err != nil {
 		return fmt.Errorf("Error update item: %w", err)
 	}
@@ -177,15 +177,6 @@ func (r *OrderItemRepo) DeleteItem(ctx context.Context, q domain.Querier, orderI
 
 	if tag.RowsAffected() == 0 {
 		return domain.ErrNotFound
-	}
-
-	return nil
-}
-
-func (r *OrderItemRepo) ClearOrder(ctx context.Context, q domain.Querier, orderID int) error {
-	_, err := q.Exec(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1`, orderID)
-	if err != nil {
-		return fmt.Errorf("Error delete items order: %w", err)
 	}
 
 	return nil

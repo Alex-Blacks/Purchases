@@ -61,7 +61,6 @@ type OrderItemRepository interface {
 	AddItem(ctx context.Context, q Querier, orderID, productID int, qty int) error
 	UpdateItem(ctx context.Context, q Querier, orderID, productID int, qty int) error
 	DeleteItem(ctx context.Context, q Querier, orderID, productID int) error
-	ClearOrder(ctx context.Context, q Querier, orderID int) error
 }
 
 type Querier interface {
