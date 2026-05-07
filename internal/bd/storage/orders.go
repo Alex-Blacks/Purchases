@@ -64,7 +64,7 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orde
 	}
 
 	rowsItems, err := q.Query(ctx, `
-		SELECT order_items.id, products.name, order_items.quantity 
+		SELECT order_items.id, products.title, order_items.count 
 		FROM order_items 
 		JOIN orders ON order_items.order_id = orders.id 
 		JOIN products ON order_items.product_id = products.id
@@ -125,6 +125,7 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 	if err != nil {
 		return nil, fmt.Errorf("Error query order: %w", err)
 	}
+	defer rows.Close()
 
 	var lists []domain.OrderDTO
 	for rows.Next() {

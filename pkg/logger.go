@@ -3,14 +3,13 @@ package pkg
 import (
 	"context"
 	"log/slog"
+	"os"
 )
 
-type Loger struct {
-	log *slog.Logger
-}
-
-func NewLoger(log *slog.Logger) *Loger {
-	return &Loger{log: log}
+func NewLogger() *slog.Logger {
+	return slog.New(
+		slog.NewJSONHandler(os.Stdout, nil),
+	)
 }
 
 type loggerKeyType struct{}

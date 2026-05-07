@@ -10,7 +10,7 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/service"
 )
 
-func CreateStoreHandler(svc *service.Service) http.Handler {
+func CreateStoreHandler(svc *service.Service) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		var req struct {
@@ -41,7 +41,7 @@ func CreateStoreHandler(svc *service.Service) http.Handler {
 	})
 }
 
-func GetStoreHandler(svc *service.Service) http.Handler {
+func GetStoreHandler(svc *service.Service) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		string_id := r.URL.Query().Get("id")
 		id, err := strconv.Atoi(string_id)
@@ -69,7 +69,7 @@ func GetStoreHandler(svc *service.Service) http.Handler {
 	})
 }
 
-func DeleteStoreHandler(svc *service.Service) http.Handler {
+func DeleteStoreHandler(svc *service.Service) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		string_id := r.URL.Query().Get("id")
 		id, err := strconv.Atoi(string_id)
@@ -96,7 +96,7 @@ func DeleteStoreHandler(svc *service.Service) http.Handler {
 	})
 }
 
-func ListStoreHandler(svc *service.Service) http.Handler {
+func ListStoresHandler(svc *service.Service) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		list, err := svc.ListStore(r.Context())
 		if err != nil {

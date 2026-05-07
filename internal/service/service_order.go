@@ -25,6 +25,9 @@ func (s *Service) GetOrder(ctx context.Context, userID, orderID int) (domain.Ord
 
 func (s *Service) DeleteOrder(ctx context.Context, userID, orderID int) error {
 	return s.WithTx(ctx, func(q domain.Querier) error {
+		if err := s.item.ClearOrder(ctx, q, orderID); err != nil {
+			return err
+		}
 		return s.order.DeleteOrder(ctx, q, userID, orderID)
 	})
 }

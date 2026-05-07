@@ -7,10 +7,14 @@ import (
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/service"
+	"github.com/Alex-Blacks/Purchases/pkg"
 )
 
 func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := pkg.LoggerFromContext(r.Context())
+		logger.Info("started http handler orders create")
+
 		w.Header().Set("Content-Type", "application/json")
 		var req struct {
 			UserID  int `json:"userid"`
@@ -19,13 +23,10 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		dec := json.NewDecoder(r.Body)
 		dec.DisallowUnknownFields()
-		if dec.More() {
-			http.Error(w, "bad request", http.StatusBadRequest)
-			return
-		}
 
 		if err := dec.Decode(&req); err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			logger.Error("decode failed", "error", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -36,12 +37,14 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 		orderID, err := svc.CreateOrder(r.Context(), req.UserID, req.StoreID)
 		if err != nil {
 			if errors.Is(err, domain.ErrAlreadyExists) {
+				logger.Error("already exists", "error", err)
 				w.WriteHeader(http.StatusConflict)
 				_ = json.NewEncoder(w).Encode(res{
 					ID: orderID,
 				})
 				return
 			}
+			logger.Error("create failed", "error", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
@@ -51,6 +54,7 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 		if err := json.NewEncoder(w).Encode(&res{
 			ID: orderID,
 		}); err != nil {
+			logger.Error("encoding failed", "error", err)
 			http.Error(w, "error encoding", http.StatusInternalServerError)
 			return
 		}
@@ -59,6 +63,7 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 
 func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := pkg.LoggerFromContext(r.Context())
 		w.Header().Set("Content-Type", "application/json")
 
 		UserID, err := parseIntQuery(r, "userid")
@@ -83,6 +88,7 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 				http.Error(w, "invalid input", http.StatusBadRequest)
 				return
 			default:
+				logger.Error("get failed", "error", err)
 				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
@@ -98,6 +104,7 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 
 func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := pkg.LoggerFromContext(r.Context())
 		UserID, err := parseIntQuery(r, "userid")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -115,6 +122,7 @@ func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
 				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
+			logger.Error("delete failed", "error", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
