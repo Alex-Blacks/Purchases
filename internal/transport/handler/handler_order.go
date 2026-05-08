@@ -12,33 +12,30 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-		defer r.Body.Close()
+		userID, ok := getIntParam(w, r, "userId", logger)
+		if !ok {
+			return
+		}
 
 		var req struct {
-			UserID  int `json:"userId"`
 			StoreID int `json:"storeId"`
 		}
 
-		dec := json.NewDecoder(r.Body)
-		dec.DisallowUnknownFields()
-
-		if err := dec.Decode(&req); err != nil {
-			logger.Info("decoding failed", "error", err)
-			http.Error(w, "bad request: invalid JSON", http.StatusBadRequest)
+		if !decodeHelper(w, r, logger, &req) {
 			return
 		}
 
-		if req.UserID <= 0 || req.StoreID <= 0 {
-			logger.Info("invalid input", "userId", req.UserID, "storeId", req.StoreID)
-			http.Error(w, "invalid input: IDs must be > 0", http.StatusBadRequest)
+		if !validatePositiveInt(w, "userId", userID, logger) {
+			return
+		}
+		if !validatePositiveInt(w, "storeId", req.StoreID, logger) {
 			return
 		}
 
-		orderID, err := svc.CreateOrder(r.Context(), req.UserID, req.StoreID)
+		orderID, err := svc.CreateOrder(r.Context(), userID, req.StoreID)
 		if err != nil {
 			domainErrResponse(w, err, logger, map[string]any{
-				"userId":  req.UserID,
+				"userId":  userID,
 				"storeId": req.StoreID,
 			})
 			return
@@ -56,18 +53,19 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		userID, ok := getIntQuery(w, r, "userId", logger)
+		userID, ok := getIntParam(w, r, "userId", logger)
 		if !ok {
 			return
 		}
-		orderID, ok := getIntQuery(w, r, "orderId", logger)
+		orderID, ok := getIntParam(w, r, "orderId", logger)
 		if !ok {
 			return
 		}
 
-		if userID <= 0 || orderID <= 0 {
-			logger.Info("invalid input", "userId", userID, "orderId", orderID)
-			http.Error(w, "invalid input: IDs must be > 0", http.StatusBadRequest)
+		if !validatePositiveInt(w, "userId", userID, logger) {
+			return
+		}
+		if !validatePositiveInt(w, "orderId", orderID, logger) {
 			return
 		}
 
@@ -92,18 +90,19 @@ func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		userID, ok := getIntQuery(w, r, "userId", logger)
+		userID, ok := getIntParam(w, r, "userId", logger)
 		if !ok {
 			return
 		}
-		orderID, ok := getIntQuery(w, r, "orderId", logger)
+		orderID, ok := getIntParam(w, r, "orderId", logger)
 		if !ok {
 			return
 		}
 
-		if userID <= 0 || orderID <= 0 {
-			logger.Info("invalid input", "userId", userID, "orderId", orderID)
-			http.Error(w, "invalid input: IDs must be > 0", http.StatusBadRequest)
+		if !validatePositiveInt(w, "userId", userID, logger) {
+			return
+		}
+		if !validatePositiveInt(w, "orderId", orderID, logger) {
 			return
 		}
 
@@ -123,13 +122,11 @@ func ListOrdersHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		userID, ok := getIntQuery(w, r, "userId", logger)
+		userID, ok := getIntParam(w, r, "userId", logger)
 		if !ok {
 			return
 		}
-		if userID <= 0 {
-			logger.Info("invalid input", "userId", userID)
-			http.Error(w, "invalid input: ID must be > 0", http.StatusBadRequest)
+		if !validatePositiveInt(w, "userId", userID, logger) {
 			return
 		}
 

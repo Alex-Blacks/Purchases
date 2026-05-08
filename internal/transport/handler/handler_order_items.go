@@ -12,33 +12,33 @@ func AddItemHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-		defer r.Body.Close()
+		orderID, ok := getIntParam(w, r, "orderId", logger)
+		if !ok {
+			return
+		}
 
 		var req struct {
-			OrderID   int `json:"orderId"`
 			ProductID int `json:"productId"`
 			Quantity  int `json:"quantity"`
 		}
 
-		dec := json.NewDecoder(r.Body)
-		dec.DisallowUnknownFields()
-
-		if err := dec.Decode(&req); err != nil {
-			logger.Info("decoding failed", "error", err)
-			http.Error(w, "bad request: invalid JSON", http.StatusBadRequest)
+		if !decodeHelper(w, r, logger, &req) {
 			return
 		}
 
-		if req.OrderID <= 0 || req.ProductID <= 0 || req.Quantity <= 0 {
-			logger.Info("invalid input", "orderId", req.OrderID, "productId", req.ProductID, "quantity", req.Quantity)
-			http.Error(w, "invalid input: IDs and quantity must be > 0", http.StatusBadRequest)
+		if !validatePositiveInt(w, "orderId", orderID, logger) {
+			return
+		}
+		if !validatePositiveInt(w, "productId", req.ProductID, logger) {
+			return
+		}
+		if !validatePositiveInt(w, "quantity", req.Quantity, logger) {
 			return
 		}
 
-		if err := svc.AddItem(r.Context(), req.OrderID, req.ProductID, req.Quantity); err != nil {
+		if err := svc.AddItem(r.Context(), orderID, req.ProductID, req.Quantity); err != nil {
 			domainErrResponse(w, err, logger, map[string]any{
-				"orderId":   req.OrderID,
+				"orderId":   orderID,
 				"productId": req.ProductID,
 				"quantity":  req.Quantity,
 			})
@@ -59,34 +59,37 @@ func UpdateItemHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-		defer r.Body.Close()
+		orderID, ok := getIntParam(w, r, "orderId", logger)
+		if !ok {
+			return
+		}
+		productID, ok := getIntParam(w, r, "productId", logger)
+		if !ok {
+			return
+		}
 
 		var req struct {
-			OrderID   int `json:"orderId"`
-			ProductID int `json:"productId"`
-			Quantity  int `json:"quantity"`
+			Quantity int `json:"quantity"`
 		}
 
-		dec := json.NewDecoder(r.Body)
-		dec.DisallowUnknownFields()
-
-		if err := dec.Decode(&req); err != nil {
-			logger.Info("decoding failed", "error", err)
-			http.Error(w, "bad request: invalid JSON", http.StatusBadRequest)
+		if !decodeHelper(w, r, logger, &req) {
 			return
 		}
 
-		if req.OrderID <= 0 || req.ProductID <= 0 || req.Quantity <= 0 {
-			logger.Info("invalid input", "orderId", req.OrderID, "productId", req.ProductID, "quantity", req.Quantity)
-			http.Error(w, "invalid input: IDs and quantity must be > 0", http.StatusBadRequest)
+		if !validatePositiveInt(w, "orderId", orderID, logger) {
+			return
+		}
+		if !validatePositiveInt(w, "productId", productID, logger) {
+			return
+		}
+		if !validatePositiveInt(w, "quantity", req.Quantity, logger) {
 			return
 		}
 
-		if err := svc.UpdateItem(r.Context(), req.OrderID, req.ProductID, req.Quantity); err != nil {
+		if err := svc.UpdateItem(r.Context(), orderID, productID, req.Quantity); err != nil {
 			domainErrResponse(w, err, logger, map[string]any{
-				"orderId":   req.OrderID,
-				"productId": req.ProductID,
+				"orderId":   orderID,
+				"productId": productID,
 				"quantity":  req.Quantity,
 			})
 			return
@@ -105,20 +108,22 @@ func DeleteItemHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		orderID, ok := getIntQuery(w, r, "orderId", logger)
+		orderID, ok := getIntParam(w, r, "orderId", logger)
 		if !ok {
 			return
 		}
-		productID, ok := getIntQuery(w, r, "productId", logger)
+		productID, ok := getIntParam(w, r, "productId", logger)
 		if !ok {
 			return
 		}
 
-		if orderID <= 0 || productID <= 0 {
-			logger.Info("invalid input", "orderId", orderID, "productId", productID)
-			http.Error(w, "invalid input: IDs must be > 0", http.StatusBadRequest)
+		if !validatePositiveInt(w, "orderId", orderID, logger) {
 			return
 		}
+		if !validatePositiveInt(w, "productId", productID, logger) {
+			return
+		}
+
 		if err := svc.DeleteItem(r.Context(), orderID, productID); err != nil {
 			domainErrResponse(w, err, logger, map[string]any{
 				"orderId":   orderID,

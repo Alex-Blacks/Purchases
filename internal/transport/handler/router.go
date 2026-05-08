@@ -29,14 +29,13 @@ func NewRouter(svc *service.Service) *chi.Mux {
 	})
 
 	// Orders
-	router.Route("/orders", func(r chi.Router) {
+	router.Route("/users/{userId}/orders", func(r chi.Router) {
 		r.Post("/", CreateOrderHandler(svc))
 		r.Get("/", ListOrdersHandler(svc))
 
 		r.Get("/{orderId}", GetOrderHandler(svc))
 		r.Delete("/{orderId}", DeleteOrderHandler(svc))
 
-		// Order Items
 		r.Route("/{orderId}/items", func(r chi.Router) {
 			r.Post("/", AddItemHandler(svc))
 
@@ -44,6 +43,5 @@ func NewRouter(svc *service.Service) *chi.Mux {
 			r.Delete("/{productId}", DeleteItemHandler(svc))
 		})
 	})
-
 	return router
 }
