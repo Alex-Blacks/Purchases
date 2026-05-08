@@ -9,6 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const pgUniqueViolation = "23505"
+
 type Storage struct {
 	pool *pgxpool.Pool
 }

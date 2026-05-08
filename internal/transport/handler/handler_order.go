@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Alex-Blacks/Purchases/internal/service"
+	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
 	"github.com/Alex-Blacks/Purchases/pkg"
 )
 
@@ -80,7 +81,7 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(ToResponse(order)); err != nil {
+		if err := json.NewEncoder(w).Encode(dto.ToResponseOrder(order)); err != nil {
 			logger.Error("encoding response failed", "error", err)
 		}
 	}

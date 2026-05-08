@@ -19,42 +19,42 @@ type Tx interface {
 	Rollback(ctx context.Context) error
 }
 
-type StoreDTO struct {
-	Id   int
+type Store struct {
+	ID   int
 	Name string
 }
 
-type Store interface {
-	CreateStore(ctx context.Context, name string) error
-	GetStoreById(ctx context.Context, id int) (string, error)
-	DeleteStore(ctx context.Context, id int) error
-	ListStore(ctx context.Context) ([]StoreDTO, error)
+type StoreRepository interface {
+	CreateStore(ctx context.Context, q Querier, name string) (int, error)
+	GetStore(ctx context.Context, q Querier, id int) (Store, error)
+	DeleteStore(ctx context.Context, q Querier, id int) error
+	ListStores(ctx context.Context, q Querier) ([]Store, error)
 }
 
-type OrderDTO struct {
-	Id         int
+type Order struct {
+	ID         int
 	User       string
 	Store      string
 	ItemsCount int
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
-type OrderItemsDTO struct {
-	Id       int
+type OrderItems struct {
+	ID       int
 	Title    string
 	Quantity int
 }
 
-type OrderWithItemsDTO struct {
-	Order OrderDTO
-	Items []OrderItemsDTO
+type OrderWithItems struct {
+	Order Order
+	Items []OrderItems
 }
 
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, q Querier, userID, storeID int) (int, error)
-	GetOrder(ctx context.Context, q Querier, userID, orderID int) (OrderWithItemsDTO, error)
+	GetOrder(ctx context.Context, q Querier, userID, orderID int) (OrderWithItems, error)
 	DeleteOrder(ctx context.Context, q Querier, userID, orderID int) error
-	ListOrders(ctx context.Context, q Querier, userID int) ([]OrderDTO, error)
+	ListOrders(ctx context.Context, q Querier, userID int) ([]Order, error)
 }
 
 type OrderItemRepository interface {

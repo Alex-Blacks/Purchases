@@ -2,94 +2,99 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
-	"strconv"
+	"strings"
 
-	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/service"
+	"github.com/Alex-Blacks/Purchases/pkg"
 )
 
 func CreateStoreHandler(svc *service.Service) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger := pkg.LoggerFromContext(r.Context())
+
 		var req struct {
 			Name string `json:"name"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+		if !decodeHelper(w, r, logger, &req) {
+			return
+		}
+		if strings.TrimSpace(req.Name) == "" {
+			logger.Info("empty name")
+			http.Error(w, "empty name", http.StatusBadRequest)
 			return
 		}
 
-		ctx := r.Context()
-
-		if err := svc.CreateStore(ctx, req.Name); err != nil {
-			if errors.Is(err, domain.ErrEmptyName) {
-				http.Error(w, domain.ErrEmptyName.Error(), http.StatusBadRequest)
-				return
-			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		storeID, err := svc.CreateStore(r.Context(), req.Name)
+		if err != nil {
+			domainErrResponse(w, err, logger, map[string]any{
+				"name": req.Name,
+			})
 			return
 		}
-
+		type res struct {
+			StoreID int    `json:"storeId"`
+			Name    string `json:"name"`
+		}
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]string{"status": "created"}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		w.WriteHeader(http.StatusCreated)
+
+		if err := json.NewEncoder(w).Encode(res{
+			StoreID: storeID,
+			Name:    req.Name,
+		}); err != nil {
+			logger.Error("encoding response failed", "error", err)
 		}
-	})
+	}
 }
 
 func GetStoreHandler(svc *service.Service) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		string_id := r.URL.Query().Get("id")
-		id, err := strconv.Atoi(string_id)
-		if err != nil {
-			http.Error(w, domain.ErrInvalidInput.Error(), http.StatusBadRequest)
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger := pkg.LoggerFromContext(r.Context())
+
+		storeID, ok := getIntParam(w, r, "storeId", logger)
+		if !ok {
 			return
 		}
-		ctx := r.Context()
-		name, err := svc.GetStoreById(ctx, id)
+		if !validatePositiveInt(w, "storeId", storeID, logger) {
+			return
+		}
+
+		store, err := svc.GetStore(r.Context(), storeID)
 		if err != nil {
-			if errors.Is(err, domain.ErrInvalidInput) {
-				http.Error(w, domain.ErrInvalidInput.Error(), http.StatusBadRequest)
-				return
-			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			domainErrResponse(w, err, logger, map[string]any{
+				"storeId": storeID,
+			})
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if err = json.NewEncoder(w).Encode(map[string]string{"Name Store": name}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		w.WriteHeader(http.StatusOK)
+		if err = json.NewEncoder(w).Encode(store); err != nil {
+			logger.Error("encoding response failed", "error", err)
 		}
 
-	})
+	}
 }
 
 func DeleteStoreHandler(svc *service.Service) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		string_id := r.URL.Query().Get("id")
-		id, err := strconv.Atoi(string_id)
-		if err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+		logger := pkg.LoggerFromContext(r.Context())
+
+		storeID, ok := getIntParam(w, r, "storeId", logger)
+		if !ok {
+			return
+		}
+		if !validatePositiveInt(w, "storeId", storeID, logger) {
 			return
 		}
 
-		if err := svc.DeleteStore(r.Context(), id); err != nil {
-			switch {
-			case errors.Is(err, domain.ErrInvalidInput):
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			case errors.Is(err, domain.ErrNotFound):
-				http.Error(w, err.Error(), http.StatusNotFound)
-				return
-			default:
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+		if err := svc.DeleteStore(r.Context(), storeID); err != nil {
+			domainErrResponse(w, err, logger, map[string]any{
+				"storeId": storeID,
+			})
+			return
 		}
 
 		w.WriteHeader(http.StatusNoContent)
@@ -98,16 +103,17 @@ func DeleteStoreHandler(svc *service.Service) http.HandlerFunc {
 
 func ListStoresHandler(svc *service.Service) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		list, err := svc.ListStore(r.Context())
+		logger := pkg.LoggerFromContext(r.Context())
+		list, err := svc.ListStores(r.Context())
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			domainErrResponse(w, err, logger, map[string]any{})
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 		if err = json.NewEncoder(w).Encode(list); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			logger.Error("encoding response failed", "error", err)
 		}
 	})
 }

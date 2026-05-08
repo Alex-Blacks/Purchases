@@ -8,10 +8,10 @@ type Service struct {
 	storage domain.Storage
 	order   domain.OrderRepository
 	item    domain.OrderItemRepository
-	store   domain.Store
+	store   domain.StoreRepository
 }
 
-func NewService(storage domain.Storage, order domain.OrderRepository, item domain.OrderItemRepository, store domain.Store) *Service {
+func NewService(storage domain.Storage, order domain.OrderRepository, item domain.OrderItemRepository, store domain.StoreRepository) *Service {
 	return &Service{
 		storage: storage,
 		order:   order,

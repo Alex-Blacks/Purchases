@@ -64,6 +64,12 @@ func domainErrResponse(w http.ResponseWriter, err error, logger *slog.Logger, de
 		if encodeErr := json.NewEncoder(w).Encode(map[string]string{"status": "conflict"}); encodeErr != nil {
 			logger.Error("failed to encode error response", "error", encodeErr)
 		}
+	case errors.Is(err, domain.ErrEmptyName):
+		logger.Info("empty name", "error", err, "details", details)
+		w.WriteHeader(http.StatusBadRequest)
+		if encodeErr := json.NewEncoder(w).Encode(map[string]string{"status": "empty name"}); encodeErr != nil {
+			logger.Error("failed to encode error response", "error", encodeErr)
+		}
 
 	case errors.Is(err, domain.ErrNotFound):
 		logger.Info("not found", "error", err, "details", details)

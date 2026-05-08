@@ -2,54 +2,33 @@ package service
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
 
-func (s *Service) CreateStore(ctx context.Context, name string) error {
-	if name == "" {
-		return domain.ErrEmptyName
-	}
-	if err := s.store.CreateStore(ctx, name); err != nil {
-		return fmt.Errorf("Error created store: %w", err)
+func (s *Service) CreateStore(ctx context.Context, name string) (int, error) {
+	var storeID int
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
+		var err error
+		storeID, err = s.store.CreateStore(ctx, q, name)
+		return err
+	}); err != nil {
+		return 0, err
 	}
 
-	return nil
+	return storeID, nil
 }
 
-func (s *Service) GetStoreById(ctx context.Context, id int) (string, error) {
-	if id <= 0 {
-		return "", domain.ErrInvalidInput
-	}
-	name, err := s.store.GetStoreById(ctx, id)
-	if err != nil {
-		return "", fmt.Errorf("Error get store: %w", err)
-	}
-
-	return name, nil
+func (s *Service) GetStore(ctx context.Context, id int) (domain.Store, error) {
+	return s.store.GetStore(ctx, s.storage, id)
 }
 
 func (s *Service) DeleteStore(ctx context.Context, id int) error {
-	if id <= 0 {
-		return domain.ErrInvalidInput
-	}
-	if err := s.store.DeleteStore(ctx, id); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return err
-		}
-		return fmt.Errorf("Error delete store: %w", err)
-	}
-
-	return nil
+	return s.WithTx(ctx, func(q domain.Querier) error {
+		return s.store.DeleteStore(ctx, q, id)
+	})
 }
 
-func (s *Service) ListStore(ctx context.Context) ([]domain.StoreDTO, error) {
-	list, err := s.store.ListStore(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Error get list stores: %w", err)
-	}
-
-	return list, nil
+func (s *Service) ListStores(ctx context.Context) ([]domain.Store, error) {
+	return s.store.ListStores(ctx, s.storage)
 }

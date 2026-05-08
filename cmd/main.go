@@ -20,9 +20,9 @@ func main() {
 	defer pool.Close()
 
 	st := storage.NewStorage(pool)
-	orderRepo := storage.NewOrderRepo(st)
-	orderItemRepo := storage.NewOrderItemRepo(st)
-	storeRepo := storage.NewStoreRepo(st)
+	orderRepo := storage.NewOrderRepo()
+	orderItemRepo := storage.NewOrderItemRepo()
+	storeRepo := storage.NewStoreRepo()
 	svc := service.NewService(st, orderRepo, orderItemRepo, storeRepo)
 
 	mux := handler.NewRouter(svc)

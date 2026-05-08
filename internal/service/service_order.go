@@ -19,7 +19,7 @@ func (s *Service) CreateOrder(ctx context.Context, userID, storeID int) (int, er
 	return orderID, nil
 }
 
-func (s *Service) GetOrder(ctx context.Context, userID, orderID int) (domain.OrderWithItemsDTO, error) {
+func (s *Service) GetOrder(ctx context.Context, userID, orderID int) (domain.OrderWithItems, error) {
 	return s.order.GetOrder(ctx, s.storage, userID, orderID)
 }
 
@@ -29,7 +29,7 @@ func (s *Service) DeleteOrder(ctx context.Context, userID, orderID int) error {
 	})
 }
 
-func (s *Service) ListOrders(ctx context.Context, userID int) ([]domain.OrderDTO, error) {
+func (s *Service) ListOrders(ctx context.Context, userID int) ([]domain.Order, error) {
 	return s.order.ListOrders(ctx, s.storage, userID)
 }
 
