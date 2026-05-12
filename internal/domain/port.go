@@ -19,6 +19,8 @@ type Tx interface {
 	Rollback(ctx context.Context) error
 }
 
+// ---------------------------------------------------------------------------------------------------------------------------------
+
 type Store struct {
 	ID   int
 	Name string
@@ -31,6 +33,22 @@ type StoreRepository interface {
 	ListStores(ctx context.Context, q Querier) ([]Store, error)
 }
 
+// ---------------------------------------------------------------------------------------------------------------------------------
+
+type Category struct {
+	ID   int
+	Name string
+}
+
+type CategoryRepositoriy interface {
+	CreateCategory(ctx context.Context, q Querier, name string) (int, error)
+	GetCategory(ctx context.Context, q Querier, id int) (Category, error)
+	DeleteCategory(ctx context.Context, q Querier, id int) error
+	ListCategories(ctx context.Context, q Querier) ([]Category, error)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+
 type Order struct {
 	ID         int
 	User       string
@@ -39,15 +57,16 @@ type Order struct {
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
-type OrderItems struct {
-	ID       int
-	Title    string
-	Quantity int
+type OrderItemDetails struct {
+	ID        int
+	ProductID int
+	Title     string
+	Quantity  int
 }
 
 type OrderWithItems struct {
 	Order Order
-	Items []OrderItems
+	Items []OrderItemDetails
 }
 
 type OrderRepository interface {
@@ -58,8 +77,8 @@ type OrderRepository interface {
 }
 
 type OrderItemRepository interface {
-	AddItem(ctx context.Context, q Querier, orderID, productID int, qty int) error
-	UpdateItem(ctx context.Context, q Querier, orderID, productID int, qty int) error
+	AddItem(ctx context.Context, q Querier, orderID, productID int, qty int) (OrderItemDetails, error)
+	UpdateItem(ctx context.Context, q Querier, orderID, productID int, qty int) (OrderItemDetails, error)
 	DeleteItem(ctx context.Context, q Querier, orderID, productID int) error
 }
 
@@ -68,3 +87,5 @@ type Querier interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
+
+//---------------------------------------------------------------------------------------------------------------------------------

@@ -33,16 +33,28 @@ func (s *Service) ListOrders(ctx context.Context, userID int) ([]domain.Order, e
 	return s.order.ListOrders(ctx, s.storage, userID)
 }
 
-func (s *Service) AddItem(ctx context.Context, orderID, productID, quantity int) error {
-	return s.WithTx(ctx, func(q domain.Querier) error {
-		return s.item.AddItem(ctx, q, orderID, productID, quantity)
-	})
+func (s *Service) AddItem(ctx context.Context, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+	var itemID domain.OrderItemDetails
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
+		var err error
+		itemID, err = s.item.AddItem(ctx, q, orderID, productID, quantity)
+		return err
+	}); err != nil {
+		return itemID, err
+	}
+	return itemID, nil
 }
 
-func (s *Service) UpdateItem(ctx context.Context, orderID, productID, quantity int) error {
-	return s.WithTx(ctx, func(q domain.Querier) error {
-		return s.item.UpdateItem(ctx, q, orderID, productID, quantity)
-	})
+func (s *Service) UpdateItem(ctx context.Context, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+	var itemID domain.OrderItemDetails
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
+		var err error
+		itemID, err = s.item.UpdateItem(ctx, q, orderID, productID, quantity)
+		return err
+	}); err != nil {
+		return itemID, err
+	}
+	return itemID, nil
 }
 
 func (s *Service) DeleteItem(ctx context.Context, orderID, productID int) error {

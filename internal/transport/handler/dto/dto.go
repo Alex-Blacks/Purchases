@@ -6,38 +6,67 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
 
+//-------------------------------------------------------------------------------------------------
+
+type StoreRequest struct {
+	Name string `json:"name"`
+}
+
 type StoreResponse struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
 
+//-------------------------------------------------------------------------------------------------
+
+type CategoryRequest struct {
+	Name string `json:"name"`
+}
+
+type CategoryResponse struct {
+	CategoryID int `json:"categoryId"`
+}
+
+//-------------------------------------------------------------------------------------------------
+
+type OrderRequest struct {
+	StoreID int `json:"storeId"`
+}
+
+type OrderCreateResponse struct {
+	ID int `json:"id"`
+}
+
 type OrderResponse struct {
-	ID         int            `json:"id"`
-	User       string         `json:"user"`
-	Store      string         `json:"store"`
-	ItemsCount int            `json:"items_count"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	Items      []ItemResponse `json:"items"`
+	ID         int       `json:"id"`
+	User       string    `json:"user"`
+	Store      string    `json:"store"`
+	ItemsCount int       `json:"itemsCount"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
-type ItemResponse struct {
-	ID       int    `json:"id"`
-	Title    string `json:"title"`
-	Quantity int    `json:"quantity"`
+type OrderDetailsResponse struct {
+	ID         int                   `json:"id"`
+	User       string                `json:"user"`
+	Store      string                `json:"store"`
+	ItemsCount int                   `json:"itemsCount"`
+	CreatedAt  time.Time             `json:"createdAt"`
+	UpdatedAt  time.Time             `json:"updatedAt"`
+	Items      []ItemDetailsResponse `json:"items"`
 }
 
-func ToResponseOrder(o domain.OrderWithItems) OrderResponse {
-	items := make([]ItemResponse, len(o.Items))
+func ToResponseOrder(o domain.OrderWithItems) OrderDetailsResponse {
+	items := make([]ItemDetailsResponse, len(o.Items))
 	for i, it := range o.Items {
-		items[i] = ItemResponse{
-			ID:       it.ID,
-			Title:    it.Title,
-			Quantity: it.Quantity,
+		items[i] = ItemDetailsResponse{
+			ProductID: it.ProductID,
+			Title:     it.Title,
+			Quantity:  it.Quantity,
 		}
 	}
 
-	return OrderResponse{
+	return OrderDetailsResponse{
 		ID:         o.Order.ID,
 		User:       o.Order.User,
 		Store:      o.Order.Store,
@@ -46,4 +75,38 @@ func ToResponseOrder(o domain.OrderWithItems) OrderResponse {
 		UpdatedAt:  o.Order.UpdatedAt,
 		Items:      items,
 	}
+}
+
+func ToOrderListResponse(order []domain.Order) []OrderResponse {
+	resp := make([]OrderResponse, len(order))
+
+	for i, o := range order {
+		resp[i] = OrderResponse{
+			ID:         o.ID,
+			User:       o.User,
+			Store:      o.Store,
+			ItemsCount: o.ItemsCount,
+			CreatedAt:  o.CreatedAt,
+			UpdatedAt:  o.UpdatedAt,
+		}
+	}
+	return resp
+}
+
+//-------------------------------------------------------------------------------------------------
+
+type ItemRequest struct {
+	ProductID int `json:"productId"`
+	Quantity  int `json:"quantity"`
+}
+
+type ItemUpdateRequest struct {
+	Quantity int `json:"quantity"`
+}
+
+type ItemDetailsResponse struct {
+	ID        int    `json:"id"`
+	ProductID int    `json:"productId"`
+	Title     string `json:"title"`
+	Quantity  int    `json:"quantity"`
 }

@@ -1,0 +1,75 @@
+package storage
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/Alex-Blacks/Purchases/internal/domain"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+)
+
+type CategoryRepo struct{}
+
+func NewCategoryRepo() *CategoryRepo {
+	return &CategoryRepo{}
+}
+
+func (c *CategoryRepo) CreateCategory(ctx context.Context, q domain.Querier, name string) (int, error) {
+	var id int
+	if err := q.QueryRow(ctx, `INSERT INTO categories(name) VALUES $1 RETURNING id`, name).Scan(&id); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
+			return 0, domain.ErrAlreadyExists
+		}
+		return 0, fmt.Errorf("create category: %w", err)
+	}
+	return id, nil
+}
+
+func (c CategoryRepo) GetCategory(ctx context.Context, q domain.Querier, id int) (domain.Category, error) {
+	var category domain.Category
+	if err := q.QueryRow(ctx, `SELECT id, name FROM categories WHERE id = $1`, id).Scan(&category.ID, &category.Name); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return category, domain.ErrNotFound
+		}
+		return category, fmt.Errorf("get category: %w", err)
+	}
+	return category, nil
+}
+
+func (c CategoryRepo) DeleteCategory(ctx context.Context, q domain.Querier, id int) error {
+	var categoryID int
+	if err := q.QueryRow(ctx, `DELETE FROM categories WHERE id = $1 RETURNING id`, id).Scan(&categoryID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrNotFound
+		}
+		return fmt.Errorf("delete category: %w", err)
+	}
+	return nil
+}
+
+func (c *CategoryRepo) ListCategories(ctx context.Context, q domain.Querier) ([]domain.Category, error) {
+	rows, err := q.Query(ctx, `SELECT id, name FROM categories`)
+	if err != nil {
+		return nil, fmt.Errorf("query category: %w", err)
+	}
+	defer rows.Close()
+
+	var categories []domain.Category
+	for rows.Next() {
+		var category domain.Category
+
+		if err := rows.Scan(&category.ID, &category.Name); err != nil {
+			return nil, fmt.Errorf("scan category")
+		}
+
+		categories = append(categories, category)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iteracion failed: %w", err)
+	}
+
+	return categories, nil
+}

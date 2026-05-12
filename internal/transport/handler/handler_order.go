@@ -18,9 +18,7 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		var req struct {
-			StoreID int `json:"storeId"`
-		}
+		var req dto.OrderRequest
 
 		if !decodeHelper(w, r, logger, &req) {
 			return
@@ -44,7 +42,7 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		if err := json.NewEncoder(w).Encode(map[string]int{"id": orderID}); err != nil {
+		if err := json.NewEncoder(w).Encode(dto.OrderCreateResponse{ID: orderID}); err != nil {
 			logger.Error("encoding response failed", "error", err)
 		}
 	}
@@ -141,7 +139,7 @@ func ListOrdersHandler(svc *service.Service) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(orders); err != nil {
+		if err := json.NewEncoder(w).Encode(dto.ToOrderListResponse(orders)); err != nil {
 			logger.Error("encoding response failed", "error", err)
 		}
 	}

@@ -39,11 +39,11 @@ func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Querier, userID, s
 func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orderID int) (domain.OrderWithItems, error) {
 	var result domain.OrderWithItems
 	rowsOrder := q.QueryRow(ctx, `
-		SELECT orders.id, users.name, stores.name, orders.created_at, orders.updated_at 
-		FROM orders 
-		JOIN users ON orders.user_id = users.id 
-		JOIN stores ON orders.store_id = stores.id 
-		WHERE orders.user_id = $1 AND orders.id = $2
+		SELECT o.id, u.name, s.name, o.created_at, o.updated_at 
+		FROM orders o
+		JOIN users u ON o.user_id = u.id 
+		JOIN stores s ON o.store_id = s.id 
+		WHERE o.user_id = $1 AND o.id = $2
 	`, userID, orderID)
 
 	var order domain.Order
@@ -55,22 +55,21 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orde
 	}
 
 	rowsItems, err := q.Query(ctx, `
-		SELECT order_items.id, products.title, order_items.quantity 
-		FROM order_items 
-		JOIN orders ON order_items.order_id = orders.id 
-		JOIN products ON order_items.product_id = products.id
-		WHERE order_items.order_id = $1 
+		SELECT oi.id, oi.product_id, p.title, oi.quantity 
+		FROM order_items oi
+		JOIN products p ON oi.product_id = p.id
+		WHERE oi.order_id = $1 
 	`, orderID)
 	if err != nil {
 		return result, fmt.Errorf("get order items: %w", err)
 	}
 	defer rowsItems.Close()
 
-	var items []domain.OrderItems
+	var items []domain.OrderItemDetails
 	for rowsItems.Next() {
-		var item domain.OrderItems
+		var item domain.OrderItemDetails
 
-		if err = rowsItems.Scan(&item.ID, &item.Title, &item.Quantity); err != nil {
+		if err = rowsItems.Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
 			return result, fmt.Errorf("scan rows order items: %w", err)
 		}
 
@@ -135,39 +134,53 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 	return lists, nil
 }
 
-func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) error {
-	if _, err := q.Exec(ctx, `INSERT INTO order_items(order_id, product_id, quantity) VALUES ($1,$2,$3)`, orderID, productID, quantity); err != nil {
-		return fmt.Errorf("add item: %w", err)
+func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+	var item domain.OrderItemDetails
+	if err := q.QueryRow(ctx, `
+		WITH inserted AS (
+			INSERT INTO order_items(order_id, product_id, quantity) 
+			VALUES ($1,$2,$3) 
+			RETURNING id, product_id, quantity
+		)
+		SELECT i.id, i.product_id, u.title, i.quantity
+		FROM inserted i
+		JOIN products p ON i.product_id = p.id 
+	`, orderID, productID, quantity).Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
+		return item, fmt.Errorf("add item: %w", err)
 	}
 
-	return nil
+	return item, nil
 }
 
-func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) error {
-	tag, err := q.Exec(ctx, `
-		UPDATE order_items o
-		SET quantity = $1
-		WHERE o.order_id = $2 AND o.product_id = $3
-	`, quantity, orderID, productID)
-	if err != nil {
-		return fmt.Errorf("update item: %w", err)
+func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+	var item domain.OrderItemDetails
+	if err := q.QueryRow(ctx, `
+		WITH updated AS (
+			UPDATE order_items
+			SET quantity = $1
+			WHERE order_id = $2 AND product_id = $3
+			RETURNING id, product_id, quantity
+		)
+		SELECT u.id, u.product_id, p.title, u.quantity 
+		FROM updated u	
+		JOIN products p ON u.product_id = p.id 
+	`, quantity, orderID, productID).Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return item, domain.ErrNotFound
+		}
+		return item, fmt.Errorf("update item: %w", err)
 	}
 
-	if tag.RowsAffected() == 0 {
-		return domain.ErrNotFound
-	}
-
-	return nil
+	return item, nil
 }
 
 func (r *OrderItemRepo) DeleteItem(ctx context.Context, q domain.Querier, orderID, productID int) error {
-	tag, err := q.Exec(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1 AND order_items.product_id = $2`, orderID, productID)
-	if err != nil {
+	var id int
+	if err := q.QueryRow(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1 AND order_items.product_id = $2 RETURNING id`, orderID, productID).Scan(&id); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrNotFound
+		}
 		return fmt.Errorf("deleted item: %w", err)
-	}
-
-	if tag.RowsAffected() == 0 {
-		return domain.ErrNotFound
 	}
 
 	return nil

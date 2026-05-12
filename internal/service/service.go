@@ -5,17 +5,19 @@ import (
 )
 
 type Service struct {
-	storage domain.Storage
-	order   domain.OrderRepository
-	item    domain.OrderItemRepository
-	store   domain.StoreRepository
+	storage  domain.Storage
+	order    domain.OrderRepository
+	item     domain.OrderItemRepository
+	store    domain.StoreRepository
+	category domain.CategoryRepositoriy
 }
 
-func NewService(storage domain.Storage, order domain.OrderRepository, item domain.OrderItemRepository, store domain.StoreRepository) *Service {
+func NewService(storage domain.Storage, order domain.OrderRepository, item domain.OrderItemRepository, store domain.StoreRepository, category domain.CategoryRepositoriy) *Service {
 	return &Service{
-		storage: storage,
-		order:   order,
-		item:    item,
-		store:   store,
+		storage:  storage,
+		order:    order,
+		item:     item,
+		store:    store,
+		category: category,
 	}
 }

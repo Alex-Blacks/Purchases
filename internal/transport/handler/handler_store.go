@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Alex-Blacks/Purchases/internal/service"
+	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
 	"github.com/Alex-Blacks/Purchases/pkg"
 )
 
@@ -13,9 +14,7 @@ func CreateStoreHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		var req struct {
-			Name string `json:"name"`
-		}
+		var req dto.StoreRequest
 
 		if !decodeHelper(w, r, logger, &req) {
 			return
@@ -33,16 +32,13 @@ func CreateStoreHandler(svc *service.Service) http.HandlerFunc {
 			})
 			return
 		}
-		type res struct {
-			StoreID int    `json:"storeId"`
-			Name    string `json:"name"`
-		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 
-		if err := json.NewEncoder(w).Encode(res{
-			StoreID: storeID,
-			Name:    req.Name,
+		if err := json.NewEncoder(w).Encode(dto.StoreResponse{
+			ID:   storeID,
+			Name: req.Name,
 		}); err != nil {
 			logger.Error("encoding response failed", "error", err)
 		}
@@ -71,7 +67,10 @@ func GetStoreHandler(svc *service.Service) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if err = json.NewEncoder(w).Encode(store); err != nil {
+		if err = json.NewEncoder(w).Encode(dto.StoreResponse{
+			ID:   store.ID,
+			Name: store.Name,
+		}); err != nil {
 			logger.Error("encoding response failed", "error", err)
 		}
 
@@ -110,9 +109,18 @@ func ListStoresHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
+		resp := make([]dto.StoreResponse, len(list))
+
+		for i, s := range list {
+			resp[i] = dto.StoreResponse{
+				ID:   s.ID,
+				Name: s.Name,
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if err = json.NewEncoder(w).Encode(list); err != nil {
+		if err = json.NewEncoder(w).Encode(resp); err != nil {
 			logger.Error("encoding response failed", "error", err)
 		}
 	})

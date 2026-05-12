@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Alex-Blacks/Purchases/internal/service"
+	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
 	"github.com/Alex-Blacks/Purchases/pkg"
 )
 
@@ -17,10 +18,7 @@ func AddItemHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		var req struct {
-			ProductID int `json:"productId"`
-			Quantity  int `json:"quantity"`
-		}
+		var req dto.ItemRequest
 
 		if !decodeHelper(w, r, logger, &req) {
 			return
@@ -36,7 +34,8 @@ func AddItemHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		if err := svc.AddItem(r.Context(), orderID, req.ProductID, req.Quantity); err != nil {
+		item, err := svc.AddItem(r.Context(), orderID, req.ProductID, req.Quantity)
+		if err != nil {
 			domainErrResponse(w, err, logger, map[string]any{
 				"orderId":   orderID,
 				"productId": req.ProductID,
@@ -44,10 +43,15 @@ func AddItemHandler(svc *service.Service) http.HandlerFunc {
 			})
 			return
 		}
+		resp := dto.ItemDetailsResponse{
+			ID:        item.ID,
+			ProductID: item.ProductID,
+			Title:     item.Title,
+			Quantity:  item.Quantity,
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		resp := map[string]string{"status": "ok"}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			logger.Error("encoding response failed", "error", err)
 		}
@@ -68,9 +72,7 @@ func UpdateItemHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		var req struct {
-			Quantity int `json:"quantity"`
-		}
+		var req dto.ItemUpdateRequest
 
 		if !decodeHelper(w, r, logger, &req) {
 			return
@@ -86,7 +88,8 @@ func UpdateItemHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		if err := svc.UpdateItem(r.Context(), orderID, productID, req.Quantity); err != nil {
+		item, err := svc.UpdateItem(r.Context(), orderID, productID, req.Quantity)
+		if err != nil {
 			domainErrResponse(w, err, logger, map[string]any{
 				"orderId":   orderID,
 				"productId": productID,
@@ -95,9 +98,15 @@ func UpdateItemHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
+		resp := dto.ItemDetailsResponse{
+			ID:        item.ID,
+			ProductID: item.ProductID,
+			Title:     item.Title,
+			Quantity:  item.Quantity,
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		resp := map[string]string{"status": "ok"}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			logger.Error("encoding response failed", "error", err)
 		}
