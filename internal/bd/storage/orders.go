@@ -36,8 +36,8 @@ func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Querier, userID, s
 	return id, nil
 }
 
-func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orderID int) (domain.OrderWithItems, error) {
-	var result domain.OrderWithItems
+func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orderID int) (domain.OrderWithItemDetails, error) {
+	var result domain.OrderWithItemDetails
 	rowsOrder := q.QueryRow(ctx, `
 		SELECT o.id, u.name, s.name, o.created_at, o.updated_at 
 		FROM orders o
@@ -46,7 +46,7 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orde
 		WHERE o.user_id = $1 AND o.id = $2
 	`, userID, orderID)
 
-	var order domain.Order
+	var order domain.OrderDetails
 	if err := rowsOrder.Scan(&order.ID, &order.User, &order.Store, &order.CreatedAt, &order.UpdatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return result, domain.ErrNotFound
@@ -100,7 +100,7 @@ func (r *OrderRepo) DeleteOrder(ctx context.Context, q domain.Querier, userID, o
 	return nil
 }
 
-func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int) ([]domain.Order, error) {
+func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int) ([]domain.OrderDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT 
 			o.id, u.name, s.name, o.created_at, o.updated_at, 
@@ -117,9 +117,9 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 	}
 	defer rows.Close()
 
-	var lists []domain.Order
+	var lists []domain.OrderDetails
 	for rows.Next() {
-		var list domain.Order
+		var list domain.OrderDetails
 
 		if err := rows.Scan(&list.ID, &list.User, &list.Store, &list.CreatedAt, &list.UpdatedAt, &list.ItemsCount); err != nil {
 			return nil, fmt.Errorf("scan orders: %w", err)

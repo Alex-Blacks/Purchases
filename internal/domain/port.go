@@ -49,7 +49,7 @@ type CategoryRepositoriy interface {
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-type Order struct {
+type OrderDetails struct {
 	ID         int
 	User       string
 	Store      string
@@ -64,16 +64,16 @@ type OrderItemDetails struct {
 	Quantity  int
 }
 
-type OrderWithItems struct {
-	Order Order
+type OrderWithItemDetails struct {
+	Order OrderDetails
 	Items []OrderItemDetails
 }
 
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, q Querier, userID, storeID int) (int, error)
-	GetOrder(ctx context.Context, q Querier, userID, orderID int) (OrderWithItems, error)
+	GetOrder(ctx context.Context, q Querier, userID, orderID int) (OrderWithItemDetails, error)
 	DeleteOrder(ctx context.Context, q Querier, userID, orderID int) error
-	ListOrders(ctx context.Context, q Querier, userID int) ([]Order, error)
+	ListOrders(ctx context.Context, q Querier, userID int) ([]OrderDetails, error)
 }
 
 type OrderItemRepository interface {

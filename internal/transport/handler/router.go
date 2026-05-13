@@ -19,6 +19,15 @@ func NewRouter(svc *service.Service) *chi.Mux {
 		return middleware.LoggingMiddleware(next, logger)
 	})
 
+	// Categories
+	router.Route("/categories", func(r chi.Router) {
+		r.Post("/", CreateCategoryHandler(svc))
+		r.Get("/", ListCategoriesHandler(svc))
+
+		r.Get("/{categoryId}", GetCategoryHandler(svc))
+		r.Delete("/{categoryId}", DeleteCategoryHandler(svc))
+	})
+
 	// Stores
 	router.Route("/stores", func(r chi.Router) {
 		r.Post("/", CreateStoreHandler(svc))

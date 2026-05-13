@@ -18,7 +18,7 @@ func NewCategoryRepo() *CategoryRepo {
 
 func (c *CategoryRepo) CreateCategory(ctx context.Context, q domain.Querier, name string) (int, error) {
 	var id int
-	if err := q.QueryRow(ctx, `INSERT INTO categories(name) VALUES $1 RETURNING id`, name).Scan(&id); err != nil {
+	if err := q.QueryRow(ctx, `INSERT INTO categories(name) VALUES ($1) RETURNING id`, name).Scan(&id); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
 			return 0, domain.ErrAlreadyExists
@@ -28,7 +28,7 @@ func (c *CategoryRepo) CreateCategory(ctx context.Context, q domain.Querier, nam
 	return id, nil
 }
 
-func (c CategoryRepo) GetCategory(ctx context.Context, q domain.Querier, id int) (domain.Category, error) {
+func (c *CategoryRepo) GetCategory(ctx context.Context, q domain.Querier, id int) (domain.Category, error) {
 	var category domain.Category
 	if err := q.QueryRow(ctx, `SELECT id, name FROM categories WHERE id = $1`, id).Scan(&category.ID, &category.Name); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -39,7 +39,7 @@ func (c CategoryRepo) GetCategory(ctx context.Context, q domain.Querier, id int)
 	return category, nil
 }
 
-func (c CategoryRepo) DeleteCategory(ctx context.Context, q domain.Querier, id int) error {
+func (c *CategoryRepo) DeleteCategory(ctx context.Context, q domain.Querier, id int) error {
 	var categoryID int
 	if err := q.QueryRow(ctx, `DELETE FROM categories WHERE id = $1 RETURNING id`, id).Scan(&categoryID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -62,13 +62,13 @@ func (c *CategoryRepo) ListCategories(ctx context.Context, q domain.Querier) ([]
 		var category domain.Category
 
 		if err := rows.Scan(&category.ID, &category.Name); err != nil {
-			return nil, fmt.Errorf("scan category")
+			return nil, fmt.Errorf("scan category: %w", err)
 		}
 
 		categories = append(categories, category)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iteracion failed: %w", err)
+		return nil, fmt.Errorf("iteration failed: %w", err)
 	}
 
 	return categories, nil
