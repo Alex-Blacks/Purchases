@@ -58,20 +58,20 @@ func (s *StoreRepo) ListStores(ctx context.Context, q domain.Querier) ([]domain.
 	}
 	defer rows.Close()
 
-	var list []domain.Store
+	var stores []domain.Store
 	for rows.Next() {
-		var st domain.Store
+		var store domain.Store
 
-		if err := rows.Scan(&st.ID, &st.Name); err != nil {
+		if err := rows.Scan(&store.ID, &store.Name); err != nil {
 			return nil, fmt.Errorf("scan store: %w", err)
 		}
 
-		list = append(list, st)
+		stores = append(stores, store)
 	}
 
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("iteration failed: %w", rows.Err())
 	}
 
-	return list, nil
+	return stores, nil
 }

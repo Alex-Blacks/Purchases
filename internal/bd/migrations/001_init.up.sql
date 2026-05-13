@@ -2,8 +2,6 @@ create type user_role as enum('user', 'admin');
 
 create type user_status as enum('active', 'blocked');
 
-create type product_unit as enum('кг', 'г', 'мг', 'л', 'мл', 'шт');
-
 create table users(
     id integer generated always as identity primary key,
     name varchar(50) not null,
@@ -23,7 +21,7 @@ create table categories(
 create table products(
     id integer generated always as identity primary key,
     title varchar(50) not null,
-    unit product_unit not null,
+    unit varchar(10) not null,
     category_id integer not null,
     foreign key(category_id) references categories(id) on delete set null
 );

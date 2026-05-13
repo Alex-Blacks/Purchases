@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func getIntParam(w http.ResponseWriter, r *http.Request, name string, logger *slog.Logger) (int, bool) {
+func parsePositiveIntParam(w http.ResponseWriter, r *http.Request, name string, logger *slog.Logger) (int, bool) {
 	valStr := chi.URLParam(r, name)
 	if valStr == "" {
 		err := fmt.Errorf("%s required", name)
@@ -25,6 +25,11 @@ func getIntParam(w http.ResponseWriter, r *http.Request, name string, logger *sl
 		err := fmt.Errorf("%s must be int", name)
 		logger.Info("invalid parameter", "error", err, "param", name)
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return 0, false
+	}
+	if val <= 0 {
+		logger.Info("invalid input", "param", name)
+		http.Error(w, "invalid input:"+name+"must be > 0", http.StatusBadRequest)
 		return 0, false
 	}
 	return val, true
@@ -52,6 +57,14 @@ func decodeHelper(w http.ResponseWriter, r *http.Request, logger *slog.Logger, r
 		return false
 	}
 	return true
+}
+
+func encodeHelper(w http.ResponseWriter, logger *slog.Logger, status int, resp any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logger.Info("encoding response failed", "error", err)
+	}
 }
 
 func domainErrResponse(w http.ResponseWriter, err error, logger *slog.Logger, details map[string]any) {

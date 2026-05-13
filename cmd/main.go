@@ -24,7 +24,8 @@ func main() {
 	orderItemRepo := storage.NewOrderItemRepo()
 	storeRepo := storage.NewStoreRepo()
 	categoryRepo := storage.NewCategoryRepo()
-	svc := service.NewService(st, orderRepo, orderItemRepo, storeRepo, categoryRepo)
+	productRepo := storage.NewProductRepo()
+	svc := service.NewService(st, orderRepo, orderItemRepo, storeRepo, categoryRepo, productRepo)
 
 	mux := handler.NewRouter(svc)
 

@@ -49,6 +49,22 @@ type CategoryRepositoriy interface {
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 
+type ProductDetails struct {
+	ID       int
+	Title    string
+	Unit     string
+	Category string
+}
+
+type ProductRepository interface {
+	CreateProduct(ctx context.Context, q Querier, title, unit string, categoryID int) (int, error)
+	GetProduct(ctx context.Context, q Querier, id int) (ProductDetails, error)
+	DeleteProduct(ctx context.Context, q Querier, id int) error
+	ListProducts(ctx context.Context, q Querier) ([]ProductDetails, error)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+
 type OrderDetails struct {
 	ID         int
 	User       string

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -33,15 +32,12 @@ func CreateStoreHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-
-		if err := json.NewEncoder(w).Encode(dto.StoreResponse{
+		resp := dto.StoreResponse{
 			ID:   storeID,
 			Name: req.Name,
-		}); err != nil {
-			logger.Error("encoding response failed", "error", err)
 		}
+
+		encodeHelper(w, logger, http.StatusCreated, resp)
 	}
 }
 
@@ -49,11 +45,8 @@ func GetStoreHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		storeID, ok := getIntParam(w, r, "storeId", logger)
+		storeID, ok := parsePositiveIntParam(w, r, "storeId", logger)
 		if !ok {
-			return
-		}
-		if !validatePositiveInt(w, "storeId", storeID, logger) {
 			return
 		}
 
@@ -64,16 +57,12 @@ func GetStoreHandler(svc *service.Service) http.HandlerFunc {
 			})
 			return
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err = json.NewEncoder(w).Encode(dto.StoreResponse{
+		resp := dto.StoreResponse{
 			ID:   store.ID,
 			Name: store.Name,
-		}); err != nil {
-			logger.Error("encoding response failed", "error", err)
 		}
 
+		encodeHelper(w, logger, http.StatusOK, resp)
 	}
 }
 
@@ -81,11 +70,8 @@ func DeleteStoreHandler(svc *service.Service) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		storeID, ok := getIntParam(w, r, "storeId", logger)
+		storeID, ok := parsePositiveIntParam(w, r, "storeId", logger)
 		if !ok {
-			return
-		}
-		if !validatePositiveInt(w, "storeId", storeID, logger) {
 			return
 		}
 
@@ -109,19 +95,8 @@ func ListStoresHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		resp := make([]dto.StoreResponse, len(list))
+		resp := dto.ToStoreResponse(list)
 
-		for i, s := range list {
-			resp[i] = dto.StoreResponse{
-				ID:   s.ID,
-				Name: s.Name,
-			}
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err = json.NewEncoder(w).Encode(resp); err != nil {
-			logger.Error("encoding response failed", "error", err)
-		}
+		encodeHelper(w, logger, http.StatusOK, resp)
 	})
 }

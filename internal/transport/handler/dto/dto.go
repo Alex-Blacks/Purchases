@@ -17,6 +17,18 @@ type StoreResponse struct {
 	Name string `json:"name"`
 }
 
+func ToStoreResponse(store []domain.Store) []StoreResponse {
+	resp := make([]StoreResponse, len(store))
+
+	for i, s := range store {
+		resp[i] = StoreResponse{
+			ID:   s.ID,
+			Name: s.Name,
+		}
+	}
+	return resp
+}
+
 //-------------------------------------------------------------------------------------------------
 
 type CategoryRequest struct {
@@ -42,6 +54,48 @@ func ToCategoryResponse(categories []domain.Category) []CategoryResponse {
 		}
 	}
 
+	return resp
+}
+
+//-------------------------------------------------------------------------------------------------
+
+type ProductRequest struct {
+	Title      string `json:"title"`
+	Unit       string `json:"unit"`
+	CategoryID int    `json:"categoryId"`
+}
+
+type ProductCreateResponse struct {
+	ProductID int `json:"productId"`
+}
+
+type ProductResponse struct {
+	ID       int    `json:"id"`
+	Title    string `json:"title"`
+	Unit     string `json:"unit"`
+	Category string `json:"category"`
+}
+
+func ToProductResponse(product domain.ProductDetails) ProductResponse {
+	return ProductResponse{
+		ID:       product.ID,
+		Title:    product.Title,
+		Unit:     product.Unit,
+		Category: product.Category,
+	}
+}
+
+func ToProductsResponse(products []domain.ProductDetails) []ProductResponse {
+	resp := make([]ProductResponse, len(products))
+
+	for i, p := range products {
+		resp[i] = ProductResponse{
+			ID:       p.ID,
+			Title:    p.Title,
+			Unit:     p.Unit,
+			Category: p.Category,
+		}
+	}
 	return resp
 }
 

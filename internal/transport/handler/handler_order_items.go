@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/Alex-Blacks/Purchases/internal/service"
@@ -13,7 +12,7 @@ func AddItemHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		orderID, ok := getIntParam(w, r, "orderId", logger)
+		orderID, ok := parsePositiveIntParam(w, r, "orderId", logger)
 		if !ok {
 			return
 		}
@@ -24,9 +23,6 @@ func AddItemHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		if !validatePositiveInt(w, "orderId", orderID, logger) {
-			return
-		}
 		if !validatePositiveInt(w, "productId", req.ProductID, logger) {
 			return
 		}
@@ -50,12 +46,7 @@ func AddItemHandler(svc *service.Service) http.HandlerFunc {
 			Quantity:  item.Quantity,
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			logger.Error("encoding response failed", "error", err)
-		}
-
+		encodeHelper(w, logger, http.StatusCreated, resp)
 	}
 }
 
@@ -63,11 +54,11 @@ func UpdateItemHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		orderID, ok := getIntParam(w, r, "orderId", logger)
+		orderID, ok := parsePositiveIntParam(w, r, "orderId", logger)
 		if !ok {
 			return
 		}
-		productID, ok := getIntParam(w, r, "productId", logger)
+		productID, ok := parsePositiveIntParam(w, r, "productId", logger)
 		if !ok {
 			return
 		}
@@ -78,12 +69,6 @@ func UpdateItemHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		if !validatePositiveInt(w, "orderId", orderID, logger) {
-			return
-		}
-		if !validatePositiveInt(w, "productId", productID, logger) {
-			return
-		}
 		if !validatePositiveInt(w, "quantity", req.Quantity, logger) {
 			return
 		}
@@ -105,11 +90,7 @@ func UpdateItemHandler(svc *service.Service) http.HandlerFunc {
 			Quantity:  item.Quantity,
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			logger.Error("encoding response failed", "error", err)
-		}
+		encodeHelper(w, logger, http.StatusOK, resp)
 	}
 }
 
@@ -117,19 +98,12 @@ func DeleteItemHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		orderID, ok := getIntParam(w, r, "orderId", logger)
+		orderID, ok := parsePositiveIntParam(w, r, "orderId", logger)
 		if !ok {
 			return
 		}
-		productID, ok := getIntParam(w, r, "productId", logger)
+		productID, ok := parsePositiveIntParam(w, r, "productId", logger)
 		if !ok {
-			return
-		}
-
-		if !validatePositiveInt(w, "orderId", orderID, logger) {
-			return
-		}
-		if !validatePositiveInt(w, "productId", productID, logger) {
 			return
 		}
 

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/Alex-Blacks/Purchases/internal/service"
@@ -13,7 +12,7 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		userID, ok := getIntParam(w, r, "userId", logger)
+		userID, ok := parsePositiveIntParam(w, r, "userId", logger)
 		if !ok {
 			return
 		}
@@ -24,9 +23,6 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		if !validatePositiveInt(w, "userId", userID, logger) {
-			return
-		}
 		if !validatePositiveInt(w, "storeId", req.StoreID, logger) {
 			return
 		}
@@ -40,11 +36,9 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		if err := json.NewEncoder(w).Encode(dto.OrderCreateResponse{ID: orderID}); err != nil {
-			logger.Error("encoding response failed", "error", err)
-		}
+		resp := dto.OrderCreateResponse{ID: orderID}
+
+		encodeHelper(w, logger, http.StatusCreated, resp)
 	}
 }
 
@@ -52,19 +46,12 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		userID, ok := getIntParam(w, r, "userId", logger)
+		userID, ok := parsePositiveIntParam(w, r, "userId", logger)
 		if !ok {
 			return
 		}
-		orderID, ok := getIntParam(w, r, "orderId", logger)
+		orderID, ok := parsePositiveIntParam(w, r, "orderId", logger)
 		if !ok {
-			return
-		}
-
-		if !validatePositiveInt(w, "userId", userID, logger) {
-			return
-		}
-		if !validatePositiveInt(w, "orderId", orderID, logger) {
 			return
 		}
 
@@ -77,11 +64,9 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(dto.ToResponseOrder(order)); err != nil {
-			logger.Error("encoding response failed", "error", err)
-		}
+		resp := dto.ToResponseOrder(order)
+
+		encodeHelper(w, logger, http.StatusOK, resp)
 	}
 }
 
@@ -89,19 +74,12 @@ func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		userID, ok := getIntParam(w, r, "userId", logger)
+		userID, ok := parsePositiveIntParam(w, r, "userId", logger)
 		if !ok {
 			return
 		}
-		orderID, ok := getIntParam(w, r, "orderId", logger)
+		orderID, ok := parsePositiveIntParam(w, r, "orderId", logger)
 		if !ok {
-			return
-		}
-
-		if !validatePositiveInt(w, "userId", userID, logger) {
-			return
-		}
-		if !validatePositiveInt(w, "orderId", orderID, logger) {
 			return
 		}
 
@@ -121,11 +99,8 @@ func ListOrdersHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		userID, ok := getIntParam(w, r, "userId", logger)
+		userID, ok := parsePositiveIntParam(w, r, "userId", logger)
 		if !ok {
-			return
-		}
-		if !validatePositiveInt(w, "userId", userID, logger) {
 			return
 		}
 
@@ -137,10 +112,7 @@ func ListOrdersHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(dto.ToOrderListResponse(orders)); err != nil {
-			logger.Error("encoding response failed", "error", err)
-		}
+		resp := dto.ToOrderListResponse(orders)
+		encodeHelper(w, logger, http.StatusOK, resp)
 	}
 }

@@ -9,74 +9,82 @@ import (
 	"github.com/Alex-Blacks/Purchases/pkg"
 )
 
-func CreateCategoryHandler(svc *service.Service) http.HandlerFunc {
+func CreateProductHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
-		var req dto.CategoryRequest
+
+		var req dto.ProductRequest
 
 		if !decodeHelper(w, r, logger, &req) {
 			return
 		}
-
-		if strings.TrimSpace(req.Name) == "" {
+		if strings.TrimSpace(req.Title) == "" {
+			logger.Info("empty name")
+			http.Error(w, "empty name", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(req.Unit) == "" {
 			logger.Info("empty name")
 			http.Error(w, "empty name", http.StatusBadRequest)
 			return
 		}
 
-		categoryID, err := svc.CreateCategory(r.Context(), req.Name)
+		if !validatePositiveInt(w, "categoryId", req.CategoryID, logger) {
+			return
+		}
+
+		productID, err := svc.CreateProduct(r.Context(), req.Title, req.Unit, req.CategoryID)
 		if err != nil {
 			domainErrResponse(w, err, logger, map[string]any{
-				"name": req.Name,
+				"title":      req.Title,
+				"unit":       req.Unit,
+				"categoryId": req.CategoryID,
 			})
 			return
 		}
 
-		resp := dto.CategoryCreateResponse{
-			CategoryID: categoryID,
+		resp := dto.ProductCreateResponse{
+			ProductID: productID,
 		}
-
 		encodeHelper(w, logger, http.StatusCreated, resp)
 	}
 }
 
-func GetCategoryHandler(svc *service.Service) http.HandlerFunc {
+func GetProductHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
-		categoryID, ok := parsePositiveIntParam(w, r, "categoryId", logger)
+
+		productID, ok := parsePositiveIntParam(w, r, "productId", logger)
 		if !ok {
 			return
 		}
 
-		category, err := svc.GetCategory(r.Context(), categoryID)
+		product, err := svc.GetProduct(r.Context(), productID)
 		if err != nil {
 			domainErrResponse(w, err, logger, map[string]any{
-				"categoryId": categoryID,
+				"productId": productID,
 			})
 			return
 		}
 
-		resp := dto.CategoryResponse{
-			ID:   category.ID,
-			Name: category.Name,
-		}
-
+		resp := dto.ToProductResponse(product)
 		encodeHelper(w, logger, http.StatusOK, resp)
 
 	}
 }
 
-func DeleteCategoryHandler(svc *service.Service) http.HandlerFunc {
+func DeleteProductHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
-		categoryID, ok := parsePositiveIntParam(w, r, "categoryId", logger)
+
+		productID, ok := parsePositiveIntParam(w, r, "productId", logger)
 		if !ok {
 			return
 		}
 
-		if err := svc.DeleteCategory(r.Context(), categoryID); err != nil {
+		if err := svc.DeleteProduct(r.Context(), productID); err != nil {
 			domainErrResponse(w, err, logger, map[string]any{
-				"categoryId": categoryID,
+				"productId": productID,
 			})
 			return
 		}
@@ -85,17 +93,17 @@ func DeleteCategoryHandler(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func ListCategoriesHandler(svc *service.Service) http.HandlerFunc {
+func ListProductsHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := pkg.LoggerFromContext(r.Context())
 
-		categories, err := svc.ListCategories(r.Context())
+		products, err := svc.ListProducts(r.Context())
 		if err != nil {
 			domainErrResponse(w, err, logger, map[string]any{})
 			return
 		}
-		resp := dto.ToCategoryResponse(categories)
 
+		resp := dto.ToProductsResponse(products)
 		encodeHelper(w, logger, http.StatusOK, resp)
 	}
 }
