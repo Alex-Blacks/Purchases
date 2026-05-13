@@ -63,7 +63,7 @@ func encodeHelper(w http.ResponseWriter, logger *slog.Logger, status int, resp a
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.Info("encoding response failed", "error", err)
+		logger.Error("encoding response failed", "error", err)
 	}
 }
 

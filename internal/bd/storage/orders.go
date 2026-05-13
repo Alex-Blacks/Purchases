@@ -88,13 +88,12 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orde
 }
 
 func (r *OrderRepo) DeleteOrder(ctx context.Context, q domain.Querier, userID, orderID int) error {
-	tag, err := q.Exec(ctx, `DELETE FROM orders WHERE orders.id = $1 AND orders.user_id = $2`, orderID, userID)
-	if err != nil {
+	var OrderID int
+	if err := q.QueryRow(ctx, `DELETE FROM orders WHERE orders.id = $1 AND orders.user_id = $2 RETURNING id`, orderID, userID).Scan(&OrderID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrNotFound
+		}
 		return fmt.Errorf("delete order: %w", err)
-	}
-
-	if tag.RowsAffected() == 0 {
-		return domain.ErrNotFound
 	}
 
 	return nil
@@ -175,8 +174,8 @@ func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderI
 }
 
 func (r *OrderItemRepo) DeleteItem(ctx context.Context, q domain.Querier, orderID, productID int) error {
-	var id int
-	if err := q.QueryRow(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1 AND order_items.product_id = $2 RETURNING id`, orderID, productID).Scan(&id); err != nil {
+	var item int
+	if err := q.QueryRow(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1 AND order_items.product_id = $2 RETURNING id`, orderID, productID).Scan(&item); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ErrNotFound
 		}

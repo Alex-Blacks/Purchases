@@ -101,6 +101,30 @@ func ToProductsResponse(products []domain.ProductDetails) []ProductResponse {
 
 //-------------------------------------------------------------------------------------------------
 
+type ProductAliasRequest struct {
+	Alias string `json:"alias"`
+}
+
+type ProductAliasCreateResponse struct {
+	AliasID int `json:"aliasId"`
+}
+
+type ProductAliasResponse struct {
+	ID      int    `json:"id"`
+	Product string `json:"product"`
+	Alias   string `json:"alias"`
+}
+
+func ToProductAliasResponse(alias domain.ProductAliasDetails) ProductAliasResponse {
+	return ProductAliasResponse{
+		ID:      alias.ID,
+		Product: alias.Product,
+		Alias:   alias.Alias,
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+
 type OrderRequest struct {
 	StoreID int `json:"storeId"`
 }
