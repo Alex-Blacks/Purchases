@@ -89,3 +89,20 @@ func (a *ProductAliasRepo) DeleteAllProductAliases(ctx context.Context, q domain
 
 	return nil
 }
+
+func (a *ProductAliasRepo) FindProductByAlias(ctx context.Context, q domain.Querier, alias string) (int, error) {
+	var productID int
+	if err := q.QueryRow(ctx, `
+		SELECT p.title
+		FROM product_aliases pa
+		JOIN products p ON pa.product_id = p.id
+		WHERE pa.alias = $1
+	`, alias).Scan(&productID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, domain.ErrNotFound
+		}
+		return 0, fmt.Errorf("query product alias: %w", err)
+	}
+
+	return productID, nil
+}

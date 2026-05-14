@@ -33,3 +33,6 @@ func (s *Service) DeleteAllProductAliases(ctx context.Context, productID int) er
 		return s.productAliases.DeleteAllProductAliases(ctx, q, productID)
 	})
 }
+func (s *Service) FindProductByAlias(ctx context.Context, alias string) (int, error) {
+	return s.productAliases.FindProductByAlias(ctx, s.storage, alias)
+}

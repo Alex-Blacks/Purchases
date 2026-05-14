@@ -18,6 +18,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 	router.Use(func(next http.Handler) http.Handler {
 		return middleware.LoggingMiddleware(next, logger)
 	})
+	router.Use(middleware.AuthMiddleware)
 
 	// Products
 	router.Route("/products", func(r chi.Router) {
@@ -26,6 +27,9 @@ func NewRouter(svc *service.Service) *chi.Mux {
 
 		r.Get("/{productId}", GetProductHandler(svc))
 		r.Delete("/{productId}", DeleteProductHandler(svc))
+
+		// Поиск по алиасу (query param)
+		r.Get("/by-alias", FindProductByAliasHandler(svc))
 
 		// ProductsAliase
 		router.Route("/{productId}/aliases", func(r chi.Router) {

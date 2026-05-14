@@ -6,6 +6,7 @@ import (
 
 type Service struct {
 	storage        domain.Storage
+	user           domain.UserRepository
 	order          domain.OrderRepository
 	item           domain.OrderItemRepository
 	store          domain.StoreRepository
@@ -16,6 +17,7 @@ type Service struct {
 
 func NewService(
 	storage domain.Storage,
+	user domain.UserRepository,
 	order domain.OrderRepository,
 	item domain.OrderItemRepository,
 	store domain.StoreRepository,
@@ -25,6 +27,7 @@ func NewService(
 ) *Service {
 	return &Service{
 		storage:        storage,
+		user:           user,
 		order:          order,
 		item:           item,
 		store:          store,

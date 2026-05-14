@@ -48,10 +48,15 @@ func (p *ProductRepo) GetProduct(ctx context.Context, q domain.Querier, id int) 
 func (p *ProductRepo) DeleteProduct(ctx context.Context, q domain.Querier, id int) error {
 	var productID int
 	if err := q.QueryRow(ctx, `DELETE FROM products WHERE id = $1 RETURNING id`, id).Scan(&productID); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		var pgErr *pgconn.PgError
+		switch {
+		case errors.As(err, &pgErr) && pgErr.Code == pgForeignKeyViolation:
+			return domain.ErrConflict
+		case errors.Is(err, pgx.ErrNoRows):
 			return domain.ErrNotFound
+		default:
+			return fmt.Errorf("delete product: %w", err)
 		}
-		return fmt.Errorf("delete product: %w", err)
 	}
 	return nil
 }

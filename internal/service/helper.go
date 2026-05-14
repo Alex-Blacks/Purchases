@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
@@ -28,4 +29,14 @@ func (s *Service) WithTx(ctx context.Context, fn func(q domain.Querier) error) (
 
 	err = fn(tx)
 	return err
+}
+
+func hasUpdates(u domain.UpdateUser) bool {
+	v := reflect.ValueOf(u)
+	for i := 0; i < v.NumField(); i++ {
+		if !v.Field(i).IsNil() {
+			return true
+		}
+	}
+	return false
 }

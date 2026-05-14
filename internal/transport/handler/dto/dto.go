@@ -108,6 +108,9 @@ type ProductAliasRequest struct {
 type ProductAliasCreateResponse struct {
 	AliasID int `json:"aliasId"`
 }
+type ProductFindResponse struct {
+	ProductID int `json:"productId"`
+}
 
 type ProductAliasResponse struct {
 	ID      int    `json:"id"`

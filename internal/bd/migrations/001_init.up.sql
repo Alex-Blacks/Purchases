@@ -7,12 +7,12 @@ create extension if not exists citext;
 create table users(
     id integer generated always as identity primary key,
     name varchar(50) not null,
-    password varchar(100) not null,
+    password_hash text not null,
     email citext unique not null,
-    role user_role default 'user',
-    status user_status default 'active',
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
+    role user_role not null default 'user',
+    status user_status not null default 'active',
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
 );
 
 create table categories(

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/go-chi/chi/v5"
@@ -14,8 +15,8 @@ import (
 
 func parsePositiveIntParam(w http.ResponseWriter, r *http.Request, name string, logger *slog.Logger) (int, bool) {
 	valStr := chi.URLParam(r, name)
-	if valStr == "" {
-		err := fmt.Errorf("%s required", name)
+	if strings.TrimSpace(valStr) == "" {
+		err := fmt.Errorf("%s must not be empty", name)
 		logger.Info("invalid parameter", "error", err, "param", name)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return 0, false
@@ -71,6 +72,12 @@ func domainErrResponse(w http.ResponseWriter, err error, logger *slog.Logger, de
 	w.Header().Set("Content-Type", "application/json")
 
 	switch {
+	case errors.Is(err, domain.ErrConflict):
+		logger.Info("conflict", "error", err, "details", details)
+		w.WriteHeader(http.StatusConflict)
+		if encodeErr := json.NewEncoder(w).Encode(map[string]string{"status": "the field is used in another table"}); encodeErr != nil {
+			logger.Error("failed to encode error response", "error", encodeErr)
+		}
 	case errors.Is(err, domain.ErrAlreadyExists):
 		logger.Info("already exists", "error", err, "details", details)
 		w.WriteHeader(http.StatusConflict)

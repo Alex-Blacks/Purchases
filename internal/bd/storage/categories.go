@@ -42,10 +42,15 @@ func (c *CategoryRepo) GetCategory(ctx context.Context, q domain.Querier, id int
 func (c *CategoryRepo) DeleteCategory(ctx context.Context, q domain.Querier, id int) error {
 	var categoryID int
 	if err := q.QueryRow(ctx, `DELETE FROM categories WHERE id = $1 RETURNING id`, id).Scan(&categoryID); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		var pgErr *pgconn.PgError
+		switch {
+		case errors.As(err, &pgErr) && pgErr.Code == pgForeignKeyViolation:
+			return domain.ErrConflict
+		case errors.Is(err, pgx.ErrNoRows):
 			return domain.ErrNotFound
+		default:
+			return fmt.Errorf("delete category: %w", err)
 		}
-		return fmt.Errorf("delete category: %w", err)
 	}
 	return nil
 }
