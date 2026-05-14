@@ -26,6 +26,16 @@ func NewRouter(svc *service.Service) *chi.Mux {
 
 		r.Get("/{productId}", GetProductHandler(svc))
 		r.Delete("/{productId}", DeleteProductHandler(svc))
+
+		// ProductsAliase
+		router.Route("/{productId}/aliases", func(r chi.Router) {
+			r.Post("/", CreateProductAliasHandler(svc))
+			r.Get("/", ListProductAliasesHandler(svc))
+			r.Delete("/", DeleteAllProductAliasesHandler(svc))
+
+			r.Get("/{aliasId}", GetProductAliasHandler(svc))
+			r.Delete("/{aliasId}", DeleteProductAliasHandler(svc))
+		})
 	})
 
 	// Categories
@@ -54,6 +64,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 		r.Get("/{orderId}", GetOrderHandler(svc))
 		r.Delete("/{orderId}", DeleteOrderHandler(svc))
 
+		// Items
 		r.Route("/{orderId}/items", func(r chi.Router) {
 			r.Post("/", AddItemHandler(svc))
 

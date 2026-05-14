@@ -99,6 +99,32 @@ func ListProductAliasesHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		svc.ListProductAliases(r.Context(), productID)
+		aliases, err := svc.ListProductAliases(r.Context(), productID)
+		if err != nil {
+			domainErrResponse(w, err, logger, map[string]any{"productId": productID})
+			return
+		}
+
+		resp := dto.ToProductAliasesResponse(aliases)
+
+		encodeHelper(w, logger, http.StatusOK, resp)
+	}
+}
+
+func DeleteAllProductAliasesHandler(svc *service.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger := pkg.LoggerFromContext(r.Context())
+
+		productID, ok := parsePositiveIntParam(w, r, "productId", logger)
+		if !ok {
+			return
+		}
+
+		if err := svc.DeleteAllProductAliases(r.Context(), productID); err != nil {
+			domainErrResponse(w, err, logger, map[string]any{"productId": productID})
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }

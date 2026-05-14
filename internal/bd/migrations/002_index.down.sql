@@ -6,6 +6,7 @@ drop index IF EXISTS idx_order_items_products;
 drop index IF EXISTS idx_order_items_orders;
 drop index IF EXISTS idx_orders_stores;
 drop index IF EXISTS idx_orders_users;
+drop index IF EXISTS idx_product_aliases_unique_alias;
 drop index IF EXISTS idx_product_aliases_products;
 drop index IF EXISTS idx_product_categories;
 drop index IF EXISTS idx_users_emails;

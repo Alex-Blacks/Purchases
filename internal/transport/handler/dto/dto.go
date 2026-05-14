@@ -123,6 +123,19 @@ func ToProductAliasResponse(alias domain.ProductAliasDetails) ProductAliasRespon
 	}
 }
 
+func ToProductAliasesResponse(alias []domain.ProductAliasDetails) []ProductAliasResponse {
+	resp := make([]ProductAliasResponse, len(alias))
+
+	for i, it := range alias {
+		resp[i] = ProductAliasResponse{
+			ID:      it.ID,
+			Product: it.Product,
+			Alias:   it.Alias,
+		}
+	}
+	return resp
+}
+
 //-------------------------------------------------------------------------------------------------
 
 type OrderRequest struct {

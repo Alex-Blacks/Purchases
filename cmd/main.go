@@ -25,7 +25,8 @@ func main() {
 	storeRepo := storage.NewStoreRepo()
 	categoryRepo := storage.NewCategoryRepo()
 	productRepo := storage.NewProductRepo()
-	svc := service.NewService(st, orderRepo, orderItemRepo, storeRepo, categoryRepo, productRepo)
+	product_alias := storage.NewProductAliasRepo()
+	svc := service.NewService(st, orderRepo, orderItemRepo, storeRepo, categoryRepo, productRepo, product_alias)
 
 	mux := handler.NewRouter(svc)
 

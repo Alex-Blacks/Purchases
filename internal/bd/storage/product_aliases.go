@@ -17,7 +17,7 @@ func NewProductAliasRepo() *ProductAliasRepo {
 
 func (a *ProductAliasRepo) CreateProductAlias(ctx context.Context, q domain.Querier, productID int, alias string) (int, error) {
 	var id int
-	if err := q.QueryRow(ctx, `INSERT INTO product_aliases(product_id,alias) VALUES ($1,$2) RETURNING id`, productID, alias).Scan(id); err != nil {
+	if err := q.QueryRow(ctx, `INSERT INTO product_aliases(product_id,alias) VALUES ($1,$2) RETURNING id`, productID, alias).Scan(&id); err != nil {
 		return 0, fmt.Errorf("query create product alias: %w", err)
 	}
 	return id, nil
@@ -27,9 +27,12 @@ func (a *ProductAliasRepo) GetProductAlias(ctx context.Context, q domain.Querier
 	if err := q.QueryRow(ctx, `
 		SELECT pa.id, p.title, pa.alias
 		FROM product_aliases pa
-		JOIN product p ON pa.product_id = p.id
+		JOIN products p ON pa.product_id = p.id
 		WHERE pa.id = $1
 	`, id).Scan(&alias.ID, &alias.Product, &alias.Alias); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return alias, domain.ErrNotFound
+		}
 		return alias, fmt.Errorf("query scan product alias: %w", err)
 	}
 	return alias, nil
@@ -48,7 +51,7 @@ func (a *ProductAliasRepo) ListProductAliases(ctx context.Context, q domain.Quer
 	rows, err := q.Query(ctx, `
 		SELECT pa.id, p.title, pa.alias
 		FROM product_aliases pa
-		JOIN product p ON pa.product_id = p.id
+		JOIN products p ON pa.product_id = p.id
 		WHERE pa.product_id = $1
 	`, productID)
 	if err != nil {
@@ -75,12 +78,14 @@ func (a *ProductAliasRepo) ListProductAliases(ctx context.Context, q domain.Quer
 
 }
 func (a *ProductAliasRepo) DeleteAllProductAliases(ctx context.Context, q domain.Querier, productID int) error {
-	var id int
-	if err := q.QueryRow(ctx, `DELETE FROM product_aliases WHERE product_id = $1 RETURNING id`, productID).Scan(&id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.ErrNotFound
-		}
+	tag, err := q.Exec(ctx, `DELETE FROM product_aliases WHERE product_id = $1 RETURNING id`, productID)
+	if err != nil {
 		return fmt.Errorf("delete product alias: %w", err)
 	}
+
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+
 	return nil
 }

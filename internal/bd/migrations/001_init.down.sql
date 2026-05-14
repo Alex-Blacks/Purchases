@@ -8,6 +8,6 @@ drop table IF EXISTS categories CASCADE;
 drop table IF EXISTS stores CASCADE;
 drop table IF EXISTS users CASCADE;
 
-DROP TYPE IF EXISTS product_unit;
+DROP EXTENSION IF EXISTS citext;
 DROP TYPE IF EXISTS user_status;
 DROP TYPE IF EXISTS user_role;
