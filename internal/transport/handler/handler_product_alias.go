@@ -4,24 +4,25 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
-	"github.com/Alex-Blacks/Purchases/pkg"
+	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
 	"github.com/go-chi/chi/v5"
 )
 
 func CreateProductAliasHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
-		productID, ok := parsePositiveIntParam(w, r, "productId", logger)
+		productID, ok := helpers.ParsePositiveIntParam(w, r, "productId", logger)
 		if !ok {
 			return
 		}
 
 		var req dto.ProductAliasRequest
 
-		if !decodeHelper(w, r, logger, &req) {
+		if !helpers.DecodeJSONHelper(w, r, logger, &req) {
 			return
 		}
 
@@ -33,7 +34,7 @@ func CreateProductAliasHandler(svc *service.Service) http.HandlerFunc {
 
 		aliasID, err := svc.CreateProductAlias(r.Context(), productID, req.Alias)
 		if err != nil {
-			domainErrResponse(w, err, logger, map[string]any{
+			helpers.DomainErrResponse(w, err, logger, map[string]any{
 				"productId": productID,
 				"alias":     req.Alias,
 			})
@@ -44,22 +45,22 @@ func CreateProductAliasHandler(svc *service.Service) http.HandlerFunc {
 			AliasID: aliasID,
 		}
 
-		encodeHelper(w, logger, http.StatusCreated, resp)
+		helpers.RespondJSON(w, http.StatusCreated, resp, logger)
 	}
 }
 
 func GetProductAliasHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
-		aliasID, ok := parsePositiveIntParam(w, r, "aliasId", logger)
+		aliasID, ok := helpers.ParsePositiveIntParam(w, r, "aliasId", logger)
 		if !ok {
 			return
 		}
 
 		alias, err := svc.GetProductAlias(r.Context(), aliasID)
 		if err != nil {
-			domainErrResponse(w, err, logger, map[string]any{
+			helpers.DomainErrResponse(w, err, logger, map[string]any{
 				"aliasId": aliasID,
 			})
 			return
@@ -67,21 +68,21 @@ func GetProductAliasHandler(svc *service.Service) http.HandlerFunc {
 
 		resp := dto.ToProductAliasResponse(alias)
 
-		encodeHelper(w, logger, http.StatusOK, resp)
+		helpers.RespondJSON(w, http.StatusOK, resp, logger)
 	}
 }
 
 func DeleteProductAliasHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
-		aliasID, ok := parsePositiveIntParam(w, r, "aliasId", logger)
+		aliasID, ok := helpers.ParsePositiveIntParam(w, r, "aliasId", logger)
 		if !ok {
 			return
 		}
 
 		if err := svc.DeleteProductAlias(r.Context(), aliasID); err != nil {
-			domainErrResponse(w, err, logger, map[string]any{
+			helpers.DomainErrResponse(w, err, logger, map[string]any{
 				"aliasId": aliasID,
 			})
 			return
@@ -93,36 +94,36 @@ func DeleteProductAliasHandler(svc *service.Service) http.HandlerFunc {
 
 func ListProductAliasesHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
-		productID, ok := parsePositiveIntParam(w, r, "productId", logger)
+		productID, ok := helpers.ParsePositiveIntParam(w, r, "productId", logger)
 		if !ok {
 			return
 		}
 
 		aliases, err := svc.ListProductAliases(r.Context(), productID)
 		if err != nil {
-			domainErrResponse(w, err, logger, map[string]any{"productId": productID})
+			helpers.DomainErrResponse(w, err, logger, map[string]any{"productId": productID})
 			return
 		}
 
 		resp := dto.ToProductAliasesResponse(aliases)
 
-		encodeHelper(w, logger, http.StatusOK, resp)
+		helpers.RespondJSON(w, http.StatusOK, resp, logger)
 	}
 }
 
 func DeleteAllProductAliasesHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
-		productID, ok := parsePositiveIntParam(w, r, "productId", logger)
+		productID, ok := helpers.ParsePositiveIntParam(w, r, "productId", logger)
 		if !ok {
 			return
 		}
 
 		if err := svc.DeleteAllProductAliases(r.Context(), productID); err != nil {
-			domainErrResponse(w, err, logger, map[string]any{"productId": productID})
+			helpers.DomainErrResponse(w, err, logger, map[string]any{"productId": productID})
 			return
 		}
 
@@ -131,7 +132,7 @@ func DeleteAllProductAliasesHandler(svc *service.Service) http.HandlerFunc {
 }
 func FindProductByAliasHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
 		alias := chi.URLParam(r, "alias")
 
@@ -143,13 +144,13 @@ func FindProductByAliasHandler(svc *service.Service) http.HandlerFunc {
 
 		productID, err := svc.FindProductByAlias(r.Context(), alias)
 		if err != nil {
-			domainErrResponse(w, err, logger, map[string]any{"alias": alias})
+			helpers.DomainErrResponse(w, err, logger, map[string]any{"alias": alias})
 			return
 		}
 
 		resp := dto.ProductFindResponse{
 			ProductID: productID,
 		}
-		encodeHelper(w, logger, http.StatusOK, resp)
+		helpers.RespondJSON(w, http.StatusOK, resp, logger)
 	}
 }

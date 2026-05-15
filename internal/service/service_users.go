@@ -24,7 +24,9 @@ func (s *Service) GeneratePassword(password string) (string, error) {
 }
 func (s *Service) CreateUser(ctx context.Context, name, password, email, role, status string) (domain.User, error) {
 	var user domain.User
-
+	if _, err := s.user.GetUserByEmail(ctx, s.storage, email); err == nil {
+		return user, domain.ErrEmailConflict
+	}
 	password_hash, err := s.GeneratePassword(password)
 	if err != nil {
 		return user, fmt.Errorf("generate password failed: %w", err)

@@ -1,25 +1,20 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/Alex-Blacks/Purchases/pkg" // твой logger
+	"github.com/Alex-Blacks/Purchases/internal/authctx"
+	"github.com/Alex-Blacks/Purchases/internal/logging"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type userIDKeyType string
-type roleKeyType string
-
-const userIDKeyContext userIDKeyType = "userID"
-const roleKeyContext roleKeyType = "role"
-
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
 		authHeader := strings.Split(r.Header.Get("Authorization"), " ")
 		if len(authHeader) != 2 || strings.ToLower(authHeader[0]) != "bearer" {
@@ -72,23 +67,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), userIDKeyContext, int64(userIDFloat))
-		ctx = context.WithValue(ctx, roleKeyContext, role)
+		logger = logger.With(
+			"userId", int(userIDFloat),
+			"role", role,
+		)
+		ctx := logging.WithContext(r.Context(), logger)
+		ctx = authctx.WithUserID(ctx, int(userIDFloat))
+		ctx = authctx.WithRole(ctx, role)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-func UserIDFromContext(ctx context.Context) int {
-	if id, ok := ctx.Value(userIDKeyContext).(int); ok {
-		return id
-	}
-	return 0
-}
-
-func RoleFromContext(ctx context.Context) string {
-	if role, ok := ctx.Value(roleKeyContext).(string); ok {
-		return role
-	}
-	return ""
 }

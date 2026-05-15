@@ -30,9 +30,9 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func RequestIDFromContext(ctx context.Context) string {
+func RequestIDFromContext(ctx context.Context) (string, bool) {
 	if id, ok := ctx.Value(requestIDKeyContext).(string); ok {
-		return id
+		return id, true
 	}
-	return ""
+	return "", false
 }

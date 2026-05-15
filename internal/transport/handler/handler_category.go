@@ -4,17 +4,18 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
-	"github.com/Alex-Blacks/Purchases/pkg"
+	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
 )
 
 func CreateCategoryHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 		var req dto.CategoryRequest
 
-		if !decodeHelper(w, r, logger, &req) {
+		if !helpers.DecodeJSONHelper(w, r, logger, &req) {
 			return
 		}
 
@@ -26,7 +27,7 @@ func CreateCategoryHandler(svc *service.Service) http.HandlerFunc {
 
 		categoryID, err := svc.CreateCategory(r.Context(), req.Name)
 		if err != nil {
-			domainErrResponse(w, err, logger, map[string]any{
+			helpers.DomainErrResponse(w, err, logger, map[string]any{
 				"name": req.Name,
 			})
 			return
@@ -36,21 +37,21 @@ func CreateCategoryHandler(svc *service.Service) http.HandlerFunc {
 			CategoryID: categoryID,
 		}
 
-		encodeHelper(w, logger, http.StatusCreated, resp)
+		helpers.RespondJSON(w, http.StatusCreated, resp, logger)
 	}
 }
 
 func GetCategoryHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
-		categoryID, ok := parsePositiveIntParam(w, r, "categoryId", logger)
+		logger := logging.LoggerFromContext(r.Context())
+		categoryID, ok := helpers.ParsePositiveIntParam(w, r, "categoryId", logger)
 		if !ok {
 			return
 		}
 
 		category, err := svc.GetCategory(r.Context(), categoryID)
 		if err != nil {
-			domainErrResponse(w, err, logger, map[string]any{
+			helpers.DomainErrResponse(w, err, logger, map[string]any{
 				"categoryId": categoryID,
 			})
 			return
@@ -61,21 +62,20 @@ func GetCategoryHandler(svc *service.Service) http.HandlerFunc {
 			Name: category.Name,
 		}
 
-		encodeHelper(w, logger, http.StatusOK, resp)
-
+		helpers.RespondJSON(w, http.StatusOK, resp, logger)
 	}
 }
 
 func DeleteCategoryHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
-		categoryID, ok := parsePositiveIntParam(w, r, "categoryId", logger)
+		logger := logging.LoggerFromContext(r.Context())
+		categoryID, ok := helpers.ParsePositiveIntParam(w, r, "categoryId", logger)
 		if !ok {
 			return
 		}
 
 		if err := svc.DeleteCategory(r.Context(), categoryID); err != nil {
-			domainErrResponse(w, err, logger, map[string]any{
+			helpers.DomainErrResponse(w, err, logger, map[string]any{
 				"categoryId": categoryID,
 			})
 			return
@@ -87,15 +87,15 @@ func DeleteCategoryHandler(svc *service.Service) http.HandlerFunc {
 
 func ListCategoriesHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
 		categories, err := svc.ListCategories(r.Context())
 		if err != nil {
-			domainErrResponse(w, err, logger, map[string]any{})
+			helpers.DomainErrResponse(w, err, logger, map[string]any{})
 			return
 		}
 		resp := dto.ToCategoryResponse(categories)
 
-		encodeHelper(w, logger, http.StatusOK, resp)
+		helpers.RespondJSON(w, http.StatusOK, resp, logger)
 	}
 }

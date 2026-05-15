@@ -14,4 +14,5 @@ var (
 	ErrStatusBlocked     = errors.New("status blocked")
 	ErrIncorrectPassword = errors.New("incorrect password")
 	ErrNoRights          = errors.New("no rights")
+	ErrEmailConflict     = errors.New("email has already been created")
 )

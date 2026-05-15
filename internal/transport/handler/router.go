@@ -3,22 +3,31 @@ package handler
 import (
 	"net/http"
 
+	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/internal/transport/middleware"
-	"github.com/Alex-Blacks/Purchases/pkg"
 	"github.com/go-chi/chi/v5"
 )
 
-func NewRouter(svc *service.Service) *chi.Mux {
+func PrivateRouter(svc *service.Service) *chi.Mux {
 	router := chi.NewRouter()
 
-	logger := pkg.NewLogger()
+	logger := logging.NewLogger()
 
 	router.Use(middleware.RequestIDMiddleware)
 	router.Use(func(next http.Handler) http.Handler {
 		return middleware.LoggingMiddleware(next, logger)
 	})
 	router.Use(middleware.AuthMiddleware)
+
+	// Users
+	router.Route("/users", func(r chi.Router) {
+		r.Get("/", ListUsersHandler(svc))
+
+		r.Put("/{userId}", UpdateUserHandler(svc))
+		r.Get("/{userId}", GetUserByIDHandler(svc))
+		r.Delete("/{userId}", DeleteUserHandler(svc))
+	})
 
 	// Products
 	router.Route("/products", func(r chi.Router) {
@@ -32,7 +41,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 		r.Get("/by-alias", FindProductByAliasHandler(svc))
 
 		// ProductsAliase
-		router.Route("/{productId}/aliases", func(r chi.Router) {
+		r.Route("/{productId}/aliases", func(r chi.Router) {
 			r.Post("/", CreateProductAliasHandler(svc))
 			r.Get("/", ListProductAliasesHandler(svc))
 			r.Delete("/", DeleteAllProductAliasesHandler(svc))
@@ -61,7 +70,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 	})
 
 	// Orders
-	router.Route("/users/{userId}/orders", func(r chi.Router) {
+	router.Route("/orders", func(r chi.Router) {
 		r.Post("/", CreateOrderHandler(svc))
 		r.Get("/", ListOrdersHandler(svc))
 
@@ -75,6 +84,38 @@ func NewRouter(svc *service.Service) *chi.Mux {
 			r.Put("/{productId}", UpdateItemHandler(svc))
 			r.Delete("/{productId}", DeleteItemHandler(svc))
 		})
+	})
+	return router
+}
+
+func PublicRouter(svc *service.Service) *chi.Mux {
+	router := chi.NewRouter()
+
+	logger := logging.NewLogger()
+
+	router.Use(middleware.RequestIDMiddleware)
+	router.Use(func(next http.Handler) http.Handler {
+		return middleware.LoggingMiddleware(next, logger)
+	})
+
+	// Users
+	router.Route("/users", func(r chi.Router) {
+		r.Post("/", CreateUserHandler(svc))
+	})
+
+	// Products
+	router.Route("/products", func(r chi.Router) {
+		r.Get("/", ListProductsHandler(svc))
+	})
+
+	// Categories
+	router.Route("/categories", func(r chi.Router) {
+		r.Get("/", ListCategoriesHandler(svc))
+	})
+
+	// Stores
+	router.Route("/stores", func(r chi.Router) {
+		r.Get("/", ListStoresHandler(svc))
 	})
 	return router
 }

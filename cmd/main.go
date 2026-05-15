@@ -13,31 +13,55 @@ import (
 
 func main() {
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, "postgres://dev:devpass@localhost:5432/purchases?sslmode=disable")
+
+	pool, err := pgxpool.New(ctx,
+		"postgres://dev:devpass@localhost:5432/purchases?sslmode=disable",
+	)
 	if err != nil {
-		log.Fatalf("[ERROR]: Database connection error: %v", err)
+		log.Fatalf("db connection error: %v", err)
 	}
 	defer pool.Close()
 
+	// storage layer
 	st := storage.NewStorage(pool)
+
+	// repositories
+	userRepo := storage.NewUserRepo()
 	orderRepo := storage.NewOrderRepo()
 	orderItemRepo := storage.NewOrderItemRepo()
 	storeRepo := storage.NewStoreRepo()
 	categoryRepo := storage.NewCategoryRepo()
 	productRepo := storage.NewProductRepo()
-	product_alias := storage.NewProductAliasRepo()
-	svc := service.NewService(st, orderRepo, orderItemRepo, storeRepo, categoryRepo, productRepo, product_alias)
+	productAliasRepo := storage.NewProductAliasRepo()
 
-	mux := handler.NewRouter(svc)
+	// service layer
+	svc := service.NewService(
+		st,
+		userRepo,
+		orderRepo,
+		orderItemRepo,
+		storeRepo,
+		categoryRepo,
+		productRepo,
+		productAliasRepo,
+	)
 
-	server := http.Server{
+	// routers
+	publicRouter := handler.PublicRouter(svc)
+	privateRouter := handler.PrivateRouter(svc)
+
+	// mux root
+	mux := http.NewServeMux()
+
+	// mount points
+	mux.Handle("/api/public/", http.StripPrefix("/api/public", publicRouter))
+	mux.Handle("/api/private/", http.StripPrefix("/api/private", privateRouter))
+
+	server := &http.Server{
 		Addr:    ":8080",
 		Handler: mux,
 	}
 
 	log.Println("server started on :8080")
-
-	if err = server.ListenAndServe(); err != nil {
-		log.Fatal(err)
-	}
+	log.Fatal(server.ListenAndServe())
 }

@@ -3,33 +3,31 @@ package handler
 import (
 	"net/http"
 
+	"github.com/Alex-Blacks/Purchases/internal/authctx"
+	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
-	"github.com/Alex-Blacks/Purchases/pkg"
+	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
 )
 
 func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
-		userID, ok := parsePositiveIntParam(w, r, "userId", logger)
+		userID, ok := authctx.UserIDFromContext(r.Context())
 		if !ok {
 			return
 		}
 
 		var req dto.OrderRequest
 
-		if !decodeHelper(w, r, logger, &req) {
-			return
-		}
-
-		if !validatePositiveInt(w, "storeId", req.StoreID, logger) {
+		if !helpers.DecodeJSONHelper(w, r, logger, &req) {
 			return
 		}
 
 		orderID, err := svc.CreateOrder(r.Context(), userID, req.StoreID)
 		if err != nil {
-			domainErrResponse(w, err, logger, map[string]any{
+			helpers.DomainErrResponse(w, err, logger, map[string]any{
 				"userId":  userID,
 				"storeId": req.StoreID,
 			})
@@ -38,26 +36,26 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 
 		resp := dto.OrderCreateResponse{ID: orderID}
 
-		encodeHelper(w, logger, http.StatusCreated, resp)
+		helpers.RespondJSON(w, http.StatusCreated, resp, logger)
 	}
 }
 
 func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
-		userID, ok := parsePositiveIntParam(w, r, "userId", logger)
+		userID, ok := authctx.UserIDFromContext(r.Context())
 		if !ok {
 			return
 		}
-		orderID, ok := parsePositiveIntParam(w, r, "orderId", logger)
+		orderID, ok := helpers.ParsePositiveIntParam(w, r, "orderId", logger)
 		if !ok {
 			return
 		}
 
 		order, err := svc.GetOrder(r.Context(), userID, orderID)
 		if err != nil {
-			domainErrResponse(w, err, logger, map[string]any{
+			helpers.DomainErrResponse(w, err, logger, map[string]any{
 				"userId":  userID,
 				"orderId": orderID,
 			})
@@ -66,26 +64,25 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 
 		resp := dto.ToResponseOrder(order)
 
-		encodeHelper(w, logger, http.StatusOK, resp)
+		helpers.RespondJSON(w, http.StatusOK, resp, logger)
 	}
 }
 
 func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
-		userID, ok := parsePositiveIntParam(w, r, "userId", logger)
+		userID, ok := authctx.UserIDFromContext(r.Context())
 		if !ok {
 			return
 		}
-		orderID, ok := parsePositiveIntParam(w, r, "orderId", logger)
+		orderID, ok := helpers.ParsePositiveIntParam(w, r, "orderId", logger)
 		if !ok {
 			return
 		}
 
 		if err := svc.DeleteOrder(r.Context(), userID, orderID); err != nil {
-			domainErrResponse(w, err, logger, map[string]any{
-				"userId":  userID,
+			helpers.DomainErrResponse(w, err, logger, map[string]any{
 				"orderId": orderID,
 			})
 			return
@@ -97,22 +94,22 @@ func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
 
 func ListOrdersHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := pkg.LoggerFromContext(r.Context())
+		logger := logging.LoggerFromContext(r.Context())
 
-		userID, ok := parsePositiveIntParam(w, r, "userId", logger)
+		userID, ok := authctx.UserIDFromContext(r.Context())
 		if !ok {
 			return
 		}
 
 		orders, err := svc.ListOrders(r.Context(), userID)
 		if err != nil {
-			domainErrResponse(w, err, logger, map[string]any{
+			helpers.DomainErrResponse(w, err, logger, map[string]any{
 				"userId": userID,
 			})
 			return
 		}
 
 		resp := dto.ToOrderListResponse(orders)
-		encodeHelper(w, logger, http.StatusOK, resp)
+		helpers.RespondJSON(w, http.StatusOK, resp, logger)
 	}
 }
