@@ -8,6 +8,29 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/logging"
 )
 
+type wrapped struct {
+	w       http.ResponseWriter
+	status  int
+	written int
+}
+
+func (wr *wrapped) Header() http.Header {
+	return wr.w.Header()
+}
+
+func (wr *wrapped) WriteHeader(code int) {
+	wr.status = code
+	wr.w.WriteHeader(code)
+}
+func (wr *wrapped) Write(b []byte) (int, error) {
+	if wr.status == 0 {
+		wr.status = http.StatusOK
+	}
+	n, err := wr.w.Write(b)
+	wr.written += n
+	return n, err
+}
+
 func LoggingMiddleware(next http.Handler, baseLoger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -26,10 +49,13 @@ func LoggingMiddleware(next http.Handler, baseLoger *slog.Logger) http.Handler {
 		ctx := logging.WithContext(r.Context(), log)
 		r = r.WithContext(ctx)
 
+		wrappedWriter := &wrapped{w: w}
 		start := time.Now()
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(wrappedWriter, r)
 		duration := time.Since(start)
-		log.Info("request succeeded",
+		log.Info("request finished",
+			"status", wrappedWriter.status,
+			"bytes", wrappedWriter.written,
 			"duration", duration,
 		)
 	})
