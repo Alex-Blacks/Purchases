@@ -5,7 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Alex-Blacks/Purchases/internal/bd/storage"
+	"github.com/Alex-Blacks/Purchases/internal/config"
+	"github.com/Alex-Blacks/Purchases/internal/db/storage"
+	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,10 +15,13 @@ import (
 
 func main() {
 	ctx := context.Background()
+	logger := logging.NewLogger()
 
-	pool, err := pgxpool.New(ctx,
-		"postgres://dev:devpass@localhost:5432/purchases?sslmode=disable",
-	)
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("config error: %v", err)
+	}
+	pool, err := pgxpool.New(ctx, cfg.DBurl)
 	if err != nil {
 		log.Fatalf("db connection error: %v", err)
 	}
@@ -46,9 +51,11 @@ func main() {
 		productAliasRepo,
 	)
 
+	authSvc := service.NewAuthService(svc, cfg.JWTSecret)
+
 	// routers
-	publicRouter := handler.PublicRouter(svc)
-	privateRouter := handler.PrivateRouter(svc)
+	publicRouter := handler.PublicRouter(svc, authSvc, logger)
+	privateRouter := handler.PrivateRouter(svc, cfg.JWTSecret, logger)
 
 	// mux root
 	mux := http.NewServeMux()
@@ -58,7 +65,7 @@ func main() {
 	mux.Handle("/api/private/", http.StripPrefix("/api/private", privateRouter))
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + cfg.Port,
 		Handler: mux,
 	}
 

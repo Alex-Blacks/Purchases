@@ -1,4 +1,4 @@
-package auth
+package service
 
 import (
 	"context"
@@ -6,16 +6,16 @@ import (
 	"time"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
-	"github.com/Alex-Blacks/Purchases/internal/service"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type AuthService struct {
-	svc    *service.Service
+	svc    *Service
 	secret string
 }
 
-func NewAuthService(svc *service.Service, secret string) *AuthService {
+func NewAuthService(svc *Service, secret string) *AuthService {
 	return &AuthService{
 		svc:    svc,
 		secret: secret,
@@ -43,7 +43,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString(s.secret)
+	signedToken, err := token.SignedString([]byte(s.secret))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}

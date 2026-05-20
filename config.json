@@ -1,0 +1,5 @@
+{
+ "jwt_secret":"my-super-secret",
+ "db_url": "postgres://dev:devpass@localhost:5432/purchases?sslmode=disable",
+ "port":"8080"
+}

@@ -31,32 +31,35 @@ func (wr *wrapped) Write(b []byte) (int, error) {
 	return n, err
 }
 
-func LoggingMiddleware(next http.Handler, baseLoger *slog.Logger) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func LoggingMiddleware(baseLoger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		requestID, ok := RequestIDFromContext(r.Context())
-		if requestID == "" || !ok {
-			requestID = "unknown"
-		}
+			requestID, ok := RequestIDFromContext(r.Context())
+			if requestID == "" || !ok {
+				requestID = "unknown"
+			}
 
-		log := baseLoger.With(
-			"request-id", requestID,
-			"method", r.Method,
-			"path", r.URL.Path,
-		)
+			log := baseLoger.With(
+				"request-id", requestID,
+				"method", r.Method,
+				"path", r.URL.Path,
+			)
 
-		log.Info("request started")
-		ctx := logging.WithContext(r.Context(), log)
-		r = r.WithContext(ctx)
+			log.Info("request started")
+			ctx := logging.WithContext(r.Context(), log)
+			r = r.WithContext(ctx)
 
-		wrappedWriter := &wrapped{w: w}
-		start := time.Now()
-		next.ServeHTTP(wrappedWriter, r)
-		duration := time.Since(start)
-		log.Info("request finished",
-			"status", wrappedWriter.status,
-			"bytes", wrappedWriter.written,
-			"duration", duration,
-		)
-	})
+			wrappedWriter := &wrapped{w: w}
+			start := time.Now()
+			next.ServeHTTP(wrappedWriter, r)
+			duration := time.Since(start)
+			log.Info("request finished",
+				"status", wrappedWriter.status,
+				"bytes", wrappedWriter.written,
+				"duration", duration,
+			)
+		})
+	}
+
 }

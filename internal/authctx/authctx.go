@@ -13,9 +13,9 @@ func WithUserID(ctx context.Context, userID int) context.Context {
 
 func UserIDFromContext(ctx context.Context) (int, bool) {
 	if id, ok := ctx.Value(userIDKeyContext).(int); ok {
-		return id, false
+		return id, true
 	}
-	return 0, true
+	return 0, false
 }
 
 func WithRole(ctx context.Context, role string) context.Context {
@@ -24,7 +24,7 @@ func WithRole(ctx context.Context, role string) context.Context {
 
 func RoleFromContext(ctx context.Context) (string, bool) {
 	if role, ok := ctx.Value(roleKeyContext).(string); ok {
-		return role, false
+		return role, true
 	}
-	return "", true
+	return "", false
 }

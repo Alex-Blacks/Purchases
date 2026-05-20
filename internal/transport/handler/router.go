@@ -1,24 +1,20 @@
 package handler
 
 import (
-	"net/http"
+	"log/slog"
 
-	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/internal/transport/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
-func PrivateRouter(svc *service.Service) *chi.Mux {
+func PrivateRouter(svc *service.Service, secret string, logger *slog.Logger) *chi.Mux {
 	router := chi.NewRouter()
 
-	logger := logging.NewLogger()
-
+	router.Use(middleware.RecoveryMiddleware)
 	router.Use(middleware.RequestIDMiddleware)
-	router.Use(func(next http.Handler) http.Handler {
-		return middleware.LoggingMiddleware(next, logger)
-	})
-	router.Use(middleware.AuthMiddleware)
+	router.Use(middleware.LoggingMiddleware(logger))
+	router.Use(middleware.AuthMiddleware(secret))
 
 	// Users
 	router.Route("/users", func(r chi.Router) {
@@ -88,14 +84,16 @@ func PrivateRouter(svc *service.Service) *chi.Mux {
 	return router
 }
 
-func PublicRouter(svc *service.Service) *chi.Mux {
+func PublicRouter(svc *service.Service, auth *service.AuthService, logger *slog.Logger) *chi.Mux {
 	router := chi.NewRouter()
 
-	logger := logging.NewLogger()
-
+	router.Use(middleware.RecoveryMiddleware)
 	router.Use(middleware.RequestIDMiddleware)
-	router.Use(func(next http.Handler) http.Handler {
-		return middleware.LoggingMiddleware(next, logger)
+	router.Use(middleware.LoggingMiddleware(logger))
+
+	//Login
+	router.Route("/login", func(r chi.Router) {
+		r.Post("/", LoginHandler(auth))
 	})
 
 	// Users
@@ -103,20 +101,5 @@ func PublicRouter(svc *service.Service) *chi.Mux {
 		r.Post("/", CreateUserHandler(svc))
 	})
 
-	// Products
-	router.Route("/products", func(r chi.Router) {
-		r.Get("/", ListProductsHandler(svc))
-	})
-
-	// Categories
-	router.Route("/categories", func(r chi.Router) {
-		r.Get("/", ListCategoriesHandler(svc))
-	})
-
-	// Stores
-	router.Route("/stores", func(r chi.Router) {
-		r.Get("/", ListStoresHandler(svc))
-
-	})
 	return router
 }

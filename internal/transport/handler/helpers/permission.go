@@ -12,10 +12,12 @@ func CheckAdminPermission(w http.ResponseWriter, r *http.Request, logger *slog.L
 	ctx := r.Context()
 	role, ok := authctx.RoleFromContext(ctx)
 	if !ok {
+		logger.Warn("unauthorized")
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return false
 	}
 	if role != "admin" {
+		logger.Warn("forbidden")
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return false
 	}
@@ -28,10 +30,12 @@ func CheckUserOrAdminPermission(w http.ResponseWriter, r *http.Request, logger *
 	userID, ok1 := authctx.UserIDFromContext(ctx)
 	role, ok2 := authctx.RoleFromContext(ctx)
 	if !ok1 || !ok2 {
+		logger.Warn("unauthorized")
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return false
 	}
 	if userID != userIDParam && role != "admin" {
+		logger.Warn("forbidden")
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return false
 	}
