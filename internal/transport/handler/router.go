@@ -116,6 +116,7 @@ func PublicRouter(svc *service.Service) *chi.Mux {
 	// Stores
 	router.Route("/stores", func(r chi.Router) {
 		r.Get("/", ListStoresHandler(svc))
+
 	})
 	return router
 }

@@ -18,12 +18,14 @@ func DomainErrResponse(w http.ResponseWriter, err error, logger *slog.Logger, de
 	}
 
 	errorMap := map[error]errData{
-		domain.ErrEmailConflict: {http.StatusConflict, "email has already been created"},
-		domain.ErrConflict:      {http.StatusConflict, "the field is used in another table"},
-		domain.ErrAlreadyExists: {http.StatusConflict, "conflict"},
-		domain.ErrEmptyName:     {http.StatusBadRequest, "empty name"},
-		domain.ErrNotFound:      {http.StatusNotFound, "not found"},
-		domain.ErrInvalidInput:  {http.StatusBadRequest, "invalid input"},
+		domain.ErrEmailConflict:     {http.StatusConflict, "email has already been created"},
+		domain.ErrConflict:          {http.StatusConflict, "the field is used in another table"},
+		domain.ErrAlreadyExists:     {http.StatusConflict, "conflict"},
+		domain.ErrEmptyName:         {http.StatusBadRequest, "empty name"},
+		domain.ErrNotFound:          {http.StatusNotFound, "not found"},
+		domain.ErrInvalidInput:      {http.StatusBadRequest, "invalid input"},
+		domain.ErrStatusBlocked:     {http.StatusBadRequest, "status blocked"},
+		domain.ErrIncorrectPassword: {http.StatusBadRequest, "incorrect password"},
 	}
 
 	for domainErr, data := range errorMap {
