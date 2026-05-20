@@ -20,10 +20,14 @@ func (p *ProductRepo) CreateProduct(ctx context.Context, q domain.Querier, title
 	var id int
 	if err := q.QueryRow(ctx, `INSERT INTO products(title,unit,category_id) VALUES ($1,$2,$3) RETURNING id`, title, unit, categoryID).Scan(&id); err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
+		switch errors.As(err, &pgErr) {
+		case pgErr.Code == pgUniqueViolation:
 			return 0, domain.ErrAlreadyExists
+		case pgErr.Code == pgForeignKeyViolation:
+			return 0, domain.ErrConflict
+		default:
+			return 0, fmt.Errorf("query create product: %w", err)
 		}
-		return 0, fmt.Errorf("query create product: %w", err)
 	}
 
 	return id, nil

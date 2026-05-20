@@ -7,6 +7,7 @@ import (
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type ProductAliasRepo struct{}
@@ -18,6 +19,13 @@ func NewProductAliasRepo() *ProductAliasRepo {
 func (a *ProductAliasRepo) CreateProductAlias(ctx context.Context, q domain.Querier, productID int, alias string) (int, error) {
 	var id int
 	if err := q.QueryRow(ctx, `INSERT INTO product_aliases(product_id,alias) VALUES ($1,$2) RETURNING id`, productID, alias).Scan(&id); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
+			return 0, domain.ErrAlreadyExists
+		}
+		if errors.As(err, &pgErr) && pgErr.Code == pgForeignKeyViolation {
+			return 0, domain.ErrConflict
+		}
 		return 0, fmt.Errorf("query create product alias: %w", err)
 	}
 	return id, nil
@@ -78,8 +86,11 @@ func (a *ProductAliasRepo) ListProductAliases(ctx context.Context, q domain.Quer
 
 }
 func (a *ProductAliasRepo) DeleteAllProductAliases(ctx context.Context, q domain.Querier, productID int) error {
-	tag, err := q.Exec(ctx, `DELETE FROM product_aliases WHERE product_id = $1 RETURNING id`, productID)
+	tag, err := q.Exec(ctx, `DELETE FROM product_aliases WHERE product_id = $1`, productID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrNotFound
+		}
 		return fmt.Errorf("delete product alias: %w", err)
 	}
 
@@ -90,19 +101,19 @@ func (a *ProductAliasRepo) DeleteAllProductAliases(ctx context.Context, q domain
 	return nil
 }
 
-func (a *ProductAliasRepo) FindProductByAlias(ctx context.Context, q domain.Querier, alias string) (int, error) {
-	var productID int
+func (a *ProductAliasRepo) FindProductByAlias(ctx context.Context, q domain.Querier, alias string) (string, error) {
+	var product string
 	if err := q.QueryRow(ctx, `
 		SELECT p.title
 		FROM product_aliases pa
 		JOIN products p ON pa.product_id = p.id
 		WHERE pa.alias = $1
-	`, alias).Scan(&productID); err != nil {
+	`, alias).Scan(&product); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return 0, domain.ErrNotFound
+			return "", domain.ErrNotFound
 		}
-		return 0, fmt.Errorf("query product alias: %w", err)
+		return "", fmt.Errorf("query product alias: %w", err)
 	}
 
-	return productID, nil
+	return product, nil
 }

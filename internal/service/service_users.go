@@ -57,7 +57,7 @@ func (s *Service) ListUsers(ctx context.Context) ([]domain.User, error) {
 func (s *Service) UpdateUser(ctx context.Context, userID int, updateUser domain.UpdateUser) (domain.User, error) {
 	var user domain.User
 	if !hasUpdates(updateUser) {
-		return user, domain.ErrEmptyUpdate
+		return user, domain.ErrNoFieldsToUpdate
 	}
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error

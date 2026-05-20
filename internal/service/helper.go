@@ -11,19 +11,19 @@ import (
 func (s *Service) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
 	tx, err := s.storage.BeginTx(ctx)
 	if err != nil {
-		return fmt.Errorf("Error begin tx: %w", err)
+		return fmt.Errorf("failed to begin tx: %w", err)
 	}
 
 	defer func() {
 		if err != nil {
-			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				err = fmt.Errorf("tx err: %v, rollback err: %w", err, rbErr)
+			if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+				err = fmt.Errorf("tx err: %v, rollback err: %w", err, rollbackErr)
 			}
 			return
 		}
 
-		if cmErr := tx.Commit(ctx); cmErr != nil {
-			err = fmt.Errorf("commit err: %w", cmErr)
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			err = fmt.Errorf("commit err: %w", commitErr)
 		}
 	}()
 

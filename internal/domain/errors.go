@@ -9,7 +9,6 @@ var (
 	ErrAlreadyExists    = errors.New("already exists")
 	ErrConflict         = errors.New("conflict")
 	ErrNoFieldsToUpdate = errors.New("no fields to update")
-	ErrEmptyUpdate      = errors.New("empty updates")
 
 	ErrStatusBlocked     = errors.New("status blocked")
 	ErrIncorrectPassword = errors.New("incorrect password")

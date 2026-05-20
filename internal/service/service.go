@@ -10,7 +10,7 @@ type Service struct {
 	order          domain.OrderRepository
 	item           domain.OrderItemRepository
 	store          domain.StoreRepository
-	category       domain.CategoryRepositoriy
+	category       domain.CategoryRepository
 	product        domain.ProductRepository
 	productAliases domain.ProductAliasRepository
 }
@@ -21,7 +21,7 @@ func NewService(
 	order domain.OrderRepository,
 	item domain.OrderItemRepository,
 	store domain.StoreRepository,
-	category domain.CategoryRepositoriy,
+	category domain.CategoryRepository,
 	product domain.ProductRepository,
 	productAliases domain.ProductAliasRepository,
 ) *Service {

@@ -45,11 +45,12 @@ create table stores(
 create table orders(
     id integer generated always as identity primary key,
     user_id integer not null,
-    store_id integer unique not null,
+    store_id integer not null,
     created_at timestamptz default now(),
     updated_at timestamptz default now(),
     foreign key(user_id) references users(id) on delete cascade,
-    foreign key(store_id) references stores(id) on delete restrict
+    foreign key(store_id) references stores(id) on delete restrict,
+    constraint uniq_user_store_order unique(user_id, store_id)
 );
 
 create table order_items(

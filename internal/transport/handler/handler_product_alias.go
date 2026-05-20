@@ -142,14 +142,14 @@ func FindProductByAliasHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		productID, err := svc.FindProductByAlias(r.Context(), alias)
+		product, err := svc.FindProductByAlias(r.Context(), alias)
 		if err != nil {
 			helpers.DomainErrResponse(w, err, logger, map[string]any{"alias": alias})
 			return
 		}
 
 		resp := dto.ProductFindResponse{
-			ProductID: productID,
+			Product: product,
 		}
 		helpers.RespondJSON(w, http.StatusOK, resp, logger)
 	}

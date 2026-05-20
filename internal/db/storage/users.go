@@ -59,9 +59,6 @@ func (u *UserRepo) DeleteUser(ctx context.Context, q domain.Querier, userID int)
 func (u *UserRepo) ListUsers(ctx context.Context, q domain.Querier) ([]domain.User, error) {
 	rows, err := q.Query(ctx, `SELECT id,name,password_hash,email,role, status FROM users`)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain.ErrNotFound
-		}
 		return nil, fmt.Errorf("query list users: %w", err)
 	}
 	defer rows.Close()

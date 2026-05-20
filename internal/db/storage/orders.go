@@ -141,10 +141,17 @@ func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, 
 			VALUES ($1,$2,$3) 
 			RETURNING id, product_id, quantity
 		)
-		SELECT i.id, i.product_id, u.title, i.quantity
+		SELECT i.id, i.product_id, p.title, i.quantity
 		FROM inserted i
 		JOIN products p ON i.product_id = p.id 
 	`, orderID, productID, quantity).Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.Is(err, pgx.ErrNoRows) {
+			return item, domain.ErrNotFound
+		}
+		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
+			return item, domain.ErrAlreadyExists
+		}
 		return item, fmt.Errorf("add item: %w", err)
 	}
 
