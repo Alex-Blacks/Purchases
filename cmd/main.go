@@ -4,6 +4,9 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/Alex-Blacks/Purchases/internal/config"
 	"github.com/Alex-Blacks/Purchases/internal/db/storage"
@@ -11,23 +14,27 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("error loaded .env file")
+	}
+	cfg := config.Load()
 	logger := logging.NewLogger()
 
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("config error: %v", err)
-	}
-	pool, err := pgxpool.New(ctx, cfg.DBurl)
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("db connection error: %v", err)
 	}
 	defer pool.Close()
 
-	// storage layer
 	st := storage.NewStorage(pool)
 
 	// repositories
@@ -65,10 +72,31 @@ func main() {
 	mux.Handle("/api/private/", http.StripPrefix("/api/private", privateRouter))
 
 	server := &http.Server{
-		Addr:    ":" + cfg.Port,
+		Addr:    ":" + cfg.AppPort,
 		Handler: mux,
 	}
 
-	log.Println("server started on :8080")
-	log.Fatal(server.ListenAndServe())
+	go func() {
+		log.Printf("server started on %s", server.Addr)
+		if err := server.ListenAndServe(); err != nil {
+			log.Printf("server error: %v", err)
+			stop()
+		}
+	}()
+
+	<-ctx.Done()
+
+	log.Println("shutdown signal received")
+	shutdownCtx, cancel := context.WithTimeout(
+		context.Background(),
+		5*time.Second,
+	)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("error shutdown")
+	}
+
+	log.Println("server stopped")
+
 }
