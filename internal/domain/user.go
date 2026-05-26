@@ -1,6 +1,8 @@
 package domain
 
-import "context"
+import (
+	"context"
+)
 
 type User struct {
 	ID           int
@@ -25,15 +27,4 @@ type UserRepository interface {
 	ListUsers(ctx context.Context, q Querier) ([]User, error)
 	UpdateUser(ctx context.Context, q Querier, userID int, updateUser UpdateUser) (User, error)
 	GetUserByEmail(ctx context.Context, q Querier, email string) (User, error)
-}
-
-// ---------------------------------------------------------------------------------------------------------------------------------
-
-type Actor struct {
-	UserID int
-	Role   string
-}
-
-type Resource struct {
-	UserID int
 }
