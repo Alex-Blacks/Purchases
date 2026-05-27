@@ -1,47 +1,76 @@
 package policy
 
-import "time"
+import (
+	"context"
+)
+
+func (a *Actor) HasRole(role Role) bool {
+	for _, r := range a.Roles {
+		if r == role {
+			return true
+		}
+
+	}
+	return false
+}
+
+type ResurceOwner interface {
+	OwnerID() int
+}
 
 type User struct {
 	UserID int
 }
 
-type UserPolicy struct{}
+func (u User) OwnerID() int { return u.UserID }
 
-func (p *UserPolicy) CanManage(actor Actor, resource User) error {
-	if actor.Role == RoleAdmin {
-		return nil
-	}
-	if actor.UserID != resource.UserID {
-		return ErrForbidden
-	}
-	return nil
+type Order struct {
+	ID     int
+	UserID int
 }
 
-func (p *UserPolicy) CanList(actor Actor) error {
-	if actor.Role == RoleAdmin {
+func (o Order) OwnerID() int { return o.UserID }
+
+type OwnerPolicy struct{}
+
+func (OwnerPolicy) CanAccess(ctx context.Context, actor Actor, resource ResurceOwner) error {
+	if actor.HasRole(RoleAdmin) {
+		return nil
+	}
+	if actor.UserID == resource.OwnerID() {
 		return nil
 	}
 	return ErrForbidden
 }
 
-type OrderResource struct {
-	ID         int
-	UserID     int
-	StoreID    int
-	ItemsCount int
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+type UserPolicy struct {
+	OwnerPolicy
 }
 
-type OrderPolicy struct{}
-
-func (o *OrderPolicy) CanView(actor Actor, resource OrderResource) error {
-	if actor.Role == RoleAdmin {
+func (UserPolicy) CanList(ctx context.Context, actor Actor) error {
+	if actor.HasRole(RoleAdmin) {
 		return nil
 	}
-	if actor.UserID != resource.UserID {
-		return ErrForbidden
+	return ErrForbidden
+}
+
+func (u UserPolicy) CanManage(ctx context.Context, actor Actor, resource User) error {
+	return u.CanAccess(ctx, actor, resource)
+
+}
+
+type OrderPolicy struct {
+	OwnerPolicy
+}
+
+func (OrderPolicy) CanList(ctx context.Context, actor Actor) error {
+	if actor.HasRole(RoleAdmin) {
+		return nil
 	}
-	return nil
+	return ErrForbidden
+}
+
+func (o OrderPolicy) CanManage(ctx context.Context, actor Actor, resource Order) error {
+	return o.CanAccess(ctx, actor, resource)
+
 }

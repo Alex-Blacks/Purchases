@@ -9,5 +9,5 @@ const (
 
 type Actor struct {
 	UserID int
-	Role   Role
+	Roles  []Role
 }

@@ -25,8 +25,10 @@ func CreateUserHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		role := "user"
-		status := "active"
+		const (
+			role   string = "user"
+			status string = "active"
+		)
 
 		user, err := svc.CreateUser(ctx, req.Name, req.Password, req.Email, role, status)
 		if err != nil {
