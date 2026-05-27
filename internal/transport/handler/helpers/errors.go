@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -9,9 +8,7 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
 
-func DomainErrResponse(w http.ResponseWriter, err error, logger *slog.Logger, details map[string]any) {
-	w.Header().Set("Content-Type", "application/json")
-
+func WriteDomainError(w http.ResponseWriter, logger *slog.Logger, err error, req any) {
 	type errData struct {
 		Code int
 		Msg  string
@@ -28,30 +25,21 @@ func DomainErrResponse(w http.ResponseWriter, err error, logger *slog.Logger, de
 
 	for domainErr, data := range errorMap {
 		if errors.Is(err, domainErr) {
-			logger.Warn("domain error", "error", err, "details", details)
-			w.WriteHeader(data.Code)
-			_ = json.NewEncoder(w).Encode(map[string]string{"status": data.Msg})
+			WriteError(w, logger, data.Code, data.Msg)
 			return
 		}
 	}
 
-	// default
-	logger.Error("internal server error", "error", err, "details", details)
-	w.WriteHeader(http.StatusInternalServerError)
-	_ = json.NewEncoder(w).Encode(map[string]string{"status": "internal server error"})
+	WriteInternalError(w, logger, err, req)
 }
 
-func AuthErrResponse(w http.ResponseWriter, err error, logger *slog.Logger, details map[string]any) {
+func AuthErrResponse(w http.ResponseWriter, err error, logger *slog.Logger, req any) {
 	switch {
 	case errors.Is(err, domain.ErrStatusBlocked) || errors.Is(err, domain.ErrIncorrectPassword):
-		logger.Warn("auth error", "error", err, "details", details)
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "invalid credentials"})
+		WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	default:
-		logger.Error("internal server error", "error", err, "details", details)
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "internal server error"})
+		WriteInternalError(w, logger, err, req)
 		return
 	}
 }

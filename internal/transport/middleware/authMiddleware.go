@@ -7,6 +7,7 @@ import (
 
 	"github.com/Alex-Blacks/Purchases/internal/authctx"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
+	"github.com/Alex-Blacks/Purchases/internal/policy"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -66,14 +67,13 @@ func AuthMiddleware(secret string) func(http.Handler) http.Handler {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
+			userID := int(userIDFloat)
+			actor := policy.ToActor(userID, policy.Role(role))
 
-			logger = logger.With(
-				"userId", int(userIDFloat),
-				"role", role,
-			)
+			logger = logger.With("actor", actor)
+
 			ctx := logging.WithContext(r.Context(), logger)
-			ctx = authctx.WithUserID(ctx, int(userIDFloat))
-			ctx = authctx.WithRole(ctx, role)
+			ctx = authctx.WithActor(ctx, actor)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

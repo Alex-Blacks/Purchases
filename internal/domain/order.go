@@ -7,12 +7,15 @@ import (
 
 type OrderDetails struct {
 	ID         int
-	User       string
+	UserID     int
 	Store      string
 	ItemsCount int
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
+
+func (o OrderDetails) OwnerID() int { return o.UserID }
+
 type OrderItemDetails struct {
 	ID        int
 	ProductID int

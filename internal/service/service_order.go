@@ -4,13 +4,25 @@ import (
 	"context"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
+	"github.com/Alex-Blacks/Purchases/internal/policy"
 )
 
-func (s *Service) CreateOrder(ctx context.Context, userID, storeID int) (int, error) {
+func (s *Service) getAccessibleOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error) {
+	order, err := s.order.GetOrder(ctx, s.storage, actor.UserID, orderID)
+	if err != nil {
+		return domain.OrderWithItemDetails{}, err
+	}
+	if err := policy.CanAccess(actor, order.Order); err != nil {
+		return domain.OrderWithItemDetails{}, err
+	}
+	return order, nil
+}
+
+func (s *Service) CreateOrder(ctx context.Context, actor policy.Actor, storeID int) (int, error) {
 	var orderID int
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		orderID, err = s.order.CreateOrder(ctx, q, userID, storeID)
+		orderID, err = s.order.CreateOrder(ctx, q, actor.UserID, storeID)
 		return err
 	}); err != nil {
 		return 0, err
@@ -19,21 +31,36 @@ func (s *Service) CreateOrder(ctx context.Context, userID, storeID int) (int, er
 	return orderID, nil
 }
 
-func (s *Service) GetOrder(ctx context.Context, userID, orderID int) (domain.OrderWithItemDetails, error) {
-	return s.order.GetOrder(ctx, s.storage, userID, orderID)
+func (s *Service) GetOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error) {
+	order, err := s.getAccessibleOrder(ctx, actor, orderID)
+	if err != nil {
+		return domain.OrderWithItemDetails{}, err
+	}
+	return order, nil
 }
 
-func (s *Service) DeleteOrder(ctx context.Context, userID, orderID int) error {
+func (s *Service) DeleteOrder(ctx context.Context, actor policy.Actor, orderID int) error {
+	_, err := s.getAccessibleOrder(ctx, actor, orderID)
+	if err != nil {
+		return err
+	}
 	return s.WithTx(ctx, func(q domain.Querier) error {
-		return s.order.DeleteOrder(ctx, q, userID, orderID)
+		return s.order.DeleteOrder(ctx, q, actor.UserID, orderID)
 	})
 }
 
-func (s *Service) ListOrders(ctx context.Context, userID int) ([]domain.OrderDetails, error) {
-	return s.order.ListOrders(ctx, s.storage, userID)
+func (s *Service) ListOrders(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error) {
+	if err := policy.CanList(actor); err != nil {
+		return nil, err
+	}
+	return s.order.ListOrders(ctx, s.storage, actor.UserID)
 }
 
-func (s *Service) AddItem(ctx context.Context, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+func (s *Service) AddItem(ctx context.Context, actor policy.Actor, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+	_, err := s.getAccessibleOrder(ctx, actor, orderID)
+	if err != nil {
+		return domain.OrderItemDetails{}, err
+	}
 	var itemID domain.OrderItemDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
@@ -45,7 +72,11 @@ func (s *Service) AddItem(ctx context.Context, orderID, productID, quantity int)
 	return itemID, nil
 }
 
-func (s *Service) UpdateItem(ctx context.Context, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+func (s *Service) UpdateItem(ctx context.Context, actor policy.Actor, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+	_, err := s.getAccessibleOrder(ctx, actor, orderID)
+	if err != nil {
+		return domain.OrderItemDetails{}, err
+	}
 	var itemID domain.OrderItemDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
@@ -57,7 +88,11 @@ func (s *Service) UpdateItem(ctx context.Context, orderID, productID, quantity i
 	return itemID, nil
 }
 
-func (s *Service) DeleteItem(ctx context.Context, orderID, productID int) error {
+func (s *Service) DeleteItem(ctx context.Context, actor policy.Actor, orderID, productID int) error {
+	_, err := s.getAccessibleOrder(ctx, actor, orderID)
+	if err != nil {
+		return err
+	}
 	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.item.DeleteItem(ctx, q, orderID, productID)
 	})

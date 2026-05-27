@@ -16,7 +16,7 @@ type OrderCreateResponse struct {
 
 type OrderDetailsResponse struct {
 	ID         int       `json:"id"`
-	User       string    `json:"user"`
+	UserID     int       `json:"user"`
 	Store      string    `json:"store"`
 	ItemsCount int       `json:"itemsCount"`
 	CreatedAt  time.Time `json:"createdAt"`
@@ -25,7 +25,7 @@ type OrderDetailsResponse struct {
 
 type OrderWithItemDetailsResponse struct {
 	ID         int                   `json:"id"`
-	User       string                `json:"user"`
+	UserID     int                   `json:"userID"`
 	Store      string                `json:"store"`
 	ItemsCount int                   `json:"itemsCount"`
 	CreatedAt  time.Time             `json:"createdAt"`
@@ -61,7 +61,7 @@ func ToResponseOrder(o domain.OrderWithItemDetails) OrderWithItemDetailsResponse
 
 	return OrderWithItemDetailsResponse{
 		ID:         o.Order.ID,
-		User:       o.Order.User,
+		UserID:     o.Order.UserID,
 		Store:      o.Order.Store,
 		ItemsCount: o.Order.ItemsCount,
 		CreatedAt:  o.Order.CreatedAt,
@@ -76,7 +76,7 @@ func ToOrderListResponse(order []domain.OrderDetails) []OrderDetailsResponse {
 	for i, o := range order {
 		resp[i] = OrderDetailsResponse{
 			ID:         o.ID,
-			User:       o.User,
+			UserID:     o.UserID,
 			Store:      o.Store,
 			ItemsCount: o.ItemsCount,
 			CreatedAt:  o.CreatedAt,

@@ -9,5 +9,19 @@ const (
 
 type Actor struct {
 	UserID int
-	Roles  []Role
+	Role   Role
+}
+
+func (a *Actor) HasRole(role Role) bool {
+	if a.Role == role {
+		return true
+	}
+	return false
+}
+
+func ToActor(userID int, role Role) Actor {
+	return Actor{
+		UserID: userID,
+		Role:   role,
+	}
 }

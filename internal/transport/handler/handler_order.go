@@ -14,7 +14,7 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
-		userID, ok := authctx.UserIDFromContext(r.Context())
+		actor, ok := authctx.ActorFromContext(r.Context())
 		if !ok {
 			return
 		}
@@ -25,18 +25,15 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		orderID, err := svc.CreateOrder(r.Context(), userID, req.StoreID)
+		orderID, err := svc.CreateOrder(r.Context(), actor, req.StoreID)
 		if err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{
-				"userId":  userID,
-				"storeId": req.StoreID,
-			})
+			helpers.WriteDomainError(w, logger, err, req)
 			return
 		}
 
 		resp := dto.OrderCreateResponse{ID: orderID}
 
-		helpers.RespondJSON(w, http.StatusCreated, resp, logger)
+		helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 	}
 }
 
@@ -44,7 +41,7 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
-		userID, ok := authctx.UserIDFromContext(r.Context())
+		actor, ok := authctx.ActorFromContext(r.Context())
 		if !ok {
 			return
 		}
@@ -53,18 +50,15 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		order, err := svc.GetOrder(r.Context(), userID, orderID)
+		order, err := svc.GetOrder(r.Context(), actor, orderID)
 		if err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{
-				"userId":  userID,
-				"orderId": orderID,
-			})
+			helpers.WriteDomainError(w, logger, err, map[string]any{"orderId": orderID})
 			return
 		}
 
 		resp := dto.ToResponseOrder(order)
 
-		helpers.RespondJSON(w, http.StatusOK, resp, logger)
+		helpers.WriteJSON(w, logger, http.StatusOK, resp)
 	}
 }
 
@@ -72,7 +66,7 @@ func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
-		userID, ok := authctx.UserIDFromContext(r.Context())
+		actor, ok := authctx.ActorFromContext(r.Context())
 		if !ok {
 			return
 		}
@@ -81,10 +75,8 @@ func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		if err := svc.DeleteOrder(r.Context(), userID, orderID); err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{
-				"orderId": orderID,
-			})
+		if err := svc.DeleteOrder(r.Context(), actor, orderID); err != nil {
+			helpers.WriteDomainError(w, logger, err, map[string]any{"orderId": orderID})
 			return
 		}
 
@@ -96,20 +88,18 @@ func ListOrdersHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
-		userID, ok := authctx.UserIDFromContext(r.Context())
+		actor, ok := authctx.ActorFromContext(r.Context())
 		if !ok {
 			return
 		}
 
-		orders, err := svc.ListOrders(r.Context(), userID)
+		orders, err := svc.ListOrders(r.Context(), actor)
 		if err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{
-				"userId": userID,
-			})
+			helpers.WriteDomainError(w, logger, err, nil)
 			return
 		}
 
 		resp := dto.ToOrderListResponse(orders)
-		helpers.RespondJSON(w, http.StatusOK, resp, logger)
+		helpers.WriteJSON(w, logger, http.StatusOK, resp)
 	}
 }
