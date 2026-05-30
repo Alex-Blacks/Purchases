@@ -89,9 +89,9 @@ func (u *UserRepo) UpdateUser(ctx context.Context, q domain.Querier, userID int,
 		args = append(args, *updateUser.Name)
 		argPos++
 	}
-	if updateUser.PasswordHash != nil {
+	if updateUser.Password != nil {
 		setParts = append(setParts, fmt.Sprintf("password_hash = $%d", argPos))
-		args = append(args, *updateUser.PasswordHash)
+		args = append(args, *updateUser.Password)
 		argPos++
 	}
 	if updateUser.Email != nil {

@@ -3,10 +3,10 @@ package dto
 import "github.com/Alex-Blacks/Purchases/internal/domain"
 
 type UserRequest struct {
-	Name     string `json:"name" validate:"required"`
-	Password string `json:"password" validate:"required"`
-	Email    string `json:"email" validate:"required"`
-	Role     string `json:"role,omitempty"`
+	Name     string  `json:"name" validate:"required"`
+	Password string  `json:"password" validate:"required"`
+	Email    string  `json:"email" validate:"required"`
+	Role     *string `json:"role,omitempty"`
 }
 
 type UserResponse struct {
@@ -44,24 +44,19 @@ func ToUsersResponse(user []domain.User) []UserResponse {
 }
 
 type UserUpdateRequest struct {
-	Name     string `json:"name,omitempty"`
-	Password string `json:"password,omitempty"`
-	Email    string `json:"email,omitempty"`
-	Role     string `json:"role,omitempty"`
-}
-
-func strPtr(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
+	Name     *string `json:"name,omitempty"`
+	Password *string `json:"password,omitempty"`
+	Email    *string `json:"email,omitempty"`
+	Role     *string `json:"role,omitempty"`
+	Status   *string `json:"status,omitempty"`
 }
 
 func ToUserUpdateRequest(up UserUpdateRequest) domain.UpdateUser {
 	return domain.UpdateUser{
-		Name:         strPtr(up.Name),
-		PasswordHash: strPtr(up.Password),
-		Email:        strPtr(up.Email),
-		Role:         strPtr(up.Role),
+		Name:     up.Name,
+		Password: up.Password,
+		Email:    up.Email,
+		Role:     up.Role,
+		Status:   up.Status,
 	}
 }

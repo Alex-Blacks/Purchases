@@ -10,7 +10,7 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
 )
 
-func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
+func CreateOrderHandler(svc *service.ServiceOrderItem) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
@@ -21,7 +21,8 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 
 		var req dto.OrderRequest
 
-		if !helpers.DecodeJSONHelper(w, r, logger, &req) {
+		if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -37,7 +38,7 @@ func CreateOrderHandler(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func GetOrderHandler(svc *service.Service) http.HandlerFunc {
+func GetOrderHandler(svc *service.ServiceOrderItem) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
@@ -45,8 +46,9 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		orderID, ok := helpers.ParsePositiveIntParam(w, r, "orderId", logger)
-		if !ok {
+		orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -62,7 +64,7 @@ func GetOrderHandler(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
+func DeleteOrderHandler(svc *service.ServiceOrderItem) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
@@ -70,8 +72,9 @@ func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		orderID, ok := helpers.ParsePositiveIntParam(w, r, "orderId", logger)
-		if !ok {
+		orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -84,7 +87,7 @@ func DeleteOrderHandler(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func ListOrdersHandler(svc *service.Service) http.HandlerFunc {
+func ListOrdersHandler(svc *service.ServiceOrderItem) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
@@ -101,5 +104,139 @@ func ListOrdersHandler(svc *service.Service) http.HandlerFunc {
 
 		resp := dto.ToOrderListResponse(orders)
 		helpers.WriteJSON(w, logger, http.StatusOK, resp)
+	}
+}
+
+func AddItemHandler(svc *service.ServiceOrderItem) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger := logging.LoggerFromContext(r.Context())
+
+		actor, ok := authctx.ActorFromContext(r.Context())
+		if !ok {
+			return
+		}
+
+		orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		var req dto.ItemRequest
+
+		if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		if err := helpers.ValidatePositiveInt("productId", req.ProductID); err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := helpers.ValidatePositiveInt("quantity", req.Quantity); err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		item, err := svc.AddItem(r.Context(), actor, orderID, req.ProductID, req.Quantity)
+		if err != nil {
+			helpers.WriteDomainError(w, logger, err, map[string]any{
+				"orderId": orderID,
+				"request": req,
+			})
+			return
+		}
+		resp := dto.ItemDetailsResponse{
+			ID:        item.ID,
+			ProductID: item.ProductID,
+			Title:     item.Title,
+			Quantity:  item.Quantity,
+		}
+
+		helpers.WriteJSON(w, logger, http.StatusCreated, resp)
+	}
+}
+
+func UpdateItemHandler(svc *service.ServiceOrderItem) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger := logging.LoggerFromContext(r.Context())
+
+		actor, ok := authctx.ActorFromContext(r.Context())
+		if !ok {
+			return
+		}
+
+		orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+		productID, err := helpers.ParsePositiveIntParam(r, "productId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		var req dto.ItemUpdateRequest
+
+		if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		if err := helpers.ValidatePositiveInt("quantity", req.Quantity); err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		item, err := svc.UpdateItem(r.Context(), actor, orderID, productID, req.Quantity)
+		if err != nil {
+			helpers.WriteDomainError(w, logger, err, map[string]any{
+				"orderId":   orderID,
+				"productId": productID,
+				"request":   req,
+			})
+			return
+		}
+
+		resp := dto.ItemDetailsResponse{
+			ID:        item.ID,
+			ProductID: item.ProductID,
+			Title:     item.Title,
+			Quantity:  item.Quantity,
+		}
+
+		helpers.WriteJSON(w, logger, http.StatusCreated, resp)
+	}
+}
+
+func DeleteItemHandler(svc *service.ServiceOrderItem) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger := logging.LoggerFromContext(r.Context())
+
+		actor, ok := authctx.ActorFromContext(r.Context())
+		if !ok {
+			return
+		}
+
+		orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+		productID, err := helpers.ParsePositiveIntParam(r, "productId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := svc.DeleteItem(r.Context(), actor, orderID, productID); err != nil {
+			helpers.WriteDomainError(w, logger, err, map[string]any{
+				"orderId":   orderID,
+				"productId": productID,
+			})
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }

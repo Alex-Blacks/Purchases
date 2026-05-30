@@ -11,11 +11,11 @@ import (
 )
 
 type AuthService struct {
-	svc    *Service
+	svc    *ServiceUser
 	secret string
 }
 
-func NewAuthService(svc *Service, secret string) *AuthService {
+func NewAuthService(svc *ServiceUser, secret string) *AuthService {
 	return &AuthService{
 		svc:    svc,
 		secret: secret,

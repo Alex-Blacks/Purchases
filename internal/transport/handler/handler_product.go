@@ -10,83 +10,77 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
 )
 
-func CreateProductHandler(svc *service.Service) http.HandlerFunc {
+func CreateProductHandler(svc *service.ServiceProduct) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
 		var req dto.ProductRequest
 
-		if !helpers.DecodeJSONHelper(w, r, logger, &req) {
+		if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 		if strings.TrimSpace(req.Title) == "" {
-			logger.Info("empty name")
-			http.Error(w, "empty name", http.StatusBadRequest)
+			helpers.WriteError(w, logger, http.StatusBadRequest, "empty name")
 			return
 		}
 		if strings.TrimSpace(req.Unit) == "" {
-			logger.Info("empty name")
-			http.Error(w, "empty name", http.StatusBadRequest)
+			helpers.WriteError(w, logger, http.StatusBadRequest, "empty name")
 			return
 		}
 
-		if !helpers.ValidatePositiveInt(w, "categoryId", req.CategoryID, logger) {
+		if err := helpers.ValidatePositiveInt("categoryId", req.CategoryID); err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
 		productID, err := svc.CreateProduct(r.Context(), req.Title, req.Unit, req.CategoryID)
 		if err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{
-				"title":      req.Title,
-				"unit":       req.Unit,
-				"categoryId": req.CategoryID,
-			})
+			helpers.WriteDomainError(w, logger, err, req)
 			return
 		}
 
 		resp := dto.ProductCreateResponse{
 			ProductID: productID,
 		}
-		helpers.RespondJSON(w, http.StatusCreated, resp, logger)
+		helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 	}
 }
 
-func GetProductHandler(svc *service.Service) http.HandlerFunc {
+func GetProductHandler(svc *service.ServiceProduct) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
-		productID, ok := helpers.ParsePositiveIntParam(w, r, "productId", logger)
-		if !ok {
+		productID, err := helpers.ParsePositiveIntParam(r, "productId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
 		product, err := svc.GetProduct(r.Context(), productID)
 		if err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{
-				"productId": productID,
-			})
+			helpers.WriteDomainError(w, logger, err, map[string]any{"productId": productID})
 			return
 		}
 
 		resp := dto.ToProductResponse(product)
-		helpers.RespondJSON(w, http.StatusOK, resp, logger)
+		helpers.WriteJSON(w, logger, http.StatusOK, resp)
 
 	}
 }
 
-func DeleteProductHandler(svc *service.Service) http.HandlerFunc {
+func DeleteProductHandler(svc *service.ServiceProduct) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
-		productID, ok := helpers.ParsePositiveIntParam(w, r, "productId", logger)
-		if !ok {
+		productID, err := helpers.ParsePositiveIntParam(r, "productId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
 		if err := svc.DeleteProduct(r.Context(), productID); err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{
-				"productId": productID,
-			})
+			helpers.WriteDomainError(w, logger, err, map[string]any{"productId": productID})
 			return
 		}
 
@@ -94,17 +88,17 @@ func DeleteProductHandler(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func ListProductsHandler(svc *service.Service) http.HandlerFunc {
+func ListProductsHandler(svc *service.ServiceProduct) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
 		products, err := svc.ListProducts(r.Context())
 		if err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{})
+			helpers.WriteDomainError(w, logger, err, nil)
 			return
 		}
 
 		resp := dto.ToProductsResponse(products)
-		helpers.RespondJSON(w, http.StatusOK, resp, logger)
+		helpers.WriteJSON(w, logger, http.StatusOK, resp)
 	}
 }

@@ -12,27 +12,19 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// parsePositiveIntParam парсит URL параметр и проверяет, что >0
-func ParsePositiveIntParam(w http.ResponseWriter, r *http.Request, name string, logger *slog.Logger) (int, bool) {
+func ParsePositiveIntParam(r *http.Request, name string) (int, error) {
 	valStr := chi.URLParam(r, name)
 	if strings.TrimSpace(valStr) == "" {
-		err := fmt.Errorf("%s must not be empty", name)
-		logger.Warn("invalid parameter", "error", err, "param", name)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return 0, false
+		return 0, fmt.Errorf("%s must not be empty", name)
 	}
 	val, err := strconv.Atoi(valStr)
 	if err != nil || val <= 0 {
-		err := fmt.Errorf("%s must be a positive integer", name)
-		logger.Warn("invalid parameter", "error", err, "param", name)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return 0, false
+		return 0, fmt.Errorf("%s must be a positive integer", name)
 	}
-	return val, true
+	return val, nil
 }
 
-// DecodeJSONHelper декодирует тело запроса в структуру
-func DecodeJSONHelper(w http.ResponseWriter, r *http.Request, logger *slog.Logger, dest any) bool {
+func DecodeJSON(w http.ResponseWriter, r *http.Request, logger *slog.Logger, dest any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	defer r.Body.Close()
 
@@ -40,9 +32,13 @@ func DecodeJSONHelper(w http.ResponseWriter, r *http.Request, logger *slog.Logge
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(dest); err != nil {
-		logger.Warn("decoding failed", "error", err)
-		http.Error(w, "bad request: invalid JSON", http.StatusBadRequest)
-		return false
+		logger.Warn("decode failed", "error", err)
+		return fmt.Errorf("invalid json")
 	}
-	return true
+
+	if err := dec.Decode(&struct{}{}); err != nil {
+		logger.Warn("multiple json objects", "error", err)
+		return fmt.Errorf("body must contain single json object")
+	}
+	return nil
 }

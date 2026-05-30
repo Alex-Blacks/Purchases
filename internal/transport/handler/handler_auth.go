@@ -15,28 +15,23 @@ func LoginHandler(svc *service.AuthService) http.HandlerFunc {
 
 		var req dto.LoginRequest
 
-		if !helpers.DecodeJSONHelper(w, r, logger, &req) {
+		if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
 		if err := req.Validate(); err != nil {
-			logger.Warn("validation failed", "error", err)
-			helpers.RespondJSON(w, http.StatusBadRequest, map[string]string{
-				"error": err.Error(),
-			}, logger)
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
 		token, err := svc.Login(r.Context(), req.Email, req.Password)
 		if err != nil {
-			logger.Warn("login failed", "email", req.Email, "error", err)
-			helpers.AuthErrResponse(w, err, logger, map[string]any{
-				"email": req.Email,
-			})
+			helpers.WriteDomainError(w, logger, err, map[string]any{"email": req.Email})
 			return
 		}
 
 		resp := dto.LoginResponse{Token: token}
-		helpers.RespondJSON(w, http.StatusOK, resp, logger)
+		helpers.WriteJSON(w, logger, http.StatusOK, resp)
 	}
 }

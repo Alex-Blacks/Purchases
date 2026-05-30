@@ -10,6 +10,7 @@ import (
 type Storage interface {
 	Querier
 	BeginTx(ctx context.Context) (Tx, error)
+	WithTx(ctx context.Context, fn func(q Querier) error) (err error)
 }
 
 type Tx interface {

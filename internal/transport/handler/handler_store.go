@@ -10,26 +10,24 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
 )
 
-func CreateStoreHandler(svc *service.Service) http.HandlerFunc {
+func CreateStoreHandler(svc *service.ServiceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
 		var req dto.StoreRequest
 
-		if !helpers.DecodeJSONHelper(w, r, logger, &req) {
+		if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 		if strings.TrimSpace(req.Name) == "" {
-			logger.Info("empty name")
-			http.Error(w, "empty name", http.StatusBadRequest)
+			helpers.WriteError(w, logger, http.StatusBadRequest, "empty name")
 			return
 		}
 
 		storeID, err := svc.CreateStore(r.Context(), req.Name)
 		if err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{
-				"name": req.Name,
-			})
+			helpers.WriteDomainError(w, logger, err, req)
 			return
 		}
 
@@ -38,24 +36,23 @@ func CreateStoreHandler(svc *service.Service) http.HandlerFunc {
 			Name: req.Name,
 		}
 
-		helpers.RespondJSON(w, http.StatusCreated, resp, logger)
+		helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 	}
 }
 
-func GetStoreHandler(svc *service.Service) http.HandlerFunc {
+func GetStoreHandler(svc *service.ServiceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
-		storeID, ok := helpers.ParsePositiveIntParam(w, r, "storeId", logger)
-		if !ok {
+		storeID, err := helpers.ParsePositiveIntParam(r, "storeId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
 		store, err := svc.GetStore(r.Context(), storeID)
 		if err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{
-				"storeId": storeID,
-			})
+			helpers.WriteDomainError(w, logger, err, map[string]any{"storeId": storeID})
 			return
 		}
 		resp := dto.StoreResponse{
@@ -63,23 +60,22 @@ func GetStoreHandler(svc *service.Service) http.HandlerFunc {
 			Name: store.Name,
 		}
 
-		helpers.RespondJSON(w, http.StatusOK, resp, logger)
+		helpers.WriteJSON(w, logger, http.StatusOK, resp)
 	}
 }
 
-func DeleteStoreHandler(svc *service.Service) http.HandlerFunc {
+func DeleteStoreHandler(svc *service.ServiceStore) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 
-		storeID, ok := helpers.ParsePositiveIntParam(w, r, "storeId", logger)
-		if !ok {
+		storeID, err := helpers.ParsePositiveIntParam(r, "storeId")
+		if err != nil {
+			helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
 		if err := svc.DeleteStore(r.Context(), storeID); err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{
-				"storeId": storeID,
-			})
+			helpers.WriteDomainError(w, logger, err, map[string]any{"storeId": storeID})
 			return
 		}
 
@@ -87,17 +83,17 @@ func DeleteStoreHandler(svc *service.Service) http.HandlerFunc {
 	})
 }
 
-func ListStoresHandler(svc *service.Service) http.HandlerFunc {
+func ListStoresHandler(svc *service.ServiceStore) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.LoggerFromContext(r.Context())
 		list, err := svc.ListStores(r.Context())
 		if err != nil {
-			helpers.DomainErrResponse(w, err, logger, map[string]any{})
+			helpers.WriteDomainError(w, logger, err, nil)
 			return
 		}
 
 		resp := dto.ToStoreResponse(list)
 
-		helpers.RespondJSON(w, http.StatusOK, resp, logger)
+		helpers.WriteJSON(w, logger, http.StatusOK, resp)
 	})
 }

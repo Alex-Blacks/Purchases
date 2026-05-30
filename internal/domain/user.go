@@ -13,12 +13,14 @@ type User struct {
 	Status       string
 }
 type UpdateUser struct {
-	Name         *string
-	PasswordHash *string
-	Email        *string
-	Role         *string
-	Status       *string
+	Name     *string
+	Password *string
+	Email    *string
+	Role     *string
+	Status   *string
 }
+
+func (u User) OwnerID() int { return u.ID }
 
 type UserRepository interface {
 	CreateUser(ctx context.Context, q Querier, name, password_hash, email, role, status string) (User, error)

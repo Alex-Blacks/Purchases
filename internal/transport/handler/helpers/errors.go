@@ -15,12 +15,14 @@ func WriteDomainError(w http.ResponseWriter, logger *slog.Logger, err error, req
 	}
 
 	errorMap := map[error]errData{
-		domain.ErrEmailConflict: {http.StatusConflict, "email has already been created"},
-		domain.ErrConflict:      {http.StatusConflict, "the field is used in another table"},
-		domain.ErrAlreadyExists: {http.StatusConflict, "conflict"},
-		domain.ErrEmptyName:     {http.StatusBadRequest, "empty name"},
-		domain.ErrNotFound:      {http.StatusNotFound, "not found"},
-		domain.ErrInvalidInput:  {http.StatusBadRequest, "invalid input"},
+		domain.ErrEmailConflict:     {http.StatusConflict, "email has already been created"},
+		domain.ErrConflict:          {http.StatusConflict, "the field is used in another table"},
+		domain.ErrAlreadyExists:     {http.StatusConflict, "conflict"},
+		domain.ErrEmptyName:         {http.StatusBadRequest, "empty name"},
+		domain.ErrNotFound:          {http.StatusNotFound, "not found"},
+		domain.ErrInvalidInput:      {http.StatusBadRequest, "invalid input"},
+		domain.ErrStatusBlocked:     {http.StatusUnauthorized, "unauthorized"},
+		domain.ErrIncorrectPassword: {http.StatusUnauthorized, "unauthorized"},
 	}
 
 	for domainErr, data := range errorMap {
@@ -31,15 +33,4 @@ func WriteDomainError(w http.ResponseWriter, logger *slog.Logger, err error, req
 	}
 
 	WriteInternalError(w, logger, err, req)
-}
-
-func AuthErrResponse(w http.ResponseWriter, err error, logger *slog.Logger, req any) {
-	switch {
-	case errors.Is(err, domain.ErrStatusBlocked) || errors.Is(err, domain.ErrIncorrectPassword):
-		WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
-		return
-	default:
-		WriteInternalError(w, logger, err, req)
-		return
-	}
 }

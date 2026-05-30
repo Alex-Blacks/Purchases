@@ -3,26 +3,53 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
+	"github.com/Alex-Blacks/Purchases/internal/policy"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *Service) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
+type ServiceUser struct {
+	storage domain.Storage
+	user    domain.UserRepository
+}
+
+func NewServiceUser(st domain.Storage, user domain.UserRepository) *ServiceUser {
+	return &ServiceUser{
+		storage: st,
+		user:    user,
+	}
+}
+
+func (s *ServiceUser) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
 	return s.user.GetUserByEmail(ctx, s.storage, email)
 }
 
-func (s *Service) CheckPassword(user domain.User, password string) error {
+func (s *ServiceUser) CheckPassword(user domain.User, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 }
-func (s *Service) GeneratePassword(password string) (string, error) {
+
+func (s *ServiceUser) GeneratePassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
 		return "", err
 	}
 	return string(bytes), nil
 }
-func (s *Service) CreateUser(ctx context.Context, name, password, email, role, status string) (domain.User, error) {
+
+func (s *ServiceUser) getAccessibleUser(ctx context.Context, actor policy.Actor, userID int) (domain.User, error) {
+	user, err := s.user.GetUserByID(ctx, s.storage, userID)
+	if err != nil {
+		return domain.User{}, err
+	}
+	if err := policy.CanAccess(actor, user); err != nil {
+		return domain.User{}, err
+	}
+	return user, nil
+}
+
+func (s *ServiceUser) CreateUser(ctx context.Context, name, password, email, role, status string) (domain.User, error) {
 	var user domain.User
 	if _, err := s.user.GetUserByEmail(ctx, s.storage, email); err == nil {
 		return user, domain.ErrEmailConflict
@@ -32,7 +59,7 @@ func (s *Service) CreateUser(ctx context.Context, name, password, email, role, s
 		return user, fmt.Errorf("generate password failed: %w", err)
 	}
 
-	if err := s.WithTx(ctx, func(q domain.Querier) error {
+	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 		user, err = s.user.CreateUser(ctx, q, name, password_hash, email, role, status)
 		return err
@@ -42,26 +69,72 @@ func (s *Service) CreateUser(ctx context.Context, name, password, email, role, s
 	return user, nil
 }
 
-func (s *Service) GetUserByID(ctx context.Context, userID int) (domain.User, error) {
-	return s.user.GetUserByID(ctx, s.storage, userID)
+func (s *ServiceUser) GetUserByID(ctx context.Context, actor policy.Actor, userID int) (domain.User, error) {
+	user, err := s.getAccessibleUser(ctx, actor, userID)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return user, nil
 }
-func (s *Service) DeleteUser(ctx context.Context, userID int) error {
-	return s.WithTx(ctx, func(q domain.Querier) error {
+func (s *ServiceUser) DeleteUser(ctx context.Context, actor policy.Actor, userID int) error {
+	_, err := s.getAccessibleUser(ctx, actor, userID)
+	if err != nil {
+		return err
+	}
+	return s.storage.WithTx(ctx, func(q domain.Querier) error {
 		return s.user.DeleteUser(ctx, q, userID)
 	})
 }
 
-func (s *Service) ListUsers(ctx context.Context) ([]domain.User, error) {
+func (s *ServiceUser) ListUsers(ctx context.Context, actor policy.Actor) ([]domain.User, error) {
+	if err := policy.CanList(actor); err != nil {
+		return nil, err
+	}
 	return s.user.ListUsers(ctx, s.storage)
 }
-func (s *Service) UpdateUser(ctx context.Context, userID int, updateUser domain.UpdateUser) (domain.User, error) {
-	var user domain.User
-	if !hasUpdates(updateUser) {
-		return user, domain.ErrNoFieldsToUpdate
+
+func (s *ServiceUser) UpdateUser(ctx context.Context, actor policy.Actor, userID int, updateUser domain.UpdateUser) (domain.User, error) {
+	_, err := s.getAccessibleUser(ctx, actor, userID)
+	if err != nil {
+		return domain.User{}, err
 	}
-	if err := s.WithTx(ctx, func(q domain.Querier) error {
+	if updateUser.Name == nil && updateUser.Password == nil && updateUser.Email == nil {
+		return domain.User{}, domain.ErrNoFieldsToUpdate
+	}
+	if (updateUser.Role != nil || updateUser.Status != nil) && !actor.HasRole(policy.RoleAdmin) {
+		return domain.User{}, policy.ErrForbidden
+	}
+
+	var passwordHash *string
+	if updateUser.Password != nil {
+		hash, err := s.GeneratePassword(*updateUser.Password)
+		if err != nil {
+			return domain.User{}, fmt.Errorf("generate password failed: %w", err)
+		}
+		passwordHash = &hash
+	}
+	if updateUser.Email != nil {
+		if strings.TrimSpace(*updateUser.Email) == "" {
+			return domain.User{}, domain.ErrInvalidInput
+		}
+		user, err := s.GetUserByEmail(ctx, *updateUser.Email)
+		if err == nil && user.ID != actor.UserID {
+			return domain.User{}, domain.ErrConflict
+		}
+	}
+
+	updateData := domain.UpdateUser{
+		Name:     updateUser.Name,
+		Password: passwordHash,
+		Email:    updateUser.Email,
+		Role:     updateUser.Role,
+		Status:   updateUser.Status,
+	}
+
+	var user domain.User
+	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		user, err = s.user.UpdateUser(ctx, q, userID, updateUser)
+		user, err = s.user.UpdateUser(ctx, q, userID, updateData)
 		return err
 	}); err != nil {
 		return user, err
