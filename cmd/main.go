@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/Alex-Blacks/Purchases/docs"
 	"github.com/Alex-Blacks/Purchases/internal/config"
 	"github.com/Alex-Blacks/Purchases/internal/db/storage"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
@@ -24,9 +25,10 @@ func main() {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 	)
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("error loaded .env file")
-	}
+	defer stop()
+
+	_ = godotenv.Load()
+
 	cfg := config.Load()
 	logger := logging.NewLogger()
 

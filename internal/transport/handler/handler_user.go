@@ -30,6 +30,18 @@ type UserHandler struct {
 	userService ServiceUserInterface
 }
 
+// CreateUserHandler godoc
+//
+// @Summary Create user
+// @Description Create user
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body dto.UserRequest true "user payload"
+// @Success 201 {object} dto.UserResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /users [post]
 func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -64,16 +76,29 @@ func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }
 
+// GetUserByIDHandler godoc
+//
+// @Summary Get user by ID
+// @Description Get user by ID
+// @Tags users
+// @Produce json
+// @Param id path int true "user ID"
+// @Success 200 {object} dto.UserResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /users/{id} [get]
 func (h UserHandler) GetUserByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
 
 	actor, ok := authctx.ActorFromContext(ctx)
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	userIDParam, err := helpers.ParsePositiveIntParam(r, "userId")
+	userIDParam, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -88,19 +113,32 @@ func (h UserHandler) GetUserByIDHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	resp := dto.ToUserResponse(user)
 
-	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
+	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
+// DeleteUserHandler godoc
+//
+// @Summary delete user by ID
+// @Description delete user by ID
+// @Tags users
+// @Produce json
+// @Param id path int true "user ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /users/{id} [delete]
 func (h UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
 
 	actor, ok := authctx.ActorFromContext(ctx)
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	userIDParam, err := helpers.ParsePositiveIntParam(r, "userId")
+	userIDParam, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -116,16 +154,31 @@ func (h UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// UpdateUserHandler godoc
+//
+// @Summary Update user
+// @Description Update user
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "user ID"
+// @Param request body dto.UserUpdateRequest true "user payload"
+// @Success 200 {object} dto.UserResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /users/{id} [patch]
 func (h UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
 
 	actor, ok := authctx.ActorFromContext(ctx)
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	userIDParam, err := helpers.ParsePositiveIntParam(r, "userId")
+	userIDParam, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -151,15 +204,27 @@ func (h UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := dto.ToUserResponse(user)
 
-	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
+	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
+// ListUsersHandler godoc
+//
+// @Summary list users
+// @Description list users
+// @Tags users
+// @Produce json
+// @Success 200 {array} dto.UserResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /users [get]
 func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
 
 	actor, ok := authctx.ActorFromContext(ctx)
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -170,5 +235,5 @@ func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := dto.ToUsersResponse(user)
 
-	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
+	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }

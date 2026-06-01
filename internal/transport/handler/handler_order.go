@@ -29,11 +29,25 @@ type OrderHandler struct {
 	orderService ServiceOrderInterface
 }
 
+// CreateOrderHandler godoc
+//
+// @Summary Create order
+// @Description Create order
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param request body dto.OrderRequest true "order payload"
+// @Success 201 {object} dto.OrderCreateResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /orders [post]
 func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
 	actor, ok := authctx.ActorFromContext(r.Context())
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -55,14 +69,27 @@ func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request)
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }
 
+// GetOrderHandler godoc
+//
+// @Summary Get order
+// @Description Get order
+// @Tags orders
+// @Produce json
+// @Param id path int true "order ID"
+// @Success 200 {object} dto.OrderWithItemDetailsResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /orders/{id} [get]
 func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
 	actor, ok := authctx.ActorFromContext(r.Context())
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
+	orderID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -79,14 +106,27 @@ func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
+// DeleteOrderHandler godoc
+//
+// @Summary Delete order
+// @Description Delete order
+// @Tags orders
+// @Produce json
+// @Param id path int true "order ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /orders/{id} [delete]
 func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
 	actor, ok := authctx.ActorFromContext(r.Context())
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
+	orderID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -100,11 +140,23 @@ func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ListOrdersHandler godoc
+//
+// @Summary List orders
+// @Description List orders
+// @Tags orders
+// @Produce json
+// @Success 200 {array} dto.OrderDetailsResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /orders [get]
 func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
 	actor, ok := authctx.ActorFromContext(r.Context())
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -118,11 +170,26 @@ func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) 
 	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
+// AddItemHandler godoc
+//
+// @Summary Add order item
+// @Description Add order item
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param orderId path int true "order ID"
+// @Param request body dto.ItemRequest true "item payload"
+// @Success 201 {object} dto.ItemDetailsResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /orders/{orderId}/items [post]
 func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
 	actor, ok := authctx.ActorFromContext(r.Context())
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -166,11 +233,27 @@ func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }
 
+// UpdateItemHandler godoc
+//
+// @Summary Update order item
+// @Description Update order item
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param orderId path int true "order ID"
+// @Param productId path int true "product ID"
+// @Param request body dto.ItemUpdateRequest true "item payload"
+// @Success 200 {object} dto.ItemDetailsResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /orders/{orderId}/items/{productId} [patch]
 func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
 	actor, ok := authctx.ActorFromContext(r.Context())
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -214,14 +297,28 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 		Quantity:  item.Quantity,
 	}
 
-	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
+	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
+// DeleteItemHandler godoc
+//
+// @Summary Delete order item
+// @Description Delete order item
+// @Tags orders
+// @Produce json
+// @Param orderId path int true "order ID"
+// @Param productId path int true "product ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /orders/{orderId}/items/{productId} [delete]
 func (h OrderHandler) DeleteItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
 	actor, ok := authctx.ActorFromContext(r.Context())
 	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 

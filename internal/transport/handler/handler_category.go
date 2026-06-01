@@ -22,6 +22,18 @@ type CategoryHandler struct {
 	categoryService ServiceCategoryInterface
 }
 
+// CreateCategoryHandler godoc
+//
+// @Summary Create category
+// @Description Create category
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param request body dto.CategoryRequest true "request body"
+// @Success 201 {object} dto.CategoryCreateResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /categories [post]
 func (h CategoryHandler) CreateCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 	var req dto.CategoryRequest
@@ -49,10 +61,21 @@ func (h CategoryHandler) CreateCategoryHandler(w http.ResponseWriter, r *http.Re
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }
 
+// GetCategoryHandler godoc
+//
+// @Summary Get category
+// @Description Get category
+// @Tags categories
+// @Produce json
+// @Param id path int true "category ID"
+// @Success 200 {object} dto.CategoryResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /categories/{id} [get]
 func (h CategoryHandler) GetCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	categoryID, err := helpers.ParsePositiveIntParam(r, "categoryId")
+	categoryID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -72,10 +95,21 @@ func (h CategoryHandler) GetCategoryHandler(w http.ResponseWriter, r *http.Reque
 	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
+// DeleteCategoryHandler godoc
+//
+// @Summary Delete category
+// @Description Delete category
+// @Tags categories
+// @Produce json
+// @Param id path int true "category ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /categories/{id} [delete]
 func (h CategoryHandler) DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	categoryID, err := helpers.ParsePositiveIntParam(r, "categoryId")
+	categoryID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -89,6 +123,16 @@ func (h CategoryHandler) DeleteCategoryHandler(w http.ResponseWriter, r *http.Re
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ListCategoriesHandler godoc
+//
+// @Summary List categories
+// @Description List categories
+// @Tags categories
+// @Produce json
+// @Success 200 {array} dto.CategoryResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /categories [get]
 func (h CategoryHandler) ListCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 

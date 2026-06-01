@@ -22,6 +22,18 @@ type StoreHandler struct {
 	storeService ServiceStoreInterface
 }
 
+// CreateStoreHandler godoc
+//
+// @Summary Create store
+// @Description Create store
+// @Tags stores
+// @Accept json
+// @Produce json
+// @Param request body dto.StoreRequest true "store payload"
+// @Success 201 {object} dto.StoreResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /stores [post]
 func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -50,10 +62,21 @@ func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request)
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }
 
+// GetStoreHandler godoc
+//
+// @Summary Get store
+// @Description Get store
+// @Tags stores
+// @Produce json
+// @Param id path int true "store ID"
+// @Success 200 {object} dto.StoreResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /stores/{id} [get]
 func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	storeID, err := helpers.ParsePositiveIntParam(r, "storeId")
+	storeID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -72,10 +95,21 @@ func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
+// DeleteStoreHandler godoc
+//
+// @Summary Delete store
+// @Description Delete store
+// @Tags stores
+// @Produce json
+// @Param id path int true "store ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /stores/{id} [delete]
 func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	storeID, err := helpers.ParsePositiveIntParam(r, "storeId")
+	storeID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -89,6 +123,16 @@ func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ListStoresHandler godoc
+//
+// @Summary List store
+// @Description List store
+// @Tags stores
+// @Produce json
+// @Success 200 {array} dto.StoreResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /stores [get]
 func (h StoreHandler) ListStoresHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 	list, err := h.storeService.ListStores(r.Context())

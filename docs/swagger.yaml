@@ -1,0 +1,1115 @@
+definitions:
+  dto.CategoryCreateResponse:
+    properties:
+      categoryId:
+        type: integer
+    type: object
+  dto.CategoryRequest:
+    properties:
+      name:
+        type: string
+    type: object
+  dto.CategoryResponse:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  dto.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.ItemDetailsResponse:
+    properties:
+      id:
+        type: integer
+      productId:
+        type: integer
+      quantity:
+        type: integer
+      title:
+        type: string
+    type: object
+  dto.ItemRequest:
+    properties:
+      productId:
+        type: integer
+      quantity:
+        type: integer
+    type: object
+  dto.ItemUpdateRequest:
+    properties:
+      quantity:
+        type: integer
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.LoginResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  dto.OrderCreateResponse:
+    properties:
+      id:
+        type: integer
+    type: object
+  dto.OrderDetailsResponse:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      itemsCount:
+        type: integer
+      store:
+        type: string
+      updatedAt:
+        type: string
+      user:
+        type: integer
+    type: object
+  dto.OrderRequest:
+    properties:
+      storeId:
+        type: integer
+    type: object
+  dto.OrderWithItemDetailsResponse:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/dto.ItemDetailsResponse'
+        type: array
+      itemsCount:
+        type: integer
+      store:
+        type: string
+      updatedAt:
+        type: string
+      userID:
+        type: integer
+    type: object
+  dto.ProductAliasCreateResponse:
+    properties:
+      aliasId:
+        type: integer
+    type: object
+  dto.ProductAliasRequest:
+    properties:
+      alias:
+        type: string
+    type: object
+  dto.ProductAliasResponse:
+    properties:
+      alias:
+        type: string
+      id:
+        type: integer
+      product:
+        type: string
+    type: object
+  dto.ProductCreateResponse:
+    properties:
+      productId:
+        type: integer
+    type: object
+  dto.ProductFindResponse:
+    properties:
+      product:
+        type: string
+    type: object
+  dto.ProductRequest:
+    properties:
+      categoryId:
+        type: integer
+      title:
+        type: string
+      unit:
+        type: string
+    type: object
+  dto.ProductResponse:
+    properties:
+      category:
+        type: string
+      id:
+        type: integer
+      title:
+        type: string
+      unit:
+        type: string
+    type: object
+  dto.StoreRequest:
+    properties:
+      name:
+        type: string
+    type: object
+  dto.StoreResponse:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  dto.UserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      role:
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  dto.UserResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+    type: object
+  dto.UserUpdateRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /categories:
+    get:
+      description: List categories
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.CategoryResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List categories
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      description: Create category
+      parameters:
+      - description: request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.CategoryCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create category
+      tags:
+      - categories
+  /categories/{id}:
+    delete:
+      description: Delete category
+      parameters:
+      - description: category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete category
+      tags:
+      - categories
+    get:
+      description: Get category
+      parameters:
+      - description: category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CategoryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get category
+      tags:
+      - categories
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Login
+      parameters:
+      - description: login payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Login
+      tags:
+      - auth
+  /orders:
+    get:
+      description: List orders
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.OrderDetailsResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List orders
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Create order
+      parameters:
+      - description: order payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.OrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.OrderCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create order
+      tags:
+      - orders
+  /orders/{id}:
+    delete:
+      description: Delete order
+      parameters:
+      - description: order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete order
+      tags:
+      - orders
+    get:
+      description: Get order
+      parameters:
+      - description: order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrderWithItemDetailsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get order
+      tags:
+      - orders
+  /orders/{orderId}/items:
+    post:
+      consumes:
+      - application/json
+      description: Add order item
+      parameters:
+      - description: order ID
+        in: path
+        name: orderId
+        required: true
+        type: integer
+      - description: item payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ItemDetailsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Add order item
+      tags:
+      - orders
+  /orders/{orderId}/items/{productId}:
+    delete:
+      description: Delete order item
+      parameters:
+      - description: order ID
+        in: path
+        name: orderId
+        required: true
+        type: integer
+      - description: product ID
+        in: path
+        name: productId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete order item
+      tags:
+      - orders
+    patch:
+      consumes:
+      - application/json
+      description: Update order item
+      parameters:
+      - description: order ID
+        in: path
+        name: orderId
+        required: true
+        type: integer
+      - description: product ID
+        in: path
+        name: productId
+        required: true
+        type: integer
+      - description: item payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ItemUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ItemDetailsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Update order item
+      tags:
+      - orders
+  /products:
+    get:
+      description: List product
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ProductResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List product
+      tags:
+      - products
+    post:
+      consumes:
+      - application/json
+      description: Create product
+      parameters:
+      - description: product payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ProductCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create product
+      tags:
+      - products
+  /products/{id}:
+    delete:
+      description: Delete product
+      parameters:
+      - description: product ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete product
+      tags:
+      - products
+    get:
+      description: Get product
+      parameters:
+      - description: product ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ProductResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get product
+      tags:
+      - products
+  /products/{productId}/aliases:
+    delete:
+      description: Delete all product aliases
+      parameters:
+      - description: product ID
+        in: path
+        name: productId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete all product aliases
+      tags:
+      - products
+    get:
+      description: List product aliases
+      parameters:
+      - description: product ID
+        in: path
+        name: productId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ProductAliasResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List product aliases
+      tags:
+      - products
+    post:
+      consumes:
+      - application/json
+      description: Create product alias
+      parameters:
+      - description: product ID
+        in: path
+        name: productId
+        required: true
+        type: integer
+      - description: product alias payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ProductAliasRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ProductAliasCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create product alias
+      tags:
+      - products
+  /products/{productId}/aliases/{id}:
+    delete:
+      description: Delete product alias
+      parameters:
+      - description: product ID
+        in: path
+        name: productId
+        required: true
+        type: integer
+      - description: alias ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete product alias
+      tags:
+      - products
+    get:
+      description: Get product alias
+      parameters:
+      - description: product ID
+        in: path
+        name: productId
+        required: true
+        type: integer
+      - description: alias ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ProductAliasResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get product alias
+      tags:
+      - products
+  /products/by-alias:
+    get:
+      consumes:
+      - application/json
+      description: Find product by alias
+      parameters:
+      - description: alias
+        in: query
+        name: alias
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ProductFindResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Find product by alias
+      tags:
+      - products
+  /stores:
+    get:
+      description: List store
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.StoreResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List store
+      tags:
+      - stores
+    post:
+      consumes:
+      - application/json
+      description: Create store
+      parameters:
+      - description: store payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.StoreRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.StoreResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create store
+      tags:
+      - stores
+  /stores/{id}:
+    delete:
+      description: Delete store
+      parameters:
+      - description: store ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete store
+      tags:
+      - stores
+    get:
+      description: Get store
+      parameters:
+      - description: store ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.StoreResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get store
+      tags:
+      - stores
+  /users:
+    get:
+      description: list users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.UserResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: list users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Create user
+      parameters:
+      - description: user payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create user
+      tags:
+      - users
+  /users/{id}:
+    delete:
+      description: delete user by ID
+      parameters:
+      - description: user ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: delete user by ID
+      tags:
+      - users
+    get:
+      description: Get user by ID
+      parameters:
+      - description: user ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get user by ID
+      tags:
+      - users
+    patch:
+      consumes:
+      - application/json
+      description: Update user
+      parameters:
+      - description: user ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: user payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UserUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Update user
+      tags:
+      - users
+swagger: "2.0"

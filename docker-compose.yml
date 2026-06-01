@@ -1,16 +1,51 @@
 services:
   postgres:
     image: postgres:16
-    container_name: purchases-db
-    restart: always
+    container_name: purchases_postgres 
     environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: purchases
-      POSTGRES_USER: purchases
-      POSTGRES_PASSWORD: purchases
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d purchases"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./internal/db/migrations:/migrations
+    command: 
+      [
+        "-path","/migrations",
+        "-database","postgres://postgres:postgres@postgres:5432/purchases?sslmode=disable",
+        "up" 
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+    container_name: purchases_app
+
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
 
 volumes:
   postgres_data:

@@ -9,7 +9,6 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
-	"github.com/go-chi/chi/v5"
 )
 
 type ServiceProductInterface interface {
@@ -30,6 +29,18 @@ type ProductHandler struct {
 	productService ServiceProductInterface
 }
 
+// CreateProductHandler godoc
+//
+// @Summary Create product
+// @Description Create product
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param request body dto.ProductRequest true "product payload"
+// @Success 201 {object} dto.ProductCreateResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /products [post]
 func (h ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -65,10 +76,21 @@ func (h ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Requ
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }
 
+// GetProductHandler godoc
+//
+// @Summary Get product
+// @Description Get product
+// @Tags products
+// @Produce json
+// @Param id path int true "product ID"
+// @Success 200 {object} dto.ProductResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /products/{id} [get]
 func (h ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	productID, err := helpers.ParsePositiveIntParam(r, "productId")
+	productID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -85,10 +107,21 @@ func (h ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Request
 
 }
 
+// DeleteProductHandler godoc
+//
+// @Summary Delete product
+// @Description Delete product
+// @Tags products
+// @Produce json
+// @Param id path int true "product ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /products/{id} [delete]
 func (h ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	productID, err := helpers.ParsePositiveIntParam(r, "productId")
+	productID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -102,6 +135,16 @@ func (h ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ListProductsHandler godoc
+//
+// @Summary List product
+// @Description List product
+// @Tags products
+// @Produce json
+// @Success 200 {array} dto.ProductResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /products [get]
 func (h ProductHandler) ListProductsHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -115,6 +158,19 @@ func (h ProductHandler) ListProductsHandler(w http.ResponseWriter, r *http.Reque
 	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
+// CreateProductAliasHandler godoc
+//
+// @Summary Create product alias
+// @Description Create product alias
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param productId path int true "product ID"
+// @Param request body dto.ProductAliasRequest true "product alias payload"
+// @Success 201 {object} dto.ProductAliasCreateResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /products/{productId}/aliases [post]
 func (h ProductHandler) CreateProductAliasHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -148,10 +204,22 @@ func (h ProductHandler) CreateProductAliasHandler(w http.ResponseWriter, r *http
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }
 
+// GetProductAliasHandler godoc
+//
+// @Summary Get product alias
+// @Description Get product alias
+// @Tags products
+// @Produce json
+// @Param productId path int true "product ID"
+// @Param id path int true "alias ID"
+// @Success 200 {object} dto.ProductAliasResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /products/{productId}/aliases/{id} [get]
 func (h ProductHandler) GetProductAliasHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	aliasID, err := helpers.ParsePositiveIntParam(r, "aliasId")
+	aliasID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -168,10 +236,22 @@ func (h ProductHandler) GetProductAliasHandler(w http.ResponseWriter, r *http.Re
 	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
+// DeleteProductAliasHandler godoc
+//
+// @Summary Delete product alias
+// @Description Delete product alias
+// @Tags products
+// @Produce json
+// @Param productId path int true "product ID"
+// @Param id path int true "alias ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /products/{productId}/aliases/{id} [delete]
 func (h ProductHandler) DeleteProductAliasHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	aliasID, err := helpers.ParsePositiveIntParam(r, "aliasId")
+	aliasID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
@@ -185,6 +265,17 @@ func (h ProductHandler) DeleteProductAliasHandler(w http.ResponseWriter, r *http
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ListProductAliasesHandler godoc
+//
+// @Summary List product aliases
+// @Description List product aliases
+// @Tags products
+// @Produce json
+// @Param productId path int true "product ID"
+// @Success 200 {array} dto.ProductAliasResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /products/{productId}/aliases [get]
 func (h ProductHandler) ListProductAliasesHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -204,6 +295,17 @@ func (h ProductHandler) ListProductAliasesHandler(w http.ResponseWriter, r *http
 	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
+// DeleteAllProductAliasesHandler godoc
+//
+// @Summary Delete all product aliases
+// @Description Delete all product aliases
+// @Tags products
+// @Produce json
+// @Param productId path int true "product ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /products/{productId}/aliases [delete]
 func (h ProductHandler) DeleteAllProductAliasesHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -221,10 +323,22 @@ func (h ProductHandler) DeleteAllProductAliasesHandler(w http.ResponseWriter, r 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// FindProductByAliasHandler godoc
+//
+// @Summary Find product by alias
+// @Description Find product by alias
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param alias query string true "alias"
+// @Success 200 {object} dto.ProductFindResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /products/by-alias [get]
 func (h ProductHandler) FindProductByAliasHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	alias := chi.URLParam(r, "alias")
+	alias := r.URL.Query().Get("alias")
 
 	if strings.TrimSpace(alias) == "" {
 		helpers.WriteError(w, logger, http.StatusBadRequest, "empty name")
