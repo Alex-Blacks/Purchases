@@ -3,12 +3,11 @@ package handler
 import (
 	"log/slog"
 
-	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/internal/transport/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
-func PrivateRouter(svc *service.Service, secret string, logger *slog.Logger) *chi.Mux {
+func PrivateRouter(h *Handlers, secret string, logger *slog.Logger) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(middleware.RecoveryMiddleware)
@@ -18,73 +17,73 @@ func PrivateRouter(svc *service.Service, secret string, logger *slog.Logger) *ch
 
 	// Users
 	router.Route("/users", func(r chi.Router) {
-		r.Get("/", ListUsersHandler(svc))
+		r.Get("/", h.User.ListUsersHandler)
 
-		r.Put("/{userId}", UpdateUserHandler(svc))
-		r.Get("/{userId}", GetUserByIDHandler(svc))
-		r.Delete("/{userId}", DeleteUserHandler(svc))
+		r.Put("/{userId}", h.User.UpdateUserHandler)
+		r.Get("/{userId}", h.User.GetUserByIDHandler)
+		r.Delete("/{userId}", h.User.DeleteUserHandler)
 	})
 
 	// Products
 	router.Route("/products", func(r chi.Router) {
-		r.Post("/", CreateProductHandler(svc))
-		r.Get("/", ListProductsHandler(svc))
+		r.Post("/", h.Product.CreateProductHandler)
+		r.Get("/", h.Product.ListProductsHandler)
 
-		r.Get("/{productId}", GetProductHandler(svc))
-		r.Delete("/{productId}", DeleteProductHandler(svc))
+		r.Get("/{productId}", h.Product.GetProductHandler)
+		r.Delete("/{productId}", h.Product.DeleteProductHandler)
 
 		// Поиск по алиасу (query param)
-		r.Get("/by-alias", FindProductByAliasHandler(svc))
+		r.Get("/by-alias", h.Product.FindProductByAliasHandler)
 
 		// ProductsAliase
 		r.Route("/{productId}/aliases", func(r chi.Router) {
-			r.Post("/", CreateProductAliasHandler(svc))
-			r.Get("/", ListProductAliasesHandler(svc))
-			r.Delete("/", DeleteAllProductAliasesHandler(svc))
+			r.Post("/", h.Product.CreateProductAliasHandler)
+			r.Get("/", h.Product.ListProductAliasesHandler)
+			r.Delete("/", h.Product.DeleteAllProductAliasesHandler)
 
-			r.Get("/{aliasId}", GetProductAliasHandler(svc))
-			r.Delete("/{aliasId}", DeleteProductAliasHandler(svc))
+			r.Get("/{aliasId}", h.Product.GetProductAliasHandler)
+			r.Delete("/{aliasId}", h.Product.DeleteProductAliasHandler)
 		})
 	})
 
 	// Categories
 	router.Route("/categories", func(r chi.Router) {
-		r.Post("/", CreateCategoryHandler(svc))
-		r.Get("/", ListCategoriesHandler(svc))
+		r.Post("/", h.Category.CreateCategoryHandler)
+		r.Get("/", h.Category.ListCategoriesHandler)
 
-		r.Get("/{categoryId}", GetCategoryHandler(svc))
-		r.Delete("/{categoryId}", DeleteCategoryHandler(svc))
+		r.Get("/{categoryId}", h.Category.GetCategoryHandler)
+		r.Delete("/{categoryId}", h.Category.DeleteCategoryHandler)
 	})
 
 	// Stores
 	router.Route("/stores", func(r chi.Router) {
-		r.Post("/", CreateStoreHandler(svc))
-		r.Get("/", ListStoresHandler(svc))
+		r.Post("/", h.Store.CreateStoreHandler)
+		r.Get("/", h.Store.ListStoresHandler)
 
-		r.Get("/{storeId}", GetStoreHandler(svc))
-		r.Delete("/{storeId}", DeleteStoreHandler(svc))
+		r.Get("/{storeId}", h.Store.GetStoreHandler)
+		r.Delete("/{storeId}", h.Store.DeleteStoreHandler)
 	})
 
 	// Orders
 	router.Route("/orders", func(r chi.Router) {
-		r.Post("/", CreateOrderHandler(svc))
-		r.Get("/", ListOrdersHandler(svc))
+		r.Post("/", h.Order.CreateOrderHandler)
+		r.Get("/", h.Order.ListOrdersHandler)
 
-		r.Get("/{orderId}", GetOrderHandler(svc))
-		r.Delete("/{orderId}", DeleteOrderHandler(svc))
+		r.Get("/{orderId}", h.Order.GetOrderHandler)
+		r.Delete("/{orderId}", h.Order.DeleteOrderHandler)
 
 		// Items
 		r.Route("/{orderId}/items", func(r chi.Router) {
-			r.Post("/", AddItemHandler(svc))
+			r.Post("/", h.Order.AddItemHandler)
 
-			r.Put("/{productId}", UpdateItemHandler(svc))
-			r.Delete("/{productId}", DeleteItemHandler(svc))
+			r.Put("/{productId}", h.Order.UpdateItemHandler)
+			r.Delete("/{productId}", h.Order.DeleteItemHandler)
 		})
 	})
 	return router
 }
 
-func PublicRouter(svc *service.Service, auth *service.AuthService, logger *slog.Logger) *chi.Mux {
+func PublicRouter(h *Handlers, logger *slog.Logger) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(middleware.RecoveryMiddleware)
@@ -93,12 +92,12 @@ func PublicRouter(svc *service.Service, auth *service.AuthService, logger *slog.
 
 	//Login
 	router.Route("/login", func(r chi.Router) {
-		r.Post("/", LoginHandler(auth))
+		r.Post("/", h.Auth.LoginHandler)
 	})
 
 	// Users
 	router.Route("/users", func(r chi.Router) {
-		r.Post("/", CreateUserHandler(svc))
+		r.Post("/", h.User.CreateUserHandler)
 	})
 
 	return router

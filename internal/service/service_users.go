@@ -38,7 +38,7 @@ func (s *ServiceUser) GeneratePassword(password string) (string, error) {
 	return string(bytes), nil
 }
 
-func (s *ServiceUser) getAccessibleUser(ctx context.Context, actor policy.Actor, userID int) (domain.User, error) {
+func (s *ServiceUser) GetAccessibleUser(ctx context.Context, actor policy.Actor, userID int) (domain.User, error) {
 	user, err := s.user.GetUserByID(ctx, s.storage, userID)
 	if err != nil {
 		return domain.User{}, err
@@ -70,14 +70,15 @@ func (s *ServiceUser) CreateUser(ctx context.Context, name, password, email, rol
 }
 
 func (s *ServiceUser) GetUserByID(ctx context.Context, actor policy.Actor, userID int) (domain.User, error) {
-	user, err := s.getAccessibleUser(ctx, actor, userID)
+	user, err := s.GetAccessibleUser(ctx, actor, userID)
 	if err != nil {
 		return domain.User{}, err
 	}
 	return user, nil
 }
+
 func (s *ServiceUser) DeleteUser(ctx context.Context, actor policy.Actor, userID int) error {
-	_, err := s.getAccessibleUser(ctx, actor, userID)
+	_, err := s.GetAccessibleUser(ctx, actor, userID)
 	if err != nil {
 		return err
 	}
@@ -94,7 +95,7 @@ func (s *ServiceUser) ListUsers(ctx context.Context, actor policy.Actor) ([]doma
 }
 
 func (s *ServiceUser) UpdateUser(ctx context.Context, actor policy.Actor, userID int, updateUser domain.UpdateUser) (domain.User, error) {
-	_, err := s.getAccessibleUser(ctx, actor, userID)
+	_, err := s.GetAccessibleUser(ctx, actor, userID)
 	if err != nil {
 		return domain.User{}, err
 	}

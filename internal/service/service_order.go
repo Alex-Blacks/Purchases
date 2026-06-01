@@ -21,7 +21,7 @@ func NewServiceOrderItem(st domain.Storage, order domain.OrderRepository, item d
 	}
 }
 
-func (s *ServiceOrderItem) getAccessibleOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error) {
+func (s *ServiceOrderItem) GetAccessibleOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error) {
 	order, err := s.order.GetOrder(ctx, s.storage, actor.UserID, orderID)
 	if err != nil {
 		return domain.OrderWithItemDetails{}, err
@@ -46,7 +46,7 @@ func (s *ServiceOrderItem) CreateOrder(ctx context.Context, actor policy.Actor, 
 }
 
 func (s *ServiceOrderItem) GetOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error) {
-	order, err := s.getAccessibleOrder(ctx, actor, orderID)
+	order, err := s.GetAccessibleOrder(ctx, actor, orderID)
 	if err != nil {
 		return domain.OrderWithItemDetails{}, err
 	}
@@ -54,7 +54,7 @@ func (s *ServiceOrderItem) GetOrder(ctx context.Context, actor policy.Actor, ord
 }
 
 func (s *ServiceOrderItem) DeleteOrder(ctx context.Context, actor policy.Actor, orderID int) error {
-	_, err := s.getAccessibleOrder(ctx, actor, orderID)
+	_, err := s.GetAccessibleOrder(ctx, actor, orderID)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (s *ServiceOrderItem) ListOrders(ctx context.Context, actor policy.Actor) (
 }
 
 func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
-	_, err := s.getAccessibleOrder(ctx, actor, orderID)
+	_, err := s.GetAccessibleOrder(ctx, actor, orderID)
 	if err != nil {
 		return domain.OrderItemDetails{}, err
 	}
@@ -87,7 +87,7 @@ func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orde
 }
 
 func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
-	_, err := s.getAccessibleOrder(ctx, actor, orderID)
+	_, err := s.GetAccessibleOrder(ctx, actor, orderID)
 	if err != nil {
 		return domain.OrderItemDetails{}, err
 	}
@@ -103,7 +103,7 @@ func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, o
 }
 
 func (s *ServiceOrderItem) DeleteItem(ctx context.Context, actor policy.Actor, orderID, productID int) error {
-	_, err := s.getAccessibleOrder(ctx, actor, orderID)
+	_, err := s.GetAccessibleOrder(ctx, actor, orderID)
 	if err != nil {
 		return err
 	}

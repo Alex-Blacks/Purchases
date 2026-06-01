@@ -8,17 +8,6 @@ type ProductAliasDetails struct {
 	Alias   string
 }
 
-type ProductAliasRepository interface {
-	CreateProductAlias(ctx context.Context, q Querier, productID int, alias string) (int, error)
-	GetProductAlias(ctx context.Context, q Querier, id int) (ProductAliasDetails, error)
-	DeleteProductAlias(ctx context.Context, q Querier, id int) error
-	ListProductAliases(ctx context.Context, q Querier, productID int) ([]ProductAliasDetails, error)
-	DeleteAllProductAliases(ctx context.Context, q Querier, productID int) error
-	FindProductByAlias(ctx context.Context, q Querier, alias string) (string, error)
-}
-
-// ---------------------------------------------------------------------------------------------------------------------------------
-
 type ProductDetails struct {
 	ID       int
 	Title    string
@@ -31,4 +20,10 @@ type ProductRepository interface {
 	GetProduct(ctx context.Context, q Querier, id int) (ProductDetails, error)
 	DeleteProduct(ctx context.Context, q Querier, id int) error
 	ListProducts(ctx context.Context, q Querier) ([]ProductDetails, error)
+	CreateProductAlias(ctx context.Context, q Querier, productID int, alias string) (int, error)
+	GetProductAlias(ctx context.Context, q Querier, id int) (ProductAliasDetails, error)
+	DeleteProductAlias(ctx context.Context, q Querier, id int) error
+	ListProductAliases(ctx context.Context, q Querier, productID int) ([]ProductAliasDetails, error)
+	DeleteAllProductAliases(ctx context.Context, q Querier, productID int) error
+	FindProductByAlias(ctx context.Context, q Querier, alias string) (string, error)
 }

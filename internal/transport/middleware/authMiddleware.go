@@ -67,8 +67,8 @@ func AuthMiddleware(secret string) func(http.Handler) http.Handler {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
-			userID := int(userIDFloat)
-			actor := policy.ToActor(userID, policy.Role(role))
+
+			actor := policy.ToActor(int(userIDFloat), policy.Role(role))
 
 			logger = logger.With("actor", actor)
 

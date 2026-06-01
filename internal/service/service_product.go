@@ -43,3 +43,34 @@ func (s *ServiceProduct) DeleteProduct(ctx context.Context, id int) error {
 func (s *ServiceProduct) ListProducts(ctx context.Context) ([]domain.ProductDetails, error) {
 	return s.product.ListProducts(ctx, s.storage)
 }
+
+func (s *ServiceProduct) CreateProductAlias(ctx context.Context, productID int, alias string) (int, error) {
+	var id int
+	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
+		var err error
+		id, err = s.product.CreateProductAlias(ctx, q, productID, alias)
+		return err
+	}); err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+func (s *ServiceProduct) GetProductAlias(ctx context.Context, id int) (domain.ProductAliasDetails, error) {
+	return s.product.GetProductAlias(ctx, s.storage, id)
+}
+func (s *ServiceProduct) DeleteProductAlias(ctx context.Context, id int) error {
+	return s.storage.WithTx(ctx, func(q domain.Querier) error {
+		return s.product.DeleteProductAlias(ctx, q, id)
+	})
+}
+func (s *ServiceProduct) ListProductAliases(ctx context.Context, productID int) ([]domain.ProductAliasDetails, error) {
+	return s.product.ListProductAliases(ctx, s.storage, productID)
+}
+func (s *ServiceProduct) DeleteAllProductAliases(ctx context.Context, productID int) error {
+	return s.storage.WithTx(ctx, func(q domain.Querier) error {
+		return s.product.DeleteAllProductAliases(ctx, q, productID)
+	})
+}
+func (s *ServiceProduct) FindProductByAlias(ctx context.Context, alias string) (string, error) {
+	return s.product.FindProductByAlias(ctx, s.storage, alias)
+}

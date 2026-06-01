@@ -13,6 +13,7 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler"
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
@@ -44,32 +45,26 @@ func main() {
 	storeRepo := storage.NewStoreRepo()
 	categoryRepo := storage.NewCategoryRepo()
 	productRepo := storage.NewProductRepo()
-	productAliasRepo := storage.NewProductAliasRepo()
 
-	// service layer
-	svc := service.NewService(
-		st,
-		userRepo,
-		orderRepo,
-		orderItemRepo,
-		storeRepo,
-		categoryRepo,
-		productRepo,
-		productAliasRepo,
-	)
+	// services
+	userSvc := service.NewServiceUser(st, userRepo)
+	orderSvc := service.NewServiceOrderItem(st, orderRepo, orderItemRepo)
+	storeSvc := service.NewServiceStore(st, storeRepo)
+	categorySvc := service.NewServiceCategory(st, categoryRepo)
+	productSvc := service.NewServiceProduct(st, productRepo)
 
-	authSvc := service.NewAuthService(svc, cfg.JWTSecret)
+	authSvc := service.NewAuthService(userSvc, cfg.JWTSecret)
+
+	// handlers
+	handlers := handler.NewHandlers(userSvc, storeSvc, productSvc, orderSvc, categorySvc, authSvc)
 
 	// routers
-	publicRouter := handler.PublicRouter(svc, authSvc, logger)
-	privateRouter := handler.PrivateRouter(svc, cfg.JWTSecret, logger)
+	publicRouter := handler.PublicRouter(handlers, logger)
+	privateRouter := handler.PrivateRouter(handlers, cfg.JWTSecret, logger)
 
-	// mux root
-	mux := http.NewServeMux()
-
-	// mount points
-	mux.Handle("/api/public/", http.StripPrefix("/api/public", publicRouter))
-	mux.Handle("/api/private/", http.StripPrefix("/api/private", privateRouter))
+	mux := chi.NewRouter()
+	mux.Mount("/api", publicRouter)
+	mux.Mount("/api/private", privateRouter)
 
 	server := &http.Server{
 		Addr:    ":" + cfg.AppPort,
