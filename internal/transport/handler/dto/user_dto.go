@@ -1,6 +1,8 @@
 package dto
 
-import "github.com/Alex-Blacks/Purchases/internal/domain"
+import (
+	"github.com/Alex-Blacks/Purchases/internal/domain"
+)
 
 type UserRequest struct {
 	Name     string  `json:"name" validate:"required"`

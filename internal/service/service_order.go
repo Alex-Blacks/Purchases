@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/policy"
@@ -32,14 +34,14 @@ func (s *ServiceOrderItem) GetAccessibleOrder(ctx context.Context, actor policy.
 	return order, nil
 }
 
-func (s *ServiceOrderItem) CreateOrder(ctx context.Context, actor policy.Actor, storeID int) (int, error) {
-	var orderID int
+func (s *ServiceOrderItem) CreateOrder(ctx context.Context, actor policy.Actor, storeID int) (domain.OrderWithItemDetails, error) {
+	var orderID domain.OrderWithItemDetails
 	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 		orderID, err = s.order.CreateOrder(ctx, q, actor.UserID, storeID)
 		return err
 	}); err != nil {
-		return 0, err
+		return domain.OrderWithItemDetails{}, err
 	}
 
 	return orderID, nil
@@ -75,15 +77,24 @@ func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orde
 	if err != nil {
 		return domain.OrderItemDetails{}, err
 	}
-	var itemID domain.OrderItemDetails
+	var item domain.OrderItemDetails
 	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		itemID, err = s.item.AddItem(ctx, q, orderID, productID, quantity)
+		item, err = s.UpdateItem(ctx, actor, orderID, productID, item.Quantity+quantity)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				item, err = s.item.AddItem(ctx, q, orderID, productID, quantity)
+				if err != nil {
+					return err
+				}
+			}
+			return fmt.Errorf("update item: %w", err)
+		}
 		return err
 	}); err != nil {
-		return itemID, err
+		return domain.OrderItemDetails{}, err
 	}
-	return itemID, nil
+	return item, nil
 }
 
 func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, orderID, productID, quantity int) (domain.OrderItemDetails, error) {

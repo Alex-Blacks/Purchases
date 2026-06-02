@@ -54,6 +54,7 @@ func (s *ServiceUser) CreateUser(ctx context.Context, name, password, email, rol
 	if _, err := s.user.GetUserByEmail(ctx, s.storage, email); err == nil {
 		return user, domain.ErrEmailConflict
 	}
+
 	password_hash, err := s.GeneratePassword(password)
 	if err != nil {
 		return user, fmt.Errorf("generate password failed: %w", err)

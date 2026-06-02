@@ -10,10 +10,6 @@ type OrderRequest struct {
 	StoreID int `json:"storeId"`
 }
 
-type OrderCreateResponse struct {
-	ID int `json:"id"`
-}
-
 type OrderDetailsResponse struct {
 	ID         int       `json:"id"`
 	UserID     int       `json:"user"`

@@ -31,7 +31,7 @@ type CategoryHandler struct {
 // @Accept json
 // @Produce json
 // @Param request body dto.CategoryRequest true "request body"
-// @Success 201 {object} dto.CategoryCreateResponse
+// @Success 201 {object} dto.CategoryResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/categories [post]
@@ -55,8 +55,9 @@ func (h CategoryHandler) CreateCategoryHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	resp := dto.CategoryCreateResponse{
-		CategoryID: categoryID,
+	resp := dto.CategoryResponse{
+		ID:   categoryID,
+		Name: req.Name,
 	}
 
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)

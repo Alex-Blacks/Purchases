@@ -26,6 +26,8 @@ type AuthHandler struct {
 // @Param request body dto.LoginRequest true "login payload"
 // @Success 200 {object} dto.LoginResponse
 // @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /login [post]
 func (h AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {

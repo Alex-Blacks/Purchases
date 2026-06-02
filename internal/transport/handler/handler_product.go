@@ -12,12 +12,12 @@ import (
 )
 
 type ServiceProductInterface interface {
-	CreateProduct(ctx context.Context, title string, unit string, categoryID int) (int, error)
+	CreateProduct(ctx context.Context, title string, unit string, categoryID int) (domain.ProductDetails, error)
 	GetProduct(ctx context.Context, id int) (domain.ProductDetails, error)
 	DeleteProduct(ctx context.Context, id int) error
 	ListProducts(ctx context.Context) ([]domain.ProductDetails, error)
 
-	CreateProductAlias(ctx context.Context, productID int, alias string) (int, error)
+	CreateProductAlias(ctx context.Context, productID int, alias string) (domain.ProductAliasDetails, error)
 	GetProductAlias(ctx context.Context, id int) (domain.ProductAliasDetails, error)
 	DeleteProductAlias(ctx context.Context, id int) error
 	DeleteAllProductAliases(ctx context.Context, productID int) error
@@ -38,7 +38,7 @@ type ProductHandler struct {
 // @Accept json
 // @Produce json
 // @Param request body dto.ProductRequest true "product payload"
-// @Success 201 {object} dto.ProductCreateResponse
+// @Success 201 {object} dto.ProductResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/products [post]
@@ -65,14 +65,17 @@ func (h ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	productID, err := h.productService.CreateProduct(r.Context(), req.Title, req.Unit, req.CategoryID)
+	product, err := h.productService.CreateProduct(r.Context(), req.Title, req.Unit, req.CategoryID)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
-	resp := dto.ProductCreateResponse{
-		ProductID: productID,
+	resp := dto.ProductResponse{
+		ID:       product.ID,
+		Title:    product.Title,
+		Unit:     product.Unit,
+		Category: product.Category,
 	}
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }
@@ -172,7 +175,7 @@ func (h ProductHandler) ListProductsHandler(w http.ResponseWriter, r *http.Reque
 // @Produce json
 // @Param productId path int true "product ID"
 // @Param request body dto.ProductAliasRequest true "product alias payload"
-// @Success 201 {object} dto.ProductAliasCreateResponse
+// @Success 201 {object} dto.ProductAliasResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/products/{productId}/aliases [post]
@@ -196,15 +199,13 @@ func (h ProductHandler) CreateProductAliasHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	aliasID, err := h.productService.CreateProductAlias(r.Context(), productID, req.Alias)
+	productAlias, err := h.productService.CreateProductAlias(r.Context(), productID, req.Alias)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
-	resp := dto.ProductAliasCreateResponse{
-		AliasID: aliasID,
-	}
+	resp := dto.ToProductAliasResponse(productAlias)
 
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }

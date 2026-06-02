@@ -29,7 +29,7 @@ type OrderWithItemDetails struct {
 }
 
 type OrderRepository interface {
-	CreateOrder(ctx context.Context, q Querier, userID, storeID int) (int, error)
+	CreateOrder(ctx context.Context, q Querier, userID, storeID int) (OrderWithItemDetails, error)
 	GetOrder(ctx context.Context, q Querier, userID, orderID int) (OrderWithItemDetails, error)
 	DeleteOrder(ctx context.Context, q Querier, userID, orderID int) error
 	ListOrders(ctx context.Context, q Querier, userID int) ([]OrderDetails, error)

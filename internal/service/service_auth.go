@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,6 +26,9 @@ func NewAuthService(svc *ServiceUser, secret string) *AuthService {
 func (s *AuthService) Login(ctx context.Context, email, password string) (string, error) {
 	user, err := s.svc.GetUserByEmail(ctx, email)
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return "", err
+		}
 		return "", fmt.Errorf("get user by email: %w", err)
 	}
 

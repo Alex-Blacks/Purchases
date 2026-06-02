@@ -16,11 +16,12 @@ type ProductDetails struct {
 }
 
 type ProductRepository interface {
-	CreateProduct(ctx context.Context, q Querier, title, unit string, categoryID int) (int, error)
+	CreateProduct(ctx context.Context, q Querier, title, unit string, categoryID int) (ProductDetails, error)
 	GetProduct(ctx context.Context, q Querier, id int) (ProductDetails, error)
 	DeleteProduct(ctx context.Context, q Querier, id int) error
 	ListProducts(ctx context.Context, q Querier) ([]ProductDetails, error)
-	CreateProductAlias(ctx context.Context, q Querier, productID int, alias string) (int, error)
+
+	CreateProductAlias(ctx context.Context, q Querier, productID int, alias string) (ProductAliasDetails, error)
 	GetProductAlias(ctx context.Context, q Querier, id int) (ProductAliasDetails, error)
 	DeleteProductAlias(ctx context.Context, q Querier, id int) error
 	ListProductAliases(ctx context.Context, q Querier, productID int) ([]ProductAliasDetails, error)

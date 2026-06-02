@@ -23,17 +23,21 @@ func NewOrderItemRepo() *OrderItemRepo {
 	return &OrderItemRepo{}
 }
 
-func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Querier, userID, storeID int) (int, error) {
-	var id int
-	if err := q.QueryRow(ctx, `INSERT INTO orders(user_id, store_id) VALUES ($1, $2) RETURNING id`, userID, storeID).Scan(&id); err != nil {
+func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Querier, userID, storeID int) (domain.OrderWithItemDetails, error) {
+	var order domain.OrderWithItemDetails
+	if err := q.QueryRow(ctx, `INSERT INTO orders(user_id, store_id) VALUES ($1, $2) RETURNING id`, userID, storeID).Scan(&order.Order.ID); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
-			return 0, domain.ErrAlreadyExists
+			return domain.OrderWithItemDetails{}, domain.ErrAlreadyExists
 		}
-		return 0, fmt.Errorf("create order failed: %w", err)
+		return domain.OrderWithItemDetails{}, fmt.Errorf("create order failed: %w", err)
 	}
 
-	return id, nil
+	orderOutput, err := r.GetOrder(ctx, q, userID, order.Order.ID)
+	if err != nil {
+		return domain.OrderWithItemDetails{}, fmt.Errorf("get order: %w", err)
+	}
+	return orderOutput, nil
 }
 
 func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orderID int) (domain.OrderWithItemDetails, error) {

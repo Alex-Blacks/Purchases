@@ -18,16 +18,16 @@ func NewServiceProduct(st domain.Storage, product domain.ProductRepository) *Ser
 	}
 }
 
-func (s *ServiceProduct) CreateProduct(ctx context.Context, title, unit string, categoryID int) (int, error) {
-	var productID int
+func (s *ServiceProduct) CreateProduct(ctx context.Context, title, unit string, categoryID int) (domain.ProductDetails, error) {
+	var product domain.ProductDetails
 	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		productID, err = s.product.CreateProduct(ctx, q, title, unit, categoryID)
+		product, err = s.product.CreateProduct(ctx, q, title, unit, categoryID)
 		return err
 	}); err != nil {
-		return 0, err
+		return domain.ProductDetails{}, err
 	}
-	return productID, nil
+	return product, nil
 }
 
 func (s *ServiceProduct) GetProduct(ctx context.Context, id int) (domain.ProductDetails, error) {
@@ -44,16 +44,16 @@ func (s *ServiceProduct) ListProducts(ctx context.Context) ([]domain.ProductDeta
 	return s.product.ListProducts(ctx, s.storage)
 }
 
-func (s *ServiceProduct) CreateProductAlias(ctx context.Context, productID int, alias string) (int, error) {
-	var id int
+func (s *ServiceProduct) CreateProductAlias(ctx context.Context, productID int, alias string) (domain.ProductAliasDetails, error) {
+	var productAlias domain.ProductAliasDetails
 	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		id, err = s.product.CreateProductAlias(ctx, q, productID, alias)
+		productAlias, err = s.product.CreateProductAlias(ctx, q, productID, alias)
 		return err
 	}); err != nil {
-		return 0, err
+		return domain.ProductAliasDetails{}, err
 	}
-	return id, nil
+	return productAlias, nil
 }
 func (s *ServiceProduct) GetProductAlias(ctx context.Context, id int) (domain.ProductAliasDetails, error) {
 	return s.product.GetProductAlias(ctx, s.storage, id)

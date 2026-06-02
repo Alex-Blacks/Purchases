@@ -1,10 +1,5 @@
 basePath: /api
 definitions:
-  dto.CategoryCreateResponse:
-    properties:
-      categoryId:
-        type: integer
-    type: object
   dto.CategoryRequest:
     properties:
       name:
@@ -60,11 +55,6 @@ definitions:
       token:
         type: string
     type: object
-  dto.OrderCreateResponse:
-    properties:
-      id:
-        type: integer
-    type: object
   dto.OrderDetailsResponse:
     properties:
       createdAt:
@@ -104,11 +94,6 @@ definitions:
       userID:
         type: integer
     type: object
-  dto.ProductAliasCreateResponse:
-    properties:
-      aliasId:
-        type: integer
-    type: object
   dto.ProductAliasRequest:
     properties:
       alias:
@@ -122,11 +107,6 @@ definitions:
         type: integer
       product:
         type: string
-    type: object
-  dto.ProductCreateResponse:
-    properties:
-      productId:
-        type: integer
     type: object
   dto.ProductFindResponse:
     properties:
@@ -236,6 +216,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -285,7 +273,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.CategoryCreateResponse'
+            $ref: '#/definitions/dto.CategoryResponse'
         "400":
           description: Bad Request
           schema:
@@ -400,7 +388,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.OrderCreateResponse'
+            $ref: '#/definitions/dto.OrderWithItemDetailsResponse'
         "400":
           description: Bad Request
           schema:
@@ -645,7 +633,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.ProductCreateResponse'
+            $ref: '#/definitions/dto.ProductResponse'
         "400":
           description: Bad Request
           schema:
@@ -793,7 +781,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.ProductAliasCreateResponse'
+            $ref: '#/definitions/dto.ProductAliasResponse'
         "400":
           description: Bad Request
           schema:
@@ -1043,35 +1031,6 @@ paths:
       summary: list users
       tags:
       - users
-    post:
-      consumes:
-      - application/json
-      description: Create user
-      parameters:
-      - description: user payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.UserRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/dto.UserResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/dto.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/dto.ErrorResponse'
-      summary: Create user
-      tags:
-      - users
   /private/users/{id}:
     delete:
       description: delete user by ID
@@ -1173,6 +1132,36 @@ paths:
       security:
       - BearerAuth: []
       summary: Update user
+      tags:
+      - users
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: Create user
+      parameters:
+      - description: user payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create user
       tags:
       - users
 securityDefinitions:

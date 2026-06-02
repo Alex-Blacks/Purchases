@@ -16,21 +16,24 @@ func NewProductRepo() *ProductRepo {
 	return &ProductRepo{}
 }
 
-func (p *ProductRepo) CreateProduct(ctx context.Context, q domain.Querier, title, unit string, categoryID int) (int, error) {
-	var id int
-	if err := q.QueryRow(ctx, `INSERT INTO products(title,unit,category_id) VALUES ($1,$2,$3) RETURNING id`, title, unit, categoryID).Scan(&id); err != nil {
+func (p *ProductRepo) CreateProduct(ctx context.Context, q domain.Querier, title, unit string, categoryID int) (domain.ProductDetails, error) {
+	var product domain.ProductDetails
+	if err := q.QueryRow(ctx, `INSERT INTO products(title,unit,category_id) VALUES ($1,$2,$3) RETURNING id`, title, unit, categoryID).Scan(&product.ID); err != nil {
 		var pgErr *pgconn.PgError
 		switch errors.As(err, &pgErr) {
 		case pgErr.Code == pgUniqueViolation:
-			return 0, domain.ErrAlreadyExists
+			return domain.ProductDetails{}, domain.ErrAlreadyExists
 		case pgErr.Code == pgForeignKeyViolation:
-			return 0, domain.ErrConflict
+			return domain.ProductDetails{}, domain.ErrConflict
 		default:
-			return 0, fmt.Errorf("query create product: %w", err)
+			return domain.ProductDetails{}, fmt.Errorf("query create product: %w", err)
 		}
 	}
-
-	return id, nil
+	productOutput, err := p.GetProduct(ctx, q, product.ID)
+	if err != nil {
+		return domain.ProductDetails{}, fmt.Errorf("get product: %w", err)
+	}
+	return productOutput, nil
 }
 
 func (p *ProductRepo) GetProduct(ctx context.Context, q domain.Querier, id int) (domain.ProductDetails, error) {
@@ -94,19 +97,24 @@ func (p *ProductRepo) ListProducts(ctx context.Context, q domain.Querier) ([]dom
 	return products, nil
 }
 
-func (a *ProductRepo) CreateProductAlias(ctx context.Context, q domain.Querier, productID int, alias string) (int, error) {
-	var id int
-	if err := q.QueryRow(ctx, `INSERT INTO product_aliases(product_id,alias) VALUES ($1,$2) RETURNING id`, productID, alias).Scan(&id); err != nil {
+func (a *ProductRepo) CreateProductAlias(ctx context.Context, q domain.Querier, productID int, alias string) (domain.ProductAliasDetails, error) {
+	var productAlias domain.ProductAliasDetails
+	if err := q.QueryRow(ctx, `INSERT INTO product_aliases(product_id,alias) VALUES ($1,$2) RETURNING id`, productID, alias).Scan(&productAlias.ID); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
-			return 0, domain.ErrAlreadyExists
+			return domain.ProductAliasDetails{}, domain.ErrAlreadyExists
 		}
 		if errors.As(err, &pgErr) && pgErr.Code == pgForeignKeyViolation {
-			return 0, domain.ErrConflict
+			return domain.ProductAliasDetails{}, domain.ErrConflict
 		}
-		return 0, fmt.Errorf("query create product alias: %w", err)
+		return domain.ProductAliasDetails{}, fmt.Errorf("query create product alias: %w", err)
 	}
-	return id, nil
+
+	aliasOutput, err := a.GetProductAlias(ctx, q, productAlias.ID)
+	if err != nil {
+		return domain.ProductAliasDetails{}, fmt.Errorf("get product alias: %w", err)
+	}
+	return aliasOutput, nil
 }
 func (a *ProductRepo) GetProductAlias(ctx context.Context, q domain.Querier, id int) (domain.ProductAliasDetails, error) {
 	var alias domain.ProductAliasDetails

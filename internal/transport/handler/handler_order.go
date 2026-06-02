@@ -13,7 +13,7 @@ import (
 )
 
 type ServiceOrderInterface interface {
-	CreateOrder(ctx context.Context, actor policy.Actor, storeID int) (int, error)
+	CreateOrder(ctx context.Context, actor policy.Actor, storeID int) (domain.OrderWithItemDetails, error)
 	GetOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error)
 	DeleteOrder(ctx context.Context, actor policy.Actor, orderID int) error
 	ListOrders(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error)
@@ -38,7 +38,7 @@ type OrderHandler struct {
 // @Accept json
 // @Produce json
 // @Param request body dto.OrderRequest true "order payload"
-// @Success 201 {object} dto.OrderCreateResponse
+// @Success 201 {object} dto.OrderWithItemDetailsResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
@@ -59,13 +59,13 @@ func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	orderID, err := h.orderService.CreateOrder(r.Context(), actor, req.StoreID)
+	order, err := h.orderService.CreateOrder(r.Context(), actor, req.StoreID)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
-	resp := dto.OrderCreateResponse{ID: orderID}
+	resp := dto.ToResponseOrder(order)
 
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }

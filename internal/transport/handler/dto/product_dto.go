@@ -8,10 +8,6 @@ type ProductRequest struct {
 	CategoryID int    `json:"categoryId"`
 }
 
-type ProductCreateResponse struct {
-	ProductID int `json:"productId"`
-}
-
 type ProductResponse struct {
 	ID       int    `json:"id"`
 	Title    string `json:"title"`
