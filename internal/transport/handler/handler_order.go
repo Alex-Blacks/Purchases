@@ -31,6 +31,7 @@ type OrderHandler struct {
 
 // CreateOrderHandler godoc
 //
+// @Security BearerAuth
 // @Summary Create order
 // @Description Create order
 // @Tags orders
@@ -41,7 +42,7 @@ type OrderHandler struct {
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /orders [post]
+// @Router /private/orders [post]
 func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -71,6 +72,7 @@ func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request)
 
 // GetOrderHandler godoc
 //
+// @Security BearerAuth
 // @Summary Get order
 // @Description Get order
 // @Tags orders
@@ -80,7 +82,7 @@ func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request)
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /orders/{id} [get]
+// @Router /private/orders/{id} [get]
 func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -108,6 +110,7 @@ func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 
 // DeleteOrderHandler godoc
 //
+// @Security BearerAuth
 // @Summary Delete order
 // @Description Delete order
 // @Tags orders
@@ -117,7 +120,7 @@ func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /orders/{id} [delete]
+// @Router /private/orders/{id} [delete]
 func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -142,6 +145,7 @@ func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request)
 
 // ListOrdersHandler godoc
 //
+// @Security BearerAuth
 // @Summary List orders
 // @Description List orders
 // @Tags orders
@@ -150,7 +154,7 @@ func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request)
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /orders [get]
+// @Router /private/orders [get]
 func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -172,6 +176,7 @@ func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) 
 
 // AddItemHandler godoc
 //
+// @Security BearerAuth
 // @Summary Add order item
 // @Description Add order item
 // @Tags orders
@@ -183,7 +188,7 @@ func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) 
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /orders/{orderId}/items [post]
+// @Router /private/orders/{orderId}/items [post]
 func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -235,6 +240,7 @@ func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 
 // UpdateItemHandler godoc
 //
+// @Security BearerAuth
 // @Summary Update order item
 // @Description Update order item
 // @Tags orders
@@ -247,7 +253,7 @@ func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /orders/{orderId}/items/{productId} [patch]
+// @Router /private/orders/{orderId}/items/{productId} [patch]
 func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -302,6 +308,7 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 
 // DeleteItemHandler godoc
 //
+// @Security BearerAuth
 // @Summary Delete order item
 // @Description Delete order item
 // @Tags orders
@@ -312,7 +319,7 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /orders/{orderId}/items/{productId} [delete]
+// @Router /private/orders/{orderId}/items/{productId} [delete]
 func (h OrderHandler) DeleteItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 

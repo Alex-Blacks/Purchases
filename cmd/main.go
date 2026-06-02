@@ -19,6 +19,16 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// @title           Purchases API
+// @version         1.0
+// @description     API for managing purchases.
+// @host            localhost:8080
+// @BasePath        /api
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Введите токен в формате "Bearer <token>"
 func main() {
 	ctx, stop := signal.NotifyContext(
 		context.Background(),

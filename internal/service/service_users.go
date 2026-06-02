@@ -99,7 +99,7 @@ func (s *ServiceUser) UpdateUser(ctx context.Context, actor policy.Actor, userID
 	if err != nil {
 		return domain.User{}, err
 	}
-	if updateUser.Name == nil && updateUser.Password == nil && updateUser.Email == nil {
+	if updateUser.Name == nil && updateUser.Password == nil && updateUser.Email == nil && updateUser.Role == nil && updateUser.Status == nil {
 		return domain.User{}, domain.ErrNoFieldsToUpdate
 	}
 	if (updateUser.Role != nil || updateUser.Status != nil) && !actor.HasRole(policy.RoleAdmin) {

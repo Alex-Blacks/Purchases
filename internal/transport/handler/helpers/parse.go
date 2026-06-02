@@ -36,8 +36,8 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, logger *slog.Logger, des
 		return fmt.Errorf("invalid json")
 	}
 
-	if err := dec.Decode(&struct{}{}); err != nil {
-		logger.Warn("multiple json objects", "error", err)
+	if dec.More() {
+		logger.Warn("multiple json objects")
 		return fmt.Errorf("body must contain single json object")
 	}
 	return nil

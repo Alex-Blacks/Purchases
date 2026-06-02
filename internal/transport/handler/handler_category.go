@@ -24,6 +24,7 @@ type CategoryHandler struct {
 
 // CreateCategoryHandler godoc
 //
+// @Security BearerAuth
 // @Summary Create category
 // @Description Create category
 // @Tags categories
@@ -33,7 +34,7 @@ type CategoryHandler struct {
 // @Success 201 {object} dto.CategoryCreateResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /categories [post]
+// @Router /private/categories [post]
 func (h CategoryHandler) CreateCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 	var req dto.CategoryRequest
@@ -63,6 +64,7 @@ func (h CategoryHandler) CreateCategoryHandler(w http.ResponseWriter, r *http.Re
 
 // GetCategoryHandler godoc
 //
+// @Security BearerAuth
 // @Summary Get category
 // @Description Get category
 // @Tags categories
@@ -71,7 +73,7 @@ func (h CategoryHandler) CreateCategoryHandler(w http.ResponseWriter, r *http.Re
 // @Success 200 {object} dto.CategoryResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /categories/{id} [get]
+// @Router /private/categories/{id} [get]
 func (h CategoryHandler) GetCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -97,6 +99,7 @@ func (h CategoryHandler) GetCategoryHandler(w http.ResponseWriter, r *http.Reque
 
 // DeleteCategoryHandler godoc
 //
+// @Security BearerAuth
 // @Summary Delete category
 // @Description Delete category
 // @Tags categories
@@ -105,7 +108,7 @@ func (h CategoryHandler) GetCategoryHandler(w http.ResponseWriter, r *http.Reque
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /categories/{id} [delete]
+// @Router /private/categories/{id} [delete]
 func (h CategoryHandler) DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -125,6 +128,7 @@ func (h CategoryHandler) DeleteCategoryHandler(w http.ResponseWriter, r *http.Re
 
 // ListCategoriesHandler godoc
 //
+// @Security BearerAuth
 // @Summary List categories
 // @Description List categories
 // @Tags categories
@@ -132,7 +136,7 @@ func (h CategoryHandler) DeleteCategoryHandler(w http.ResponseWriter, r *http.Re
 // @Success 200 {array} dto.CategoryResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /categories [get]
+// @Router /private/categories [get]
 func (h CategoryHandler) ListCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 

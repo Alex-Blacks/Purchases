@@ -31,6 +31,7 @@ type ProductHandler struct {
 
 // CreateProductHandler godoc
 //
+// @Security BearerAuth
 // @Summary Create product
 // @Description Create product
 // @Tags products
@@ -40,7 +41,7 @@ type ProductHandler struct {
 // @Success 201 {object} dto.ProductCreateResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /products [post]
+// @Router /private/products [post]
 func (h ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -78,6 +79,7 @@ func (h ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Requ
 
 // GetProductHandler godoc
 //
+// @Security BearerAuth
 // @Summary Get product
 // @Description Get product
 // @Tags products
@@ -86,7 +88,7 @@ func (h ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Requ
 // @Success 200 {object} dto.ProductResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /products/{id} [get]
+// @Router /private/products/{id} [get]
 func (h ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -109,6 +111,7 @@ func (h ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Request
 
 // DeleteProductHandler godoc
 //
+// @Security BearerAuth
 // @Summary Delete product
 // @Description Delete product
 // @Tags products
@@ -117,7 +120,7 @@ func (h ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Request
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /products/{id} [delete]
+// @Router /private/products/{id} [delete]
 func (h ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -137,6 +140,7 @@ func (h ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Requ
 
 // ListProductsHandler godoc
 //
+// @Security BearerAuth
 // @Summary List product
 // @Description List product
 // @Tags products
@@ -144,7 +148,7 @@ func (h ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Requ
 // @Success 200 {array} dto.ProductResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /products [get]
+// @Router /private/products [get]
 func (h ProductHandler) ListProductsHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -160,6 +164,7 @@ func (h ProductHandler) ListProductsHandler(w http.ResponseWriter, r *http.Reque
 
 // CreateProductAliasHandler godoc
 //
+// @Security BearerAuth
 // @Summary Create product alias
 // @Description Create product alias
 // @Tags products
@@ -170,7 +175,7 @@ func (h ProductHandler) ListProductsHandler(w http.ResponseWriter, r *http.Reque
 // @Success 201 {object} dto.ProductAliasCreateResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /products/{productId}/aliases [post]
+// @Router /private/products/{productId}/aliases [post]
 func (h ProductHandler) CreateProductAliasHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -206,6 +211,7 @@ func (h ProductHandler) CreateProductAliasHandler(w http.ResponseWriter, r *http
 
 // GetProductAliasHandler godoc
 //
+// @Security BearerAuth
 // @Summary Get product alias
 // @Description Get product alias
 // @Tags products
@@ -215,7 +221,7 @@ func (h ProductHandler) CreateProductAliasHandler(w http.ResponseWriter, r *http
 // @Success 200 {object} dto.ProductAliasResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /products/{productId}/aliases/{id} [get]
+// @Router /private/products/{productId}/aliases/{id} [get]
 func (h ProductHandler) GetProductAliasHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -238,6 +244,7 @@ func (h ProductHandler) GetProductAliasHandler(w http.ResponseWriter, r *http.Re
 
 // DeleteProductAliasHandler godoc
 //
+// @Security BearerAuth
 // @Summary Delete product alias
 // @Description Delete product alias
 // @Tags products
@@ -247,7 +254,7 @@ func (h ProductHandler) GetProductAliasHandler(w http.ResponseWriter, r *http.Re
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /products/{productId}/aliases/{id} [delete]
+// @Router /private/products/{productId}/aliases/{id} [delete]
 func (h ProductHandler) DeleteProductAliasHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -267,6 +274,7 @@ func (h ProductHandler) DeleteProductAliasHandler(w http.ResponseWriter, r *http
 
 // ListProductAliasesHandler godoc
 //
+// @Security BearerAuth
 // @Summary List product aliases
 // @Description List product aliases
 // @Tags products
@@ -275,7 +283,7 @@ func (h ProductHandler) DeleteProductAliasHandler(w http.ResponseWriter, r *http
 // @Success 200 {array} dto.ProductAliasResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /products/{productId}/aliases [get]
+// @Router /private/products/{productId}/aliases [get]
 func (h ProductHandler) ListProductAliasesHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -297,6 +305,7 @@ func (h ProductHandler) ListProductAliasesHandler(w http.ResponseWriter, r *http
 
 // DeleteAllProductAliasesHandler godoc
 //
+// @Security BearerAuth
 // @Summary Delete all product aliases
 // @Description Delete all product aliases
 // @Tags products
@@ -305,7 +314,7 @@ func (h ProductHandler) ListProductAliasesHandler(w http.ResponseWriter, r *http
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /products/{productId}/aliases [delete]
+// @Router /private/products/{productId}/aliases [delete]
 func (h ProductHandler) DeleteAllProductAliasesHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -325,6 +334,7 @@ func (h ProductHandler) DeleteAllProductAliasesHandler(w http.ResponseWriter, r 
 
 // FindProductByAliasHandler godoc
 //
+// @Security BearerAuth
 // @Summary Find product by alias
 // @Description Find product by alias
 // @Tags products
@@ -334,7 +344,7 @@ func (h ProductHandler) DeleteAllProductAliasesHandler(w http.ResponseWriter, r 
 // @Success 200 {object} dto.ProductFindResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /products/by-alias [get]
+// @Router /private/products/by-alias [get]
 func (h ProductHandler) FindProductByAliasHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 

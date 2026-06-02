@@ -41,7 +41,7 @@ type UserHandler struct {
 // @Success 201 {object} dto.UserResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /users [post]
+// @Router /private/users [post]
 func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -78,6 +78,7 @@ func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetUserByIDHandler godoc
 //
+// @Security BearerAuth
 // @Summary Get user by ID
 // @Description Get user by ID
 // @Tags users
@@ -87,7 +88,7 @@ func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /users/{id} [get]
+// @Router /private/users/{id} [get]
 func (h UserHandler) GetUserByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -118,6 +119,7 @@ func (h UserHandler) GetUserByIDHandler(w http.ResponseWriter, r *http.Request) 
 
 // DeleteUserHandler godoc
 //
+// @Security BearerAuth
 // @Summary delete user by ID
 // @Description delete user by ID
 // @Tags users
@@ -127,7 +129,7 @@ func (h UserHandler) GetUserByIDHandler(w http.ResponseWriter, r *http.Request) 
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /users/{id} [delete]
+// @Router /private/users/{id} [delete]
 func (h UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -156,6 +158,7 @@ func (h UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // UpdateUserHandler godoc
 //
+// @Security BearerAuth
 // @Summary Update user
 // @Description Update user
 // @Tags users
@@ -167,7 +170,7 @@ func (h UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /users/{id} [patch]
+// @Router /private/users/{id} [patch]
 func (h UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -209,6 +212,7 @@ func (h UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // ListUsersHandler godoc
 //
+// @Security BearerAuth
 // @Summary list users
 // @Description list users
 // @Tags users
@@ -217,7 +221,7 @@ func (h UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /users [get]
+// @Router /private/users [get]
 func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)

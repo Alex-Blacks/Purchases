@@ -24,6 +24,7 @@ type StoreHandler struct {
 
 // CreateStoreHandler godoc
 //
+// @Security BearerAuth
 // @Summary Create store
 // @Description Create store
 // @Tags stores
@@ -33,7 +34,7 @@ type StoreHandler struct {
 // @Success 201 {object} dto.StoreResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /stores [post]
+// @Router /private/stores [post]
 func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -64,6 +65,7 @@ func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request)
 
 // GetStoreHandler godoc
 //
+// @Security BearerAuth
 // @Summary Get store
 // @Description Get store
 // @Tags stores
@@ -72,7 +74,7 @@ func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request)
 // @Success 200 {object} dto.StoreResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /stores/{id} [get]
+// @Router /private/stores/{id} [get]
 func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -97,6 +99,7 @@ func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 
 // DeleteStoreHandler godoc
 //
+// @Security BearerAuth
 // @Summary Delete store
 // @Description Delete store
 // @Tags stores
@@ -105,7 +108,7 @@ func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /stores/{id} [delete]
+// @Router /private/stores/{id} [delete]
 func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
@@ -125,6 +128,7 @@ func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request)
 
 // ListStoresHandler godoc
 //
+// @Security BearerAuth
 // @Summary List store
 // @Description List store
 // @Tags stores
@@ -132,7 +136,7 @@ func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request)
 // @Success 200 {array} dto.StoreResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /stores [get]
+// @Router /private/stores [get]
 func (h StoreHandler) ListStoresHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 	list, err := h.storeService.ListStores(r.Context())

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
+	"github.com/Alex-Blacks/Purchases/internal/policy"
 )
 
 func WriteDomainError(w http.ResponseWriter, logger *slog.Logger, err error, req any) {
@@ -19,10 +20,12 @@ func WriteDomainError(w http.ResponseWriter, logger *slog.Logger, err error, req
 		domain.ErrConflict:          {http.StatusConflict, "the field is used in another table"},
 		domain.ErrAlreadyExists:     {http.StatusConflict, "conflict"},
 		domain.ErrEmptyName:         {http.StatusBadRequest, "empty name"},
-		domain.ErrNotFound:          {http.StatusNotFound, "not found"},
+		domain.ErrNoFieldsToUpdate:  {http.StatusBadRequest, "no fields to update"},
 		domain.ErrInvalidInput:      {http.StatusBadRequest, "invalid input"},
+		domain.ErrNotFound:          {http.StatusNotFound, "not found"},
 		domain.ErrStatusBlocked:     {http.StatusUnauthorized, "unauthorized"},
 		domain.ErrIncorrectPassword: {http.StatusUnauthorized, "unauthorized"},
+		policy.ErrForbidden:         {http.StatusUnauthorized, "forbidden"},
 	}
 
 	for domainErr, data := range errorMap {
