@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
@@ -18,9 +19,32 @@ func NewServiceCategory(st domain.Storage, category domain.CategoryRepository) *
 	}
 }
 
+func (s *ServiceCategory) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
+	tx, err := s.storage.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %w", err)
+	}
+
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+				err = fmt.Errorf("tx err: %v, rollback err: %w", err, rollbackErr)
+			}
+			return
+		}
+
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			err = fmt.Errorf("commit err: %w", commitErr)
+		}
+	}()
+
+	err = fn(tx)
+	return err
+}
+
 func (s *ServiceCategory) CreateCategory(ctx context.Context, name string) (int, error) {
 	var categoryID int
-	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 		categoryID, err = s.category.CreateCategory(ctx, q, name)
 		return err
@@ -35,7 +59,7 @@ func (s *ServiceCategory) GetCategory(ctx context.Context, id int) (domain.Categ
 }
 
 func (s *ServiceCategory) DeleteCategory(ctx context.Context, id int) error {
-	return s.storage.WithTx(ctx, func(q domain.Querier) error {
+	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.category.DeleteCategory(ctx, q, id)
 	})
 }

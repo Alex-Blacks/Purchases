@@ -23,6 +23,29 @@ func NewServiceOrderItem(st domain.Storage, order domain.OrderRepository, item d
 	}
 }
 
+func (s *ServiceOrderItem) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
+	tx, err := s.storage.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %w", err)
+	}
+
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+				err = fmt.Errorf("tx err: %v, rollback err: %w", err, rollbackErr)
+			}
+			return
+		}
+
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			err = fmt.Errorf("commit err: %w", commitErr)
+		}
+	}()
+
+	err = fn(tx)
+	return err
+}
+
 func (s *ServiceOrderItem) GetAccessibleOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error) {
 	order, err := s.order.GetOrder(ctx, s.storage, actor.UserID, orderID)
 	if err != nil {
@@ -36,7 +59,7 @@ func (s *ServiceOrderItem) GetAccessibleOrder(ctx context.Context, actor policy.
 
 func (s *ServiceOrderItem) CreateOrder(ctx context.Context, actor policy.Actor, storeID int) (domain.OrderWithItemDetails, error) {
 	var orderID domain.OrderWithItemDetails
-	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 		orderID, err = s.order.CreateOrder(ctx, q, actor.UserID, storeID)
 		return err
@@ -60,7 +83,7 @@ func (s *ServiceOrderItem) DeleteOrder(ctx context.Context, actor policy.Actor, 
 	if err != nil {
 		return err
 	}
-	return s.storage.WithTx(ctx, func(q domain.Querier) error {
+	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.order.DeleteOrder(ctx, q, actor.UserID, orderID)
 	})
 }
@@ -78,7 +101,7 @@ func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orde
 		return domain.OrderItemDetails{}, err
 	}
 	var item domain.OrderItemDetails
-	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 		item, err = s.UpdateItem(ctx, actor, orderID, productID, item.Quantity+quantity)
 		if err != nil {
@@ -103,7 +126,7 @@ func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, o
 		return domain.OrderItemDetails{}, err
 	}
 	var itemID domain.OrderItemDetails
-	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 		itemID, err = s.item.UpdateItem(ctx, q, orderID, productID, quantity)
 		return err
@@ -118,7 +141,7 @@ func (s *ServiceOrderItem) DeleteItem(ctx context.Context, actor policy.Actor, o
 	if err != nil {
 		return err
 	}
-	return s.storage.WithTx(ctx, func(q domain.Querier) error {
+	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.item.DeleteItem(ctx, q, orderID, productID)
 	})
 }

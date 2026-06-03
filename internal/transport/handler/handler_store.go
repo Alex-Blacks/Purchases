@@ -12,7 +12,7 @@ import (
 )
 
 type ServiceStoreInterface interface {
-	CreateStore(ctx context.Context, name string) (int, error)
+	CreateStore(ctx context.Context, name string) (domain.Store, error)
 	GetStore(ctx context.Context, id int) (domain.Store, error)
 	DeleteStore(ctx context.Context, id int) error
 	ListStores(ctx context.Context) ([]domain.Store, error)
@@ -49,15 +49,15 @@ func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	storeID, err := h.storeService.CreateStore(r.Context(), req.Name)
+	store, err := h.storeService.CreateStore(r.Context(), req.Name)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
 	resp := dto.StoreResponse{
-		ID:   storeID,
-		Name: req.Name,
+		ID:   store.ID,
+		Name: store.Name,
 	}
 
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
@@ -18,9 +19,32 @@ func NewServiceProduct(st domain.Storage, product domain.ProductRepository) *Ser
 	}
 }
 
+func (s *ServiceProduct) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
+	tx, err := s.storage.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %w", err)
+	}
+
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+				err = fmt.Errorf("tx err: %v, rollback err: %w", err, rollbackErr)
+			}
+			return
+		}
+
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			err = fmt.Errorf("commit err: %w", commitErr)
+		}
+	}()
+
+	err = fn(tx)
+	return err
+}
+
 func (s *ServiceProduct) CreateProduct(ctx context.Context, title, unit string, categoryID int) (domain.ProductDetails, error) {
 	var product domain.ProductDetails
-	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 		product, err = s.product.CreateProduct(ctx, q, title, unit, categoryID)
 		return err
@@ -35,7 +59,7 @@ func (s *ServiceProduct) GetProduct(ctx context.Context, id int) (domain.Product
 }
 
 func (s *ServiceProduct) DeleteProduct(ctx context.Context, id int) error {
-	return s.storage.WithTx(ctx, func(q domain.Querier) error {
+	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.product.DeleteProduct(ctx, q, id)
 	})
 }
@@ -46,7 +70,7 @@ func (s *ServiceProduct) ListProducts(ctx context.Context) ([]domain.ProductDeta
 
 func (s *ServiceProduct) CreateProductAlias(ctx context.Context, productID int, alias string) (domain.ProductAliasDetails, error) {
 	var productAlias domain.ProductAliasDetails
-	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 		productAlias, err = s.product.CreateProductAlias(ctx, q, productID, alias)
 		return err
@@ -59,7 +83,7 @@ func (s *ServiceProduct) GetProductAlias(ctx context.Context, id int) (domain.Pr
 	return s.product.GetProductAlias(ctx, s.storage, id)
 }
 func (s *ServiceProduct) DeleteProductAlias(ctx context.Context, id int) error {
-	return s.storage.WithTx(ctx, func(q domain.Querier) error {
+	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.product.DeleteProductAlias(ctx, q, id)
 	})
 }
@@ -67,7 +91,7 @@ func (s *ServiceProduct) ListProductAliases(ctx context.Context, productID int) 
 	return s.product.ListProductAliases(ctx, s.storage, productID)
 }
 func (s *ServiceProduct) DeleteAllProductAliases(ctx context.Context, productID int) error {
-	return s.storage.WithTx(ctx, func(q domain.Querier) error {
+	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.product.DeleteAllProductAliases(ctx, q, productID)
 	})
 }

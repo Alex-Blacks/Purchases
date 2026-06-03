@@ -16,16 +16,17 @@ func NewStoreRepo() *StoreRepo {
 	return &StoreRepo{}
 }
 
-func (s *StoreRepo) CreateStore(ctx context.Context, q domain.Querier, name string) (int, error) {
-	var id int
-	if err := q.QueryRow(ctx, `INSERT INTO stores(name) VALUES($1) RETURNING id`, name).Scan(&id); err != nil {
+func (s *StoreRepo) CreateStore(ctx context.Context, q domain.Querier, name string) (domain.Store, error) {
+	var store domain.Store
+	if err := q.QueryRow(ctx, `INSERT INTO stores(name) VALUES($1) RETURNING id`, name).Scan(&store.ID); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
-			return 0, domain.ErrAlreadyExists
+			return domain.Store{}, domain.ErrAlreadyExists
 		}
-		return 0, fmt.Errorf("create store: %w", err)
+		return domain.Store{}, fmt.Errorf("create store: %w", err)
 	}
-	return id, nil
+	store.Name = name
+	return store, nil
 }
 
 func (s *StoreRepo) GetStore(ctx context.Context, q domain.Querier, id int) (domain.Store, error) {

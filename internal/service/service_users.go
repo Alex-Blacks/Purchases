@@ -22,6 +22,29 @@ func NewServiceUser(st domain.Storage, user domain.UserRepository) *ServiceUser 
 	}
 }
 
+func (s *ServiceUser) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
+	tx, err := s.storage.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %w", err)
+	}
+
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+				err = fmt.Errorf("tx err: %v, rollback err: %w", err, rollbackErr)
+			}
+			return
+		}
+
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			err = fmt.Errorf("commit err: %w", commitErr)
+		}
+	}()
+
+	err = fn(tx)
+	return err
+}
+
 func (s *ServiceUser) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
 	return s.user.GetUserByEmail(ctx, s.storage, email)
 }
@@ -60,7 +83,7 @@ func (s *ServiceUser) CreateUser(ctx context.Context, name, password, email, rol
 		return user, fmt.Errorf("generate password failed: %w", err)
 	}
 
-	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 		user, err = s.user.CreateUser(ctx, q, name, password_hash, email, role, status)
 		return err
@@ -83,7 +106,7 @@ func (s *ServiceUser) DeleteUser(ctx context.Context, actor policy.Actor, userID
 	if err != nil {
 		return err
 	}
-	return s.storage.WithTx(ctx, func(q domain.Querier) error {
+	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.user.DeleteUser(ctx, q, userID)
 	})
 }
@@ -134,7 +157,7 @@ func (s *ServiceUser) UpdateUser(ctx context.Context, actor policy.Actor, userID
 	}
 
 	var user domain.User
-	if err := s.storage.WithTx(ctx, func(q domain.Querier) error {
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 		user, err = s.user.UpdateUser(ctx, q, userID, updateData)
 		return err
