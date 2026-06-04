@@ -8,7 +8,7 @@ type Category struct {
 }
 
 type CategoryRepository interface {
-	CreateCategory(ctx context.Context, q Querier, name string) (int, error)
+	CreateCategory(ctx context.Context, q Querier, name string) (Category, error)
 	GetCategory(ctx context.Context, q Querier, id int) (Category, error)
 	DeleteCategory(ctx context.Context, q Querier, id int) error
 	ListCategories(ctx context.Context, q Querier) ([]Category, error)

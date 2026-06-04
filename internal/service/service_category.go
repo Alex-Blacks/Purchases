@@ -42,16 +42,16 @@ func (s *ServiceCategory) WithTx(ctx context.Context, fn func(q domain.Querier) 
 	return err
 }
 
-func (s *ServiceCategory) CreateCategory(ctx context.Context, name string) (int, error) {
-	var categoryID int
+func (s *ServiceCategory) CreateCategory(ctx context.Context, name string) (domain.Category, error) {
+	var category domain.Category
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		categoryID, err = s.category.CreateCategory(ctx, q, name)
+		category, err = s.category.CreateCategory(ctx, q, name)
 		return err
 	}); err != nil {
-		return 0, err
+		return domain.Category{}, err
 	}
-	return categoryID, nil
+	return category, nil
 }
 
 func (s *ServiceCategory) GetCategory(ctx context.Context, id int) (domain.Category, error) {

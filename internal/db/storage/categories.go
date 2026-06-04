@@ -16,16 +16,17 @@ func NewCategoryRepo() *CategoryRepo {
 	return &CategoryRepo{}
 }
 
-func (c *CategoryRepo) CreateCategory(ctx context.Context, q domain.Querier, name string) (int, error) {
-	var id int
-	if err := q.QueryRow(ctx, `INSERT INTO categories(name) VALUES ($1) RETURNING id`, name).Scan(&id); err != nil {
+func (c *CategoryRepo) CreateCategory(ctx context.Context, q domain.Querier, name string) (domain.Category, error) {
+	var category domain.Category
+	if err := q.QueryRow(ctx, `INSERT INTO categories(name) VALUES ($1) RETURNING id`, name).Scan(&category.ID); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
-			return 0, domain.ErrAlreadyExists
+			return domain.Category{}, domain.ErrAlreadyExists
 		}
-		return 0, fmt.Errorf("create category: %w", err)
+		return domain.Category{}, fmt.Errorf("create category: %w", err)
 	}
-	return id, nil
+	category.Name = name
+	return category, nil
 }
 
 func (c *CategoryRepo) GetCategory(ctx context.Context, q domain.Querier, id int) (domain.Category, error) {

@@ -1,4 +1,4 @@
-package store_tests
+package category_tests
 
 import (
 	"context"
@@ -51,71 +51,64 @@ func (ms *MockTx) BeginTx(ctx context.Context) (domain.Tx, error) {
 	return ms, nil
 }
 
-type MockStore struct {
-	data        map[int]domain.Store
+type MockCategory struct {
+	data        map[int]domain.Category
 	nextID      int
 	foreignKeys map[int]bool
 }
 
-func NewMockStore() *MockStore {
-	return &MockStore{
-		data:        make(map[int]domain.Store),
+func NewMockCategory() *MockCategory {
+	return &MockCategory{
+		data:        make(map[int]domain.Category),
 		nextID:      1,
 		foreignKeys: make(map[int]bool),
 	}
 }
 
-func (mc *MockStore) AddForeignKey(id int) {
+func (mc *MockCategory) AddForeignKey(id int) {
 	mc.foreignKeys[id] = true
 }
 
-func (ms *MockStore) CreateStore(ctx context.Context, q domain.Querier, name string) (domain.Store, error) {
-	for _, store := range ms.data {
-		if store.Name == name {
-			return domain.Store{}, domain.ErrAlreadyExists
+func (mc *MockCategory) CreateCategory(ctx context.Context, q domain.Querier, name string) (domain.Category, error) {
+	for _, cat := range mc.data {
+		if cat.Name == name {
+			return domain.Category{}, domain.ErrAlreadyExists
 		}
 	}
-
-	id := ms.nextID
-	ms.nextID++
-	store := domain.Store{ID: id, Name: name}
-	ms.data[id] = store
-
-	return store, nil
+	id := mc.nextID
+	mc.nextID++
+	cat := domain.Category{ID: id, Name: name}
+	mc.data[id] = cat
+	return cat, nil
 }
 
-func (ms *MockStore) GetStore(ctx context.Context, q domain.Querier, id int) (domain.Store, error) {
-	store, ok := ms.data[id]
+func (mc *MockCategory) GetCategory(ctx context.Context, q domain.Querier, id int) (domain.Category, error) {
+	cat, ok := mc.data[id]
 	if !ok {
-		return domain.Store{}, domain.ErrNotFound
+		return domain.Category{}, domain.ErrNotFound
 	}
-
-	return store, nil
+	return cat, nil
 }
 
-func (ms *MockStore) DeleteStore(ctx context.Context, q domain.Querier, id int) error {
-	_, ok := ms.data[id]
-	if !ok {
+func (mc *MockCategory) DeleteCategory(ctx context.Context, q domain.Querier, id int) error {
+	if _, ok := mc.data[id]; !ok {
 		return domain.ErrNotFound
 	}
-	if ms.foreignKeys[id] {
+	if mc.foreignKeys[id] {
 		return domain.ErrConflict
 	}
-
-	delete(ms.data, id)
+	delete(mc.data, id)
 	return nil
 }
 
-func (ms *MockStore) ListStores(ctx context.Context, q domain.Querier) ([]domain.Store, error) {
-	result := make([]domain.Store, 0, len(ms.data))
-
-	for _, store := range ms.data {
-		result = append(result, store)
+func (mc *MockCategory) ListCategories(ctx context.Context, q domain.Querier) ([]domain.Category, error) {
+	res := make([]domain.Category, 0, len(mc.data))
+	for _, cat := range mc.data {
+		res = append(res, cat)
 	}
 
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].ID < result[j].ID
+	sort.Slice(res, func(i, j int) bool {
+		return res[i].ID < res[j].ID
 	})
-
-	return result, nil
+	return res, nil
 }

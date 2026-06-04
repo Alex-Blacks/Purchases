@@ -73,6 +73,7 @@ func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request)
 // @Param id path int true "store ID"
 // @Success 200 {object} dto.StoreResponse
 // @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/stores/{id} [get]
 func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
@@ -107,6 +108,7 @@ func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 // @Param id path int true "store ID"
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/stores/{id} [delete]
 func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request) {

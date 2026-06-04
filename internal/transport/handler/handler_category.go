@@ -12,7 +12,7 @@ import (
 )
 
 type ServiceCategoryInterface interface {
-	CreateCategory(ctx context.Context, name string) (int, error)
+	CreateCategory(ctx context.Context, name string) (domain.Category, error)
 	GetCategory(ctx context.Context, id int) (domain.Category, error)
 	DeleteCategory(ctx context.Context, id int) error
 	ListCategories(ctx context.Context) ([]domain.Category, error)
@@ -49,15 +49,15 @@ func (h CategoryHandler) CreateCategoryHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	categoryID, err := h.categoryService.CreateCategory(r.Context(), req.Name)
+	category, err := h.categoryService.CreateCategory(r.Context(), req.Name)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
 	resp := dto.CategoryResponse{
-		ID:   categoryID,
-		Name: req.Name,
+		ID:   category.ID,
+		Name: category.Name,
 	}
 
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
@@ -73,6 +73,7 @@ func (h CategoryHandler) CreateCategoryHandler(w http.ResponseWriter, r *http.Re
 // @Param id path int true "category ID"
 // @Success 200 {object} dto.CategoryResponse
 // @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/categories/{id} [get]
 func (h CategoryHandler) GetCategoryHandler(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +109,7 @@ func (h CategoryHandler) GetCategoryHandler(w http.ResponseWriter, r *http.Reque
 // @Param id path int true "category ID"
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/categories/{id} [delete]
 func (h CategoryHandler) DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
