@@ -48,8 +48,10 @@ func (m *MockTx) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row 
 	panic("unexpected call")
 }
 
-func (ms *MockTx) BeginTx(ctx context.Context) (domain.Tx, error) {
-	return ms, nil
+func (m *MockTx) BeginTx(ctx context.Context) (domain.Tx, error) {
+	m.committed = false
+	m.rolledBack = false
+	return m, nil
 }
 
 type ProductInput struct {
