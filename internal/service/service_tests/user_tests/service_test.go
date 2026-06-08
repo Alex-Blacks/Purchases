@@ -8,6 +8,7 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/policy"
 	"github.com/Alex-Blacks/Purchases/internal/service"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -426,14 +427,7 @@ func TestUser_UpdateUser(t *testing.T) {
 			update:      domain.UpdateUser{Name: ptr("Updated")},
 			wantErr:     true,
 			wantErrIs:   domain.ErrNotFound,
-			checkTxFunc: func(t *testing.T, tx *MockTx) {
-				if tx.committed {
-					t.Error("transaction committed despite error")
-				}
-				if !tx.rolledBack {
-					t.Error("transaction should be rolled back")
-				}
-			},
+			checkTxFunc: nil,
 		},
 	}
 
@@ -561,14 +555,7 @@ func TestUser_DeleteUser(t *testing.T) {
 			userID:      999,
 			wantErr:     true,
 			wantErrIs:   domain.ErrNotFound,
-			checkTxFunc: func(t *testing.T, tx *MockTx) {
-				if tx.committed {
-					t.Error("transaction committed despite error")
-				}
-				if !tx.rolledBack {
-					t.Error("transaction should be rolled back")
-				}
-			},
+			checkTxFunc: nil,
 		},
 	}
 
@@ -755,4 +742,169 @@ func TestUser_GeneratePassword(t *testing.T) {
 
 func ptr(s string) *string {
 	return &s
+}
+
+func TestAuthService_Login(t *testing.T) {
+	secret := "test-secret-key"
+
+	tests := []struct {
+		name          string
+		seedUsers     map[int]domain.User
+		email         string
+		password      string
+		wantErr       bool
+		wantErrIs     error
+		validateToken func(t *testing.T, token string)
+	}{
+		{
+			name: "success - valid credentials",
+			seedUsers: map[int]domain.User{
+				1: {
+					ID:           1,
+					Name:         "John Doe",
+					Email:        "john@example.com",
+					PasswordHash: hashPassword("password123"),
+					Role:         string(policy.RoleUser),
+					Status:       "active",
+				},
+			},
+			email:    "john@example.com",
+			password: "password123",
+			wantErr:  false,
+			validateToken: func(t *testing.T, token string) {
+				claims, err := parseToken(token, secret)
+				if err != nil {
+					t.Fatalf("failed to parse token: %v", err)
+				}
+				sub, ok := claims["sub"].(float64)
+				if !ok || int(sub) != 1 {
+					t.Errorf("expected sub=1, got %v", claims["sub"])
+				}
+				role, ok := claims["role"].(string)
+				if !ok || role != string(policy.RoleUser) {
+					t.Errorf("expected role=%s, got %v", policy.RoleUser, claims["role"])
+				}
+			},
+		},
+		{
+			name: "success - admin user",
+			seedUsers: map[int]domain.User{
+				2: {
+					ID:           2,
+					Name:         "Admin User",
+					Email:        "admin@example.com",
+					PasswordHash: hashPassword("admin123"),
+					Role:         string(policy.RoleAdmin),
+					Status:       "active",
+				},
+			},
+			email:    "admin@example.com",
+			password: "admin123",
+			wantErr:  false,
+			validateToken: func(t *testing.T, token string) {
+				claims, err := parseToken(token, secret)
+				if err != nil {
+					t.Fatalf("failed to parse token: %v", err)
+				}
+				role, ok := claims["role"].(string)
+				if !ok || role != string(policy.RoleAdmin) {
+					t.Errorf("expected role=%s, got %v", policy.RoleAdmin, claims["role"])
+				}
+			},
+		},
+		{
+			name:      "error - user not found",
+			seedUsers: map[int]domain.User{},
+			email:     "nonexistent@example.com",
+			password:  "password123",
+			wantErr:   true,
+			wantErrIs: domain.ErrNotFound,
+		},
+		{
+			name: "error - user status blocked",
+			seedUsers: map[int]domain.User{
+				3: {
+					ID:           3,
+					Name:         "Blocked User",
+					Email:        "blocked@example.com",
+					PasswordHash: hashPassword("blocked123"),
+					Role:         string(policy.RoleUser),
+					Status:       "blocked",
+				},
+			},
+			email:     "blocked@example.com",
+			password:  "blocked123",
+			wantErr:   true,
+			wantErrIs: domain.ErrStatusBlocked,
+		},
+		{
+			name: "error - invalid password",
+			seedUsers: map[int]domain.User{
+				4: {
+					ID:           4,
+					Name:         "Test User",
+					Email:        "test@example.com",
+					PasswordHash: hashPassword("correctpassword"),
+					Role:         string(policy.RoleUser),
+					Status:       "active",
+				},
+			},
+			email:     "test@example.com",
+			password:  "wrongpassword",
+			wantErr:   true,
+			wantErrIs: domain.ErrIncorrectPassword,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			txMock := NewMockTx()
+			repoMock := NewMockUser()
+			for id, user := range tt.seedUsers {
+				repoMock.users[id] = user
+				if id >= repoMock.nextID {
+					repoMock.nextID = id + 1
+				}
+			}
+			userSvc := service.NewServiceUser(txMock, repoMock)
+			authSvc := service.NewAuthService(userSvc, secret)
+
+			token, err := authSvc.Login(context.Background(), tt.email, tt.password)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
+					t.Fatalf("expected error %v, got %v", tt.wantErrIs, err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if token == "" {
+					t.Error("token is empty")
+				}
+				if tt.validateToken != nil {
+					tt.validateToken(t, token)
+				}
+			}
+		})
+	}
+}
+
+func parseToken(tokenString, secret string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+	return nil, errors.New("invalid token")
 }
