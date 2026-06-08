@@ -54,7 +54,7 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orde
 		if errors.Is(err, pgx.ErrNoRows) {
 			return result, domain.ErrNotFound
 		}
-		return result, fmt.Errorf("scan rows order: %w", err)
+		return domain.OrderWithItemDetails{}, fmt.Errorf("scan rows order: %w", err)
 	}
 
 	rowsItems, err := q.Query(ctx, `
@@ -64,7 +64,7 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orde
 		WHERE oi.order_id = $1 
 	`, orderID)
 	if err != nil {
-		return result, fmt.Errorf("get order items: %w", err)
+		return domain.OrderWithItemDetails{}, fmt.Errorf("get order items: %w", err)
 	}
 	defer rowsItems.Close()
 
@@ -73,13 +73,13 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orde
 		var item domain.OrderItemDetails
 
 		if err = rowsItems.Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
-			return result, fmt.Errorf("scan rows order items: %w", err)
+			return domain.OrderWithItemDetails{}, fmt.Errorf("scan rows order items: %w", err)
 		}
 
 		items = append(items, item)
 	}
 	if err := rowsItems.Err(); err != nil {
-		return result, fmt.Errorf("iteration failed: %w", err)
+		return domain.OrderWithItemDetails{}, fmt.Errorf("iteration failed: %w", err)
 	}
 
 	order.ItemsCount = len(items)
@@ -150,12 +150,12 @@ func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, 
 	`, orderID, productID, quantity).Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.Is(err, pgx.ErrNoRows) {
-			return item, domain.ErrNotFound
+			return domain.OrderItemDetails{}, domain.ErrNotFound
 		}
 		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
-			return item, domain.ErrAlreadyExists
+			return domain.OrderItemDetails{}, domain.ErrAlreadyExists
 		}
-		return item, fmt.Errorf("add item: %w", err)
+		return domain.OrderItemDetails{}, fmt.Errorf("add item: %w", err)
 	}
 
 	return item, nil
@@ -175,9 +175,9 @@ func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderI
 		JOIN products p ON u.product_id = p.id 
 	`, quantity, orderID, productID).Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return item, domain.ErrNotFound
+			return domain.OrderItemDetails{}, domain.ErrNotFound
 		}
-		return item, fmt.Errorf("update item: %w", err)
+		return domain.OrderItemDetails{}, fmt.Errorf("update item: %w", err)
 	}
 
 	return item, nil

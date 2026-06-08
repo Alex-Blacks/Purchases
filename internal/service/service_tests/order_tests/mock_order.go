@@ -252,14 +252,14 @@ func (m *MockOrder) UpdateItem(ctx context.Context, q domain.Querier, orderID, p
 		return domain.OrderItemDetails{}, domain.ErrNotFound
 	}
 	item := m.orderItems[foundID]
-	item.Quantity = quantity
+	item.Quantity += quantity
 	m.orderItems[foundID] = item
 	title, _ := m.products[productID]
 	return domain.OrderItemDetails{
 		ID:        foundID,
 		ProductID: productID,
 		Title:     title,
-		Quantity:  quantity,
+		Quantity:  item.Quantity,
 	}, nil
 }
 

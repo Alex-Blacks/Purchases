@@ -89,9 +89,6 @@ func (s *ServiceOrderItem) DeleteOrder(ctx context.Context, actor policy.Actor, 
 }
 
 func (s *ServiceOrderItem) ListOrders(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error) {
-	if err := policy.CanList(actor); err != nil {
-		return nil, err
-	}
 	return s.order.ListOrders(ctx, s.storage, actor.UserID)
 }
 
@@ -103,13 +100,14 @@ func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orde
 	var item domain.OrderItemDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		item, err = s.UpdateItem(ctx, actor, orderID, productID, item.Quantity+quantity)
+		item, err = s.item.UpdateItem(ctx, q, orderID, productID, quantity)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				item, err = s.item.AddItem(ctx, q, orderID, productID, quantity)
 				if err != nil {
-					return err
+					return fmt.Errorf("added item: %w", err)
 				}
+				return nil
 			}
 			return fmt.Errorf("update item: %w", err)
 		}
@@ -125,15 +123,15 @@ func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, o
 	if err != nil {
 		return domain.OrderItemDetails{}, err
 	}
-	var itemID domain.OrderItemDetails
+	var item domain.OrderItemDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		itemID, err = s.item.UpdateItem(ctx, q, orderID, productID, quantity)
+		item, err = s.item.UpdateItem(ctx, q, orderID, productID, quantity)
 		return err
 	}); err != nil {
-		return itemID, err
+		return domain.OrderItemDetails{}, err
 	}
-	return itemID, nil
+	return item, nil
 }
 
 func (s *ServiceOrderItem) DeleteItem(ctx context.Context, actor policy.Actor, orderID, productID int) error {
