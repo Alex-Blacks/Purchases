@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -40,6 +41,10 @@ func main() {
 	_ = godotenv.Load()
 
 	cfg := config.Load()
+	timeout, err := strconv.Atoi(cfg.Timeout)
+	if err != nil {
+		log.Fatalf("incorected .env file")
+	}
 	logger := logging.NewLogger()
 
 	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
@@ -71,8 +76,8 @@ func main() {
 	handlers := handler.NewHandlers(userSvc, storeSvc, productSvc, orderSvc, categorySvc, authSvc)
 
 	// routers
-	publicRouter := handler.PublicRouter(handlers, logger)
-	privateRouter := handler.PrivateRouter(handlers, cfg.JWTSecret, logger)
+	publicRouter := handler.PublicRouter(handlers, time.Second*time.Duration(timeout), logger)
+	privateRouter := handler.PrivateRouter(handlers, cfg.JWTSecret, time.Second*time.Duration(timeout), logger)
 
 	mux := chi.NewRouter()
 	mux.Mount("/api", publicRouter)

@@ -41,6 +41,7 @@ type UserHandler struct {
 // @Success 201 {object} dto.UserResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /users [post]
 func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -87,7 +88,9 @@ func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} dto.UserResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/users/{id} [get]
 func (h UserHandler) GetUserByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -128,7 +131,9 @@ func (h UserHandler) GetUserByIDHandler(w http.ResponseWriter, r *http.Request) 
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/users/{id} [delete]
 func (h UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -169,7 +174,9 @@ func (h UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} dto.UserResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/users/{id} [patch]
 func (h UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -221,6 +228,7 @@ func (h UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/users [get]
 func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

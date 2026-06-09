@@ -29,6 +29,7 @@ type AuthHandler struct {
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /login [post]
 func (h AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())

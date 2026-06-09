@@ -2,16 +2,18 @@ package handler
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/Alex-Blacks/Purchases/internal/transport/middleware"
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-func PrivateRouter(h *Handlers, secret string, logger *slog.Logger) *chi.Mux {
+func PrivateRouter(h *Handlers, secret string, timeout time.Duration, logger *slog.Logger) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(middleware.RecoveryMiddleware)
+	router.Use(middleware.TimeoutMiddleware(timeout))
 	router.Use(middleware.RequestIDMiddleware)
 	router.Use(middleware.LoggingMiddleware(logger))
 	router.Use(middleware.AuthMiddleware(secret))
@@ -86,10 +88,11 @@ func PrivateRouter(h *Handlers, secret string, logger *slog.Logger) *chi.Mux {
 	return router
 }
 
-func PublicRouter(h *Handlers, logger *slog.Logger) *chi.Mux {
+func PublicRouter(h *Handlers, timeout time.Duration, logger *slog.Logger) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(middleware.RecoveryMiddleware)
+	router.Use(middleware.TimeoutMiddleware(timeout))
 	router.Use(middleware.RequestIDMiddleware)
 	router.Use(middleware.LoggingMiddleware(logger))
 

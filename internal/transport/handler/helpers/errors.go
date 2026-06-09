@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -29,6 +30,10 @@ func WriteDomainError(w http.ResponseWriter, logger *slog.Logger, err error, req
 	}
 
 	for domainErr, data := range errorMap {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			WriteError(w, logger, http.StatusServiceUnavailable, "request timeout")
+			return
+		}
 		if errors.Is(err, domainErr) {
 			WriteError(w, logger, data.Code, data.Msg)
 			return

@@ -34,6 +34,7 @@ type CategoryHandler struct {
 // @Success 201 {object} dto.CategoryResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/categories [post]
 func (h CategoryHandler) CreateCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -75,6 +76,7 @@ func (h CategoryHandler) CreateCategoryHandler(w http.ResponseWriter, r *http.Re
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/categories/{id} [get]
 func (h CategoryHandler) GetCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -111,6 +113,7 @@ func (h CategoryHandler) GetCategoryHandler(w http.ResponseWriter, r *http.Reque
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/categories/{id} [delete]
 func (h CategoryHandler) DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -139,6 +142,7 @@ func (h CategoryHandler) DeleteCategoryHandler(w http.ResponseWriter, r *http.Re
 // @Success 200 {array} dto.CategoryResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/categories [get]
 func (h CategoryHandler) ListCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())

@@ -34,6 +34,7 @@ type StoreHandler struct {
 // @Success 201 {object} dto.StoreResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/stores [post]
 func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -75,6 +76,7 @@ func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request)
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/stores/{id} [get]
 func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -110,6 +112,7 @@ func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/stores/{id} [delete]
 func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -138,6 +141,7 @@ func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request)
 // @Success 200 {array} dto.StoreResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/stores [get]
 func (h StoreHandler) ListStoresHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())

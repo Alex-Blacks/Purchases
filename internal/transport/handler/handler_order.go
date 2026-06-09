@@ -42,6 +42,7 @@ type OrderHandler struct {
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders [post]
 func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -81,7 +82,9 @@ func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request)
 // @Success 200 {object} dto.OrderWithItemDetailsResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{id} [get]
 func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -119,7 +122,9 @@ func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{id} [delete]
 func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -154,6 +159,7 @@ func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request)
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders [get]
 func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -188,6 +194,7 @@ func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) 
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{orderId}/items [post]
 func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -252,7 +259,9 @@ func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} dto.ItemDetailsResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{orderId}/items/{productId} [patch]
 func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
@@ -318,7 +327,9 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{orderId}/items/{productId} [delete]
 func (h OrderHandler) DeleteItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
