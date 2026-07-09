@@ -105,14 +105,13 @@ func (r *OrderRepo) DeleteOrder(ctx context.Context, q domain.Querier, userID, o
 func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int) ([]domain.OrderDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT 
-			o.id, u.name, s.name, o.created_at, o.updated_at, 
+			o.id, o.user_id, s.name, o.created_at, o.updated_at, 
 			COUNT(oi.id) AS items_quantity
 		FROM orders o
-		JOIN users u ON o.user_id = u.id
 		JOIN stores s ON o.store_id = s.id
 		LEFT JOIN order_items oi ON oi.order_id = o.id
 		WHERE o.user_id = $1
-		GROUP BY o.id, u.name, s.name, o.created_at, o.updated_at
+		GROUP BY o.id, o.user_id, s.name, o.created_at, o.updated_at
 	`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("query order: %w", err)

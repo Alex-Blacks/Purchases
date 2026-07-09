@@ -12,7 +12,7 @@ type OrderRequest struct {
 
 type OrderDetailsResponse struct {
 	ID         int       `json:"id"`
-	UserID     int       `json:"user"`
+	UserID     int       `json:"userId"`
 	Store      string    `json:"store"`
 	ItemsCount int       `json:"itemsCount"`
 	CreatedAt  time.Time `json:"createdAt"`
@@ -21,7 +21,7 @@ type OrderDetailsResponse struct {
 
 type OrderWithItemDetailsResponse struct {
 	ID         int                   `json:"id"`
-	UserID     int                   `json:"userID"`
+	UserID     int                   `json:"userId"`
 	Store      string                `json:"store"`
 	ItemsCount int                   `json:"itemsCount"`
 	CreatedAt  time.Time             `json:"createdAt"`
