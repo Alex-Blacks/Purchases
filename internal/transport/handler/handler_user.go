@@ -59,7 +59,7 @@ func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	const (
-		role   string = "user"
+		role   string = string(policy.RoleUser)
 		status string = "active"
 	)
 

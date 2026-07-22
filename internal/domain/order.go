@@ -8,6 +8,7 @@ import (
 type OrderDetails struct {
 	ID         int
 	UserID     int
+	User       string
 	Store      string
 	ItemsCount int
 	CreatedAt  time.Time

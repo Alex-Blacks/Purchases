@@ -17,16 +17,15 @@ func WriteDomainError(w http.ResponseWriter, logger *slog.Logger, err error, req
 	}
 
 	errorMap := map[error]errData{
-		domain.ErrEmailConflict:     {http.StatusConflict, "email has already been created"},
-		domain.ErrConflict:          {http.StatusConflict, "the field is used in another table"},
-		domain.ErrAlreadyExists:     {http.StatusConflict, "conflict"},
-		domain.ErrEmptyName:         {http.StatusBadRequest, "empty name"},
-		domain.ErrNoFieldsToUpdate:  {http.StatusBadRequest, "no fields to update"},
-		domain.ErrInvalidInput:      {http.StatusBadRequest, "invalid input"},
-		domain.ErrNotFound:          {http.StatusNotFound, "not found"},
-		domain.ErrStatusBlocked:     {http.StatusUnauthorized, "unauthorized"},
-		domain.ErrIncorrectPassword: {http.StatusUnauthorized, "unauthorized"},
-		policy.ErrForbidden:         {http.StatusUnauthorized, "forbidden"},
+		domain.ErrEmailConflict:      {http.StatusConflict, "email has already been created"},
+		domain.ErrConflict:           {http.StatusConflict, "the field is used in another table"},
+		domain.ErrAlreadyExists:      {http.StatusConflict, "conflict"},
+		domain.ErrEmptyName:          {http.StatusBadRequest, "empty name"},
+		domain.ErrNoFieldsToUpdate:   {http.StatusBadRequest, "no fields to update"},
+		domain.ErrInvalidInput:       {http.StatusBadRequest, "invalid input"},
+		domain.ErrNotFound:           {http.StatusNotFound, "not found"},
+		domain.ErrInvalidCredentials: {http.StatusUnauthorized, "invalid credentials"},
+		policy.ErrForbidden:          {http.StatusUnauthorized, "forbidden"},
 	}
 
 	for domainErr, data := range errorMap {

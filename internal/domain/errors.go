@@ -10,8 +10,8 @@ var (
 	ErrConflict         = errors.New("conflict")
 	ErrNoFieldsToUpdate = errors.New("no fields to update")
 
-	ErrStatusBlocked     = errors.New("status blocked")
-	ErrIncorrectPassword = errors.New("incorrect password")
-	ErrNoRights          = errors.New("no rights")
-	ErrEmailConflict     = errors.New("email has already been created")
+	ErrStatusBlocked      = errors.New("status blocked")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrNoRights           = errors.New("no rights")
+	ErrEmailConflict      = errors.New("email has already been created")
 )

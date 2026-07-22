@@ -105,7 +105,7 @@ func (r *OrderRepo) DeleteOrder(ctx context.Context, q domain.Querier, userID, o
 func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int) ([]domain.OrderDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT 
-			o.id, o.user_id, s.name, o.created_at, o.updated_at, 
+			o.id, o.user_id, u.name, s.name, o.created_at, o.updated_at, 
 			COUNT(oi.id) AS items_quantity
 		FROM orders o
 		JOIN stores s ON o.store_id = s.id
@@ -122,7 +122,7 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 	for rows.Next() {
 		var list domain.OrderDetails
 
-		if err := rows.Scan(&list.ID, &list.UserID, &list.Store, &list.CreatedAt, &list.UpdatedAt, &list.ItemsCount); err != nil {
+		if err := rows.Scan(&list.ID, &list.User, &list.Store, &list.CreatedAt, &list.UpdatedAt, &list.ItemsCount); err != nil {
 			return nil, fmt.Errorf("scan orders: %w", err)
 		}
 

@@ -11,6 +11,7 @@ import (
 
 type ServiceAuthInterface interface {
 	Login(ctx context.Context, email, password string) (string, error)
+	Register(ctx context.Context, name, email, password string) (string, error)
 }
 type AuthHandler struct {
 	authService ServiceAuthInterface
@@ -53,5 +54,44 @@ func (h AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := dto.LoginResponse{Token: token}
+	helpers.WriteJSON(w, logger, http.StatusOK, resp)
+}
+
+// RegisterHandler godoc
+//
+// @Summary Register
+// @Description Register
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body dto.RegisterRequest true "register payload"
+// @Success 200 {object} dto.RegisterResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /register [post]
+func (h AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
+	logger := logging.LoggerFromContext(r.Context())
+
+	var req dto.RegisterRequest
+
+	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	token, err := h.authService.Register(r.Context(), req.Name, req.Email, req.Password)
+	if err != nil {
+		helpers.WriteDomainError(w, logger, err, map[string]any{"name": req.Name, "email": req.Email})
+		return
+	}
+
+	resp := dto.RegisterResponse{Token: token}
 	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }

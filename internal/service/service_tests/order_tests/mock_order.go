@@ -57,6 +57,7 @@ func (m *MockTx) BeginTx(ctx context.Context) (domain.Tx, error) {
 type orderRow struct {
 	ID        int
 	UserID    int
+	User      string
 	StoreID   int
 	StoreName string
 	CreatedAt time.Time
@@ -194,7 +195,7 @@ func (m *MockOrder) ListOrders(ctx context.Context, q domain.Querier, userID int
 		}
 		result = append(result, domain.OrderDetails{
 			ID:         order.ID,
-			UserID:     order.UserID,
+			User:       order.User,
 			Store:      order.StoreName,
 			ItemsCount: itemsCount,
 			CreatedAt:  order.CreatedAt,

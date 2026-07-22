@@ -70,7 +70,7 @@ func main() {
 	categorySvc := service.NewServiceCategory(st, categoryRepo)
 	productSvc := service.NewServiceProduct(st, productRepo)
 
-	authSvc := service.NewAuthService(userSvc, cfg.JWTSecret)
+	authSvc := service.NewAuthService(userSvc, cfg.JWTSecret, cfg.TokenLifetime)
 
 	// handlers
 	handlers := handler.NewHandlers(userSvc, storeSvc, productSvc, orderSvc, categorySvc, authSvc)
