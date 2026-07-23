@@ -11,6 +11,7 @@ type Config struct {
 	JWTSecret     string
 	TokenLifetime time.Duration
 	DatabaseURL   string
+	Timeout       string
 }
 
 func Load() Config {
@@ -21,5 +22,6 @@ func Load() Config {
 		JWTSecret:     os.Getenv("JWT_SECRET"),
 		TokenLifetime: time.Duration(lifetime) * time.Minute,
 		DatabaseURL:   os.Getenv("DATABASE_URL"),
+		Timeout:       os.Getenv("TIMEOUT"),
 	}
 }

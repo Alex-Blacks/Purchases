@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/policy"
@@ -746,6 +747,7 @@ func ptr(s string) *string {
 
 func TestAuthService_Login(t *testing.T) {
 	secret := "test-secret-key"
+	lifetime := 60
 
 	tests := []struct {
 		name          string
@@ -852,7 +854,7 @@ func TestAuthService_Login(t *testing.T) {
 			email:     "test@example.com",
 			password:  "wrongpassword",
 			wantErr:   true,
-			wantErrIs: domain.ErrIncorrectPassword,
+			wantErrIs: domain.ErrInvalidCredentials,
 		},
 	}
 
@@ -867,7 +869,7 @@ func TestAuthService_Login(t *testing.T) {
 				}
 			}
 			userSvc := service.NewServiceUser(txMock, repoMock)
-			authSvc := service.NewAuthService(userSvc, secret)
+			authSvc := service.NewAuthService(userSvc, secret, time.Duration(lifetime))
 
 			token, err := authSvc.Login(context.Background(), tt.email, tt.password)
 
