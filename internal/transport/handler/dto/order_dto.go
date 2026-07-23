@@ -34,24 +34,39 @@ type ItemRequest struct {
 	Quantity  int `json:"quantity"`
 }
 
+type ListItemsRequest struct {
+	Items []ItemRequest `json:"items"`
+}
+
+func ToItemsRequest(items ListItemsRequest) []domain.OrderItem {
+	resp := make([]domain.OrderItem, len(items.Items))
+
+	for id, i := range items.Items {
+		resp[id] = domain.OrderItem{
+			ProductID: i.ProductID,
+			Quantity:  i.Quantity,
+		}
+	}
+
+	return resp
+}
+
 type ItemUpdateRequest struct {
 	Quantity int `json:"quantity"`
 }
 
 type ItemDetailsResponse struct {
-	ID        int    `json:"id"`
-	ProductID int    `json:"productId"`
-	Title     string `json:"title"`
-	Quantity  int    `json:"quantity"`
+	ID       int    `json:"id"`
+	Title    string `json:"title"`
+	Quantity int    `json:"quantity"`
 }
 
 func ToResponseOrder(o domain.OrderWithItemDetails) OrderWithItemDetailsResponse {
 	items := make([]ItemDetailsResponse, len(o.Items))
 	for i, it := range o.Items {
 		items[i] = ItemDetailsResponse{
-			ProductID: it.ProductID,
-			Title:     it.Title,
-			Quantity:  it.Quantity,
+			Title:    it.Title,
+			Quantity: it.Quantity,
 		}
 	}
 

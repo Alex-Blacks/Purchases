@@ -210,6 +210,30 @@ func (m *MockOrder) orderExists(orderID int) bool {
 	_, ok := m.orders[orderID]
 	return ok
 }
+func (m *MockOrder) GetItemByOrderAndProduct(ctx context.Context, q domain.Querier, orderID, productID int) (domain.OrderItemDetails, error) {
+	var foundID int
+	for id, it := range m.orderItems {
+		if it.OrderID == orderID && it.ProductID == productID {
+			foundID = id
+			break
+		}
+	}
+	if foundID == 0 {
+		return domain.OrderItemDetails{}, domain.ErrNotFound
+	}
+	item := m.orderItems[foundID]
+	title, _ := m.products[productID]
+	return domain.OrderItemDetails{
+		ID:        foundID,
+		ProductID: productID,
+		Title:     title,
+		Quantity:  item.Quantity,
+	}, nil
+}
+
+func (m *MockOrder) UpsertItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) error {
+	return nil
+}
 
 func (m *MockOrder) AddItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
 	if !m.orderExists(orderID) {

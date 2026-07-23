@@ -13,10 +13,3 @@ func CanAccess(actor Actor, resource ResourceOwner) error {
 	}
 	return ErrForbidden
 }
-
-func CanList(actor Actor) error {
-	if actor.HasRole(RoleAdmin) {
-		return nil
-	}
-	return ErrForbidden
-}

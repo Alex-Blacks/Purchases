@@ -112,9 +112,6 @@ func (s *ServiceUser) DeleteUser(ctx context.Context, actor policy.Actor, userID
 }
 
 func (s *ServiceUser) ListUsers(ctx context.Context, actor policy.Actor) ([]domain.User, error) {
-	if err := policy.CanList(actor); err != nil {
-		return nil, err
-	}
 	return s.user.ListUsers(ctx, s.storage)
 }
 

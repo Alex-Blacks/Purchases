@@ -109,9 +109,10 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 			COUNT(oi.id) AS items_quantity
 		FROM orders o
 		JOIN stores s ON o.store_id = s.id
+		JOIN users u ON o.user_id = u.id
 		LEFT JOIN order_items oi ON oi.order_id = o.id
 		WHERE o.user_id = $1
-		GROUP BY o.id, o.user_id, s.name, o.created_at, o.updated_at
+		GROUP BY o.id, u.name, o.user_id, s.name, o.created_at, o.updated_at
 	`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("query order: %w", err)
@@ -122,7 +123,7 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 	for rows.Next() {
 		var list domain.OrderDetails
 
-		if err := rows.Scan(&list.ID, &list.User, &list.Store, &list.CreatedAt, &list.UpdatedAt, &list.ItemsCount); err != nil {
+		if err := rows.Scan(&list.ID, &list.UserID, &list.User, &list.Store, &list.CreatedAt, &list.UpdatedAt, &list.ItemsCount); err != nil {
 			return nil, fmt.Errorf("scan orders: %w", err)
 		}
 
@@ -133,6 +134,23 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 	}
 
 	return lists, nil
+}
+
+func (r *OrderItemRepo) GetItemByOrderAndProduct(ctx context.Context, q domain.Querier, orderID, productID int) (domain.OrderItemDetails, error) {
+	var item domain.OrderItemDetails
+	if err := q.QueryRow(ctx, `
+		SELECT oi.id, oi.product_id, p.title ,oi.quantity
+		FROM order_items oi
+		JOIN products p ON oi.product_id = p.id
+		WHERE oi.order_id = $1 AND oi.product_id = $2
+	`, orderID, productID).Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.OrderItemDetails{}, domain.ErrNotFound
+		}
+		return domain.OrderItemDetails{}, fmt.Errorf("get item by order and product: %w", err)
+	}
+
+	return item, nil
 }
 
 func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
@@ -191,5 +209,18 @@ func (r *OrderItemRepo) DeleteItem(ctx context.Context, q domain.Querier, orderI
 		return fmt.Errorf("deleted item: %w", err)
 	}
 
+	return nil
+}
+
+func (r *OrderItemRepo) UpsertItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) error {
+	_, err := q.Exec(ctx, `
+        INSERT INTO order_items (order_id, product_id, quantity)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (order_id, product_id) DO UPDATE
+        SET quantity = order_items.quantity + EXCLUDED.quantity
+    `, orderID, productID, quantity)
+	if err != nil {
+		return fmt.Errorf("upsert item: %w", err)
+	}
 	return nil
 }
