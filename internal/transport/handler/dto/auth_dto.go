@@ -19,10 +19,12 @@ type RegisterRequest struct {
 
 type LoginResponse struct {
 	Token string `json:"token"`
+	Exp   int64  `json:"exp"`
 }
 
 type RegisterResponse struct {
 	Token string `json:"token"`
+	Exp   int64  `json:"exp"`
 }
 
 func (l *LoginRequest) Validate() error {

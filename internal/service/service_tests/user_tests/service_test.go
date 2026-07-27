@@ -871,7 +871,7 @@ func TestAuthService_Login(t *testing.T) {
 			userSvc := service.NewServiceUser(txMock, repoMock)
 			authSvc := service.NewAuthService(userSvc, secret, time.Duration(lifetime))
 
-			token, err := authSvc.Login(context.Background(), tt.email, tt.password)
+			token, _, err := authSvc.Login(context.Background(), tt.email, tt.password)
 
 			if tt.wantErr {
 				if err == nil {

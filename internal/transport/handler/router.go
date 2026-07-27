@@ -22,6 +22,7 @@ func PrivateRouter(h *Handlers, secret string, timeout time.Duration, logger *sl
 
 	// Users
 	router.Route("/users", func(r chi.Router) {
+		r.Post("/", h.User.CreateUserHandler)
 		r.Get("/", h.User.ListUsersHandler)
 
 		r.Patch("/{id}", h.User.UpdateUserHandler)
@@ -77,6 +78,8 @@ func PrivateRouter(h *Handlers, secret string, timeout time.Duration, logger *sl
 		r.Get("/{id}", h.Order.GetOrderHandler)
 		r.Delete("/{id}", h.Order.DeleteOrderHandler)
 
+		r.Post("/{orderId}/list_items", h.Order.AddListItemsHandler)
+
 		// Items
 		r.Route("/{orderId}/items", func(r chi.Router) {
 			r.Post("/", h.Order.AddItemHandler)
@@ -103,9 +106,9 @@ func PublicRouter(h *Handlers, timeout time.Duration, logger *slog.Logger) *chi.
 		r.Post("/", h.Auth.LoginHandler)
 	})
 
-	// Users
-	router.Route("/users", func(r chi.Router) {
-		r.Post("/", h.User.CreateUserHandler)
+	//Register
+	router.Route("/register", func(r chi.Router) {
+		r.Post("/", h.Auth.RegisterHandler)
 	})
 
 	return router

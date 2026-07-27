@@ -10,8 +10,8 @@ import (
 )
 
 type ServiceAuthInterface interface {
-	Login(ctx context.Context, email, password string) (string, error)
-	Register(ctx context.Context, name, email, password string) (string, error)
+	Login(ctx context.Context, email, password string) (string, int64, error)
+	Register(ctx context.Context, name, email, password string) (string, int64, error)
 }
 type AuthHandler struct {
 	authService ServiceAuthInterface
@@ -47,13 +47,12 @@ func (h AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.authService.Login(r.Context(), req.Email, req.Password)
+	token, exp, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"email": req.Email})
 		return
 	}
-
-	resp := dto.LoginResponse{Token: token}
+	resp := dto.LoginResponse{Token: token, Exp: exp}
 	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
 
@@ -86,12 +85,12 @@ func (h AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.authService.Register(r.Context(), req.Name, req.Email, req.Password)
+	token, exp, err := h.authService.Register(r.Context(), req.Name, req.Email, req.Password)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"name": req.Name, "email": req.Email})
 		return
 	}
 
-	resp := dto.RegisterResponse{Token: token}
+	resp := dto.RegisterResponse{Token: token, Exp: exp}
 	helpers.WriteJSON(w, logger, http.StatusOK, resp)
 }
