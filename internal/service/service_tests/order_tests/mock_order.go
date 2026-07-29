@@ -302,3 +302,18 @@ func (m *MockOrder) DeleteItem(ctx context.Context, q domain.Querier, orderID, p
 	delete(m.orderItems, foundID)
 	return nil
 }
+
+func (m *MockOrder) DeleteAllItems(ctx context.Context, q domain.Querier, orderID int) error {
+	var foundID int
+	for id, it := range m.orderItems {
+		if it.OrderID == orderID {
+			foundID = id
+			break
+		}
+	}
+	if foundID == 0 {
+		return domain.ErrNotFound
+	}
+	delete(m.orderItems, foundID)
+	return nil
+}

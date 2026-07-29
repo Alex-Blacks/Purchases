@@ -174,6 +174,30 @@ func (s *ServiceOrderItem) AddListItems(ctx context.Context, actor policy.Actor,
 	})
 }
 
+func (s *ServiceOrderItem) UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItem) error {
+	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "count", len(items))
+	logger.InfoContext(ctx, "updating list items")
+
+	_, err := s.GetAccessibleOrder(ctx, actor, orderID)
+	if err != nil {
+		logger.WarnContext(ctx, "access denied or order not found", "error", err)
+		return err
+	}
+
+	return s.WithTx(ctx, func(q domain.Querier) error {
+		if err := s.item.DeleteAllItems(ctx, q, orderID); err != nil {
+			return err
+		}
+		for _, item := range items {
+			if err := s.item.UpsertItem(ctx, q, orderID, item.ProductID, item.Quantity); err != nil {
+				return fmt.Errorf("upsert item %d: %w", item.ProductID, err)
+			}
+		}
+		logger.InfoContext(ctx, "all items upserted successfully")
+		return nil
+	})
+}
+
 func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID, "quantity", quantity)
 	logger.InfoContext(ctx, "updating item quantity")

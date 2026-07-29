@@ -79,6 +79,7 @@ func PrivateRouter(h *Handlers, secret string, timeout time.Duration, logger *sl
 		r.Delete("/{id}", h.Order.DeleteOrderHandler)
 
 		r.Post("/{orderId}/list_items", h.Order.AddListItemsHandler)
+		r.Put("/{orderId}/list_items", h.Order.UpdateListItemsHandler)
 
 		// Items
 		r.Route("/{orderId}/items", func(r chi.Router) {

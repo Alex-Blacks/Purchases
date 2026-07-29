@@ -20,6 +20,7 @@ type ServiceOrderInterface interface {
 
 	AddItem(ctx context.Context, actor policy.Actor, orderID int, productID int, quantity int) (domain.OrderItemDetails, error)
 	AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItem) error
+	UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItem) error
 	UpdateItem(ctx context.Context, actor policy.Actor, orderID int, productID int, quantity int) (domain.OrderItemDetails, error)
 	DeleteItem(ctx context.Context, actor policy.Actor, orderID int, productID int) error
 
@@ -301,6 +302,66 @@ func (h OrderHandler) AddListItemsHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+// UpdateListItemsHandler godoc
+//
+// @Security BearerAuth
+// @Summary Update order list items
+// @Description Update order list items
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param orderId path int true "order ID"
+// @Param request body dto.ListItemsRequest true "item payload"
+// @Success 200 "OK"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
+// @Router /private/orders/{orderId}/list_items [put]
+func (h OrderHandler) UpdateListItemsHandler(w http.ResponseWriter, r *http.Request) {
+	logger := logging.LoggerFromContext(r.Context())
+
+	actor, ok := authctx.ActorFromContext(r.Context())
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
+	if err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var req dto.ListItemsRequest
+
+	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	items := dto.ToItemsRequest(req)
+
+	for _, item := range items {
+		if item.Quantity <= 0 || item.ProductID <= 0 {
+			helpers.WriteError(w, logger, http.StatusBadRequest, "invalid input")
+			return
+		}
+	}
+
+	err = h.orderService.UpdateListItems(r.Context(), actor, orderID, items)
+	if err != nil {
+		helpers.WriteDomainError(w, logger, err, map[string]any{
+			"orderId": orderID,
+			"request": req,
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // UpdateItemHandler godoc

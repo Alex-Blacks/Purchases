@@ -212,12 +212,23 @@ func (r *OrderItemRepo) DeleteItem(ctx context.Context, q domain.Querier, orderI
 	return nil
 }
 
+func (r *OrderItemRepo) DeleteAllItems(ctx context.Context, q domain.Querier, orderID int) error {
+	_, err := q.Exec(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1`, orderID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrNotFound
+		}
+		return fmt.Errorf("deleted all items: %w", err)
+	}
+	return nil
+}
+
 func (r *OrderItemRepo) UpsertItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) error {
 	_, err := q.Exec(ctx, `
         INSERT INTO order_items (order_id, product_id, quantity)
         VALUES ($1, $2, $3)
         ON CONFLICT (order_id, product_id) DO UPDATE
-        SET quantity = order_items.quantity + EXCLUDED.quantity
+        SET quantity = EXCLUDED.quantity
     `, orderID, productID, quantity)
 	if err != nil {
 		return fmt.Errorf("upsert item: %w", err)

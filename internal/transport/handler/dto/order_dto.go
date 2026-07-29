@@ -56,17 +56,19 @@ type ItemUpdateRequest struct {
 }
 
 type ItemDetailsResponse struct {
-	ID       int    `json:"id"`
-	Title    string `json:"title"`
-	Quantity int    `json:"quantity"`
+	ID        int    `json:"id"`
+	ProductID int    `json:"productId"`
+	Title     string `json:"title"`
+	Quantity  int    `json:"quantity"`
 }
 
 func ToResponseOrder(o domain.OrderWithItemDetails) OrderWithItemDetailsResponse {
 	items := make([]ItemDetailsResponse, len(o.Items))
 	for i, it := range o.Items {
 		items[i] = ItemDetailsResponse{
-			Title:    it.Title,
-			Quantity: it.Quantity,
+			ProductID: it.ProductID,
+			Title:     it.Title,
+			Quantity:  it.Quantity,
 		}
 	}
 
