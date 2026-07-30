@@ -1,12 +1,11 @@
 package handler
 
 type Handlers struct {
-	User     *UserHandler
-	Store    *StoreHandler
-	Product  *ProductHandler
-	Order    *OrderHandler
-	Category *CategoryHandler
-	Auth     *AuthHandler
+	User    *UserHandler
+	Store   *StoreHandler
+	Product *ProductHandler
+	Order   *OrderHandler
+	Auth    *AuthHandler
 }
 
 func NewHandlers(
@@ -14,7 +13,6 @@ func NewHandlers(
 	storeSvc ServiceStoreInterface,
 	productSvc ServiceProductInterface,
 	orderSvc ServiceOrderInterface,
-	categorySvc ServiceCategoryInterface,
 	authSvc ServiceAuthInterface,
 ) *Handlers {
 	if userSvc == nil {
@@ -29,18 +27,14 @@ func NewHandlers(
 	if orderSvc == nil {
 		panic("orderSvc is nil")
 	}
-	if categorySvc == nil {
-		panic("categorySvc is nil")
-	}
 	if authSvc == nil {
 		panic("authSvc is nil")
 	}
 	return &Handlers{
-		User:     &UserHandler{userService: userSvc},
-		Store:    &StoreHandler{storeService: storeSvc},
-		Product:  &ProductHandler{productService: productSvc},
-		Order:    &OrderHandler{orderService: orderSvc},
-		Category: &CategoryHandler{categoryService: categorySvc},
-		Auth:     &AuthHandler{authService: authSvc},
+		User:    &UserHandler{userService: userSvc},
+		Store:   &StoreHandler{storeService: storeSvc},
+		Product: &ProductHandler{productService: productSvc},
+		Order:   &OrderHandler{orderService: orderSvc},
+		Auth:    &AuthHandler{authService: authSvc},
 	}
 }

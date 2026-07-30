@@ -42,11 +42,11 @@ func (s *ServiceProduct) WithTx(ctx context.Context, fn func(q domain.Querier) e
 	return err
 }
 
-func (s *ServiceProduct) CreateProduct(ctx context.Context, title, unit string, categoryID int) (domain.ProductDetails, error) {
+func (s *ServiceProduct) CreateProduct(ctx context.Context, title string) (domain.ProductDetails, error) {
 	var product domain.ProductDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		product, err = s.product.CreateProduct(ctx, q, title, unit, categoryID)
+		product, err = s.product.CreateProduct(ctx, q, title)
 		return err
 	}); err != nil {
 		return domain.ProductDetails{}, err

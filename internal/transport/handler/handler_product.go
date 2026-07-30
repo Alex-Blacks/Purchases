@@ -12,7 +12,7 @@ import (
 )
 
 type ServiceProductInterface interface {
-	CreateProduct(ctx context.Context, title string, unit string, categoryID int) (domain.ProductDetails, error)
+	CreateProduct(ctx context.Context, title string) (domain.ProductDetails, error)
 	GetProduct(ctx context.Context, id int) (domain.ProductDetails, error)
 	DeleteProduct(ctx context.Context, id int) error
 	ListProducts(ctx context.Context) ([]domain.ProductDetails, error)
@@ -56,27 +56,16 @@ func (h ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Requ
 		helpers.WriteError(w, logger, http.StatusBadRequest, "empty name")
 		return
 	}
-	if strings.TrimSpace(req.Unit) == "" {
-		helpers.WriteError(w, logger, http.StatusBadRequest, "empty name")
-		return
-	}
 
-	if err := helpers.ValidatePositiveInt("categoryId", req.CategoryID); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	product, err := h.productService.CreateProduct(r.Context(), req.Title, req.Unit, req.CategoryID)
+	product, err := h.productService.CreateProduct(r.Context(), req.Title)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
 	resp := dto.ProductResponse{
-		ID:       product.ID,
-		Title:    product.Title,
-		Unit:     product.Unit,
-		Category: product.Category,
+		ID:    product.ID,
+		Title: product.Title,
 	}
 	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
 }

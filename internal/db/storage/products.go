@@ -16,9 +16,9 @@ func NewProductRepo() *ProductRepo {
 	return &ProductRepo{}
 }
 
-func (p *ProductRepo) CreateProduct(ctx context.Context, q domain.Querier, title, unit string, categoryID int) (domain.ProductDetails, error) {
+func (p *ProductRepo) CreateProduct(ctx context.Context, q domain.Querier, title string) (domain.ProductDetails, error) {
 	var product domain.ProductDetails
-	if err := q.QueryRow(ctx, `INSERT INTO products(title,unit,category_id) VALUES ($1,$2,$3) RETURNING id`, title, unit, categoryID).Scan(&product.ID); err != nil {
+	if err := q.QueryRow(ctx, `INSERT INTO products(title) VALUES ($1) RETURNING id`, title).Scan(&product.ID); err != nil {
 		var pgErr *pgconn.PgError
 		switch errors.As(err, &pgErr) {
 		case pgErr.Code == pgUniqueViolation:
@@ -39,11 +39,10 @@ func (p *ProductRepo) CreateProduct(ctx context.Context, q domain.Querier, title
 func (p *ProductRepo) GetProduct(ctx context.Context, q domain.Querier, id int) (domain.ProductDetails, error) {
 	var product domain.ProductDetails
 	if err := q.QueryRow(ctx, `
-		SELECT p.id, p.title, p.unit, c.name
+		SELECT p.id, p.title
 		FROM products p
-		JOIN categories c ON p.category_id = c.id
 		WHERE p.id = $1	
-	`, id).Scan(&product.ID, &product.Title, &product.Unit, &product.Category); err != nil {
+	`, id).Scan(&product.ID, &product.Title); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return product, domain.ErrNotFound
 		}
@@ -70,9 +69,8 @@ func (p *ProductRepo) DeleteProduct(ctx context.Context, q domain.Querier, id in
 
 func (p *ProductRepo) ListProducts(ctx context.Context, q domain.Querier) ([]domain.ProductDetails, error) {
 	rows, err := q.Query(ctx, `
-		SELECT p.id, p.title, p.unit, c.name
+		SELECT p.id, p.title
 		FROM products p
-		JOIN categories c ON p.category_id = c.id
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("query products: %w", err)
@@ -83,7 +81,7 @@ func (p *ProductRepo) ListProducts(ctx context.Context, q domain.Querier) ([]dom
 	for rows.Next() {
 		var product domain.ProductDetails
 
-		if err := rows.Scan(&product.ID, &product.Title, &product.Unit, &product.Category); err != nil {
+		if err := rows.Scan(&product.ID, &product.Title); err != nil {
 			return nil, fmt.Errorf("scan product: %w", err)
 		}
 

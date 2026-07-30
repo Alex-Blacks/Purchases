@@ -52,15 +52,6 @@ func PrivateRouter(h *Handlers, secret string, timeout time.Duration, logger *sl
 		})
 	})
 
-	// Categories
-	router.Route("/categories", func(r chi.Router) {
-		r.Post("/", h.Category.CreateCategoryHandler)
-		r.Get("/", h.Category.ListCategoriesHandler)
-
-		r.Get("/{id}", h.Category.GetCategoryHandler)
-		r.Delete("/{id}", h.Category.DeleteCategoryHandler)
-	})
-
 	// Stores
 	router.Route("/stores", func(r chi.Router) {
 		r.Post("/", h.Store.CreateStoreHandler)

@@ -3,24 +3,18 @@ package dto
 import "github.com/Alex-Blacks/Purchases/internal/domain"
 
 type ProductRequest struct {
-	Title      string `json:"title"`
-	Unit       string `json:"unit"`
-	CategoryID int    `json:"categoryId"`
+	Title string `json:"title"`
 }
 
 type ProductResponse struct {
-	ID       int    `json:"id"`
-	Title    string `json:"title"`
-	Unit     string `json:"unit"`
-	Category string `json:"category"`
+	ID    int    `json:"id"`
+	Title string `json:"title"`
 }
 
 func ToProductResponse(product domain.ProductDetails) ProductResponse {
 	return ProductResponse{
-		ID:       product.ID,
-		Title:    product.Title,
-		Unit:     product.Unit,
-		Category: product.Category,
+		ID:    product.ID,
+		Title: product.Title,
 	}
 }
 
@@ -29,10 +23,8 @@ func ToProductsResponse(products []domain.ProductDetails) []ProductResponse {
 
 	for i, p := range products {
 		resp[i] = ProductResponse{
-			ID:       p.ID,
-			Title:    p.Title,
-			Unit:     p.Unit,
-			Category: p.Category,
+			ID:    p.ID,
+			Title: p.Title,
 		}
 	}
 	return resp

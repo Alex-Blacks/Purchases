@@ -1,7 +1,5 @@
 create index idx_users_email on users(email);
 
-create index idx_product_categories on products(category_id);
-
 create index idx_product_aliases_products on product_aliases(product_id);
 create unique index idx_product_aliases_unique_alias on product_aliases(product_id, lower(trim(alias)));
 

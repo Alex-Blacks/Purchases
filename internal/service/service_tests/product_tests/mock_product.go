@@ -3,7 +3,6 @@ package product_tests
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
@@ -55,10 +54,8 @@ func (m *MockTx) BeginTx(ctx context.Context) (domain.Tx, error) {
 }
 
 type ProductInput struct {
-	ID         int
-	Title      string
-	Unit       string
-	CategoryID int
+	ID    int
+	Title string
 }
 
 type AliasInput struct {
@@ -89,17 +86,12 @@ func (m *MockProduct) getProductDetails(id int) (domain.ProductDetails, error) {
 		return domain.ProductDetails{}, domain.ErrNotFound
 	}
 	return domain.ProductDetails{
-		ID:       p.ID,
-		Title:    p.Title,
-		Unit:     p.Unit,
-		Category: fmt.Sprintf("Category_%d", p.CategoryID),
+		ID:    p.ID,
+		Title: p.Title,
 	}, nil
 }
 
-func (m *MockProduct) CreateProduct(ctx context.Context, q domain.Querier, title, unit string, categoryID int) (domain.ProductDetails, error) {
-	if _, ok := m.products[categoryID]; !ok {
-		return domain.ProductDetails{}, domain.ErrConflict
-	}
+func (m *MockProduct) CreateProduct(ctx context.Context, q domain.Querier, title string) (domain.ProductDetails, error) {
 	for _, product := range m.products {
 		if product.Title == title {
 			return domain.ProductDetails{}, domain.ErrAlreadyExists
@@ -107,7 +99,7 @@ func (m *MockProduct) CreateProduct(ctx context.Context, q domain.Querier, title
 	}
 	id := m.nextProductID
 	m.nextProductID++
-	newProduct := ProductInput{ID: id, Title: title, Unit: unit, CategoryID: categoryID}
+	newProduct := ProductInput{ID: id, Title: title}
 	m.products[id] = newProduct
 
 	return m.getProductDetails(id)

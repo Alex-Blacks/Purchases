@@ -14,8 +14,7 @@ func TestProduct_CreateProduct(t *testing.T) {
 		name  string
 		seed  map[int]ProductInput
 		input struct {
-			title, unit string
-			categoryID  int
+			title string
 		}
 		wantErr     bool
 		wantErrIs   error
@@ -23,12 +22,10 @@ func TestProduct_CreateProduct(t *testing.T) {
 	}{
 		{
 			name: "success",
-			seed: map[int]ProductInput{1: {ID: 1, Title: "Груши", Unit: "кг", CategoryID: 1}},
+			seed: map[int]ProductInput{1: {ID: 1, Title: "Груши"}},
 			input: struct {
-				title      string
-				unit       string
-				categoryID int
-			}{"Яблоки", "кг", 1},
+				title string
+			}{"Яблоки"},
 			wantErr: false,
 			checkTxFunc: func(t *testing.T, tx *MockTx) {
 				if !tx.committed {
@@ -41,12 +38,10 @@ func TestProduct_CreateProduct(t *testing.T) {
 		},
 		{
 			name: "already exists",
-			seed: map[int]ProductInput{1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1}},
+			seed: map[int]ProductInput{1: {ID: 1, Title: "Яблоки"}},
 			input: struct {
-				title      string
-				unit       string
-				categoryID int
-			}{"Яблоки", "кг", 1},
+				title string
+			}{"Яблоки"},
 			wantErr:   true,
 			wantErrIs: domain.ErrAlreadyExists,
 			checkTxFunc: func(t *testing.T, tx *MockTx) {
@@ -62,10 +57,8 @@ func TestProduct_CreateProduct(t *testing.T) {
 			name: "conflict",
 			seed: map[int]ProductInput{},
 			input: struct {
-				title      string
-				unit       string
-				categoryID int
-			}{"Груши", "кг", 99},
+				title string
+			}{"Груши"},
 			wantErr:   true,
 			wantErrIs: domain.ErrConflict,
 			checkTxFunc: func(t *testing.T, tx *MockTx) {
@@ -79,12 +72,10 @@ func TestProduct_CreateProduct(t *testing.T) {
 		},
 		{
 			name: "case sensitive - different case is allowed",
-			seed: map[int]ProductInput{1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1}},
+			seed: map[int]ProductInput{1: {ID: 1, Title: "Яблоки"}},
 			input: struct {
-				title      string
-				unit       string
-				categoryID int
-			}{"яблоки", "кг", 1},
+				title string
+			}{"яблоки"},
 			wantErr: false,
 		},
 	}
@@ -103,7 +94,7 @@ func TestProduct_CreateProduct(t *testing.T) {
 			repoMock.nextProductID = maxID + 1
 			svc := service.NewServiceProduct(txMock, repoMock)
 
-			prod, err := svc.CreateProduct(context.Background(), tt.input.title, tt.input.unit, tt.input.categoryID)
+			prod, err := svc.CreateProduct(context.Background(), tt.input.title)
 
 			if tt.wantErr {
 				if err == nil {
@@ -143,10 +134,10 @@ func TestProduct_GetProduct(t *testing.T) {
 	}{
 		{
 			name:    "success",
-			seed:    map[int]ProductInput{1: {ID: 1, Title: "Груши", Unit: "кг", CategoryID: 1}},
+			seed:    map[int]ProductInput{1: {ID: 1, Title: "Груши"}},
 			id:      1,
 			wantErr: false,
-			want:    domain.ProductDetails{ID: 1, Title: "Груши", Unit: "кг", Category: "Category_1"},
+			want:    domain.ProductDetails{ID: 1, Title: "Груши"},
 		},
 		{
 			name:      "not found",
@@ -197,7 +188,7 @@ func TestProduct_DeleteProduct(t *testing.T) {
 	}{
 		{
 			name:     "success",
-			seed:     map[int]ProductInput{1: {ID: 1, Title: "Груши", Unit: "кг", CategoryID: 1}},
+			seed:     map[int]ProductInput{1: {ID: 1, Title: "Груши"}},
 			deleteID: 1,
 			wantErr:  false,
 			checkRemains: func(t *testing.T, repo *MockProduct) {
@@ -216,7 +207,7 @@ func TestProduct_DeleteProduct(t *testing.T) {
 		},
 		{
 			name:      "conflict - foreign key exists",
-			seed:      map[int]ProductInput{1: {ID: 1, Title: "Груши", Unit: "кг", CategoryID: 1}},
+			seed:      map[int]ProductInput{1: {ID: 1, Title: "Груши"}},
 			deleteID:  1,
 			wantErr:   true,
 			wantErrIs: domain.ErrConflict,
@@ -287,14 +278,14 @@ func TestProduct_ListProducts(t *testing.T) {
 		{
 			name: "success",
 			seed: map[int]ProductInput{
-				2: {ID: 2, Title: "B", Unit: "kg", CategoryID: 1},
-				1: {ID: 1, Title: "A", Unit: "kg", CategoryID: 1},
-				3: {ID: 3, Title: "C", Unit: "kg", CategoryID: 1},
+				2: {ID: 2, Title: "B"},
+				1: {ID: 1, Title: "A"},
+				3: {ID: 3, Title: "C"},
 			},
 			want: []domain.ProductDetails{
-				{ID: 1, Title: "A", Unit: "kg", Category: "Category_1"},
-				{ID: 2, Title: "B", Unit: "kg", Category: "Category_1"},
-				{ID: 3, Title: "C", Unit: "kg", Category: "Category_1"},
+				{ID: 1, Title: "A"},
+				{ID: 2, Title: "B"},
+				{ID: 3, Title: "C"},
 			},
 		},
 		{
@@ -343,7 +334,7 @@ func TestProduct_CreateProductAlias(t *testing.T) {
 		{
 			name: "success",
 			seedProducts: map[int]ProductInput{
-				1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1},
+				1: {ID: 1, Title: "Яблоки"},
 			},
 			productID: 1,
 			alias:     "apple",
@@ -388,7 +379,7 @@ func TestProduct_CreateProductAlias(t *testing.T) {
 		{
 			name: "alias already exists",
 			seedProducts: map[int]ProductInput{
-				1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1},
+				1: {ID: 1, Title: "Яблоки"},
 			},
 			seedAliases: map[int]AliasInput{
 				1: {ID: 1, ProductID: 1, Alias: "apple"},
@@ -473,7 +464,7 @@ func TestProduct_GetProductAlias(t *testing.T) {
 		{
 			name: "success",
 			seedProducts: map[int]ProductInput{
-				1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1},
+				1: {ID: 1, Title: "Яблоки"},
 			},
 			seedAliases: map[int]AliasInput{
 				10: {ID: 10, ProductID: 1, Alias: "apple"},
@@ -622,7 +613,7 @@ func TestProduct_ListProductAliases(t *testing.T) {
 		{
 			name: "success",
 			seedProducts: map[int]ProductInput{
-				1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1},
+				1: {ID: 1, Title: "Яблоки"},
 			},
 			seedAliases: map[int]AliasInput{
 				3: {ID: 3, ProductID: 1, Alias: "apple"},
@@ -638,7 +629,7 @@ func TestProduct_ListProductAliases(t *testing.T) {
 		},
 		{
 			name:         "no aliases",
-			seedProducts: map[int]ProductInput{1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1}},
+			seedProducts: map[int]ProductInput{1: {ID: 1, Title: "Яблоки"}},
 			seedAliases:  map[int]AliasInput{},
 			productID:    1,
 			want:         []domain.ProductAliasDetails{},
@@ -696,7 +687,7 @@ func TestProduct_DeleteAllProductAliases(t *testing.T) {
 		{
 			name: "success - delete multiple aliases",
 			seedProducts: map[int]ProductInput{
-				1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1},
+				1: {ID: 1, Title: "Яблоки"},
 			},
 			seedAliases: map[int]AliasInput{
 				1: {ID: 1, ProductID: 1, Alias: "apple"},
@@ -723,7 +714,7 @@ func TestProduct_DeleteAllProductAliases(t *testing.T) {
 		{
 			name: "no aliases to delete - returns ErrNotFound",
 			seedProducts: map[int]ProductInput{
-				1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1},
+				1: {ID: 1, Title: "Яблоки"},
 			},
 			seedAliases: map[int]AliasInput{},
 			productID:   1,
@@ -804,7 +795,7 @@ func TestProduct_FindProductByAlias(t *testing.T) {
 		{
 			name: "success",
 			seedProducts: map[int]ProductInput{
-				1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1},
+				1: {ID: 1, Title: "Яблоки"},
 			},
 			seedAliases: map[int]AliasInput{
 				1: {ID: 1, ProductID: 1, Alias: "apple"},
@@ -816,7 +807,7 @@ func TestProduct_FindProductByAlias(t *testing.T) {
 		{
 			name: "alias not found",
 			seedProducts: map[int]ProductInput{
-				1: {ID: 1, Title: "Яблоки", Unit: "кг", CategoryID: 1},
+				1: {ID: 1, Title: "Яблоки"},
 			},
 			seedAliases: map[int]AliasInput{},
 			alias:       "unknown",

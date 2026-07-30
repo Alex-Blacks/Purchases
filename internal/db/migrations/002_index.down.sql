@@ -10,5 +10,4 @@ drop index if exists idx_orders_stores;
 drop index if exists idx_orders_users;
 drop index if exists idx_product_aliases_unique_alias;
 drop index if exists idx_product_aliases_products;
-drop index if exists idx_product_categories;
 drop index if exists idx_users_emails;

@@ -9,14 +9,12 @@ type ProductAliasDetails struct {
 }
 
 type ProductDetails struct {
-	ID       int
-	Title    string
-	Unit     string
-	Category string
+	ID    int
+	Title string
 }
 
 type ProductRepository interface {
-	CreateProduct(ctx context.Context, q Querier, title, unit string, categoryID int) (ProductDetails, error)
+	CreateProduct(ctx context.Context, q Querier, title string) (ProductDetails, error)
 	GetProduct(ctx context.Context, q Querier, id int) (ProductDetails, error)
 	DeleteProduct(ctx context.Context, q Querier, id int) error
 	ListProducts(ctx context.Context, q Querier) ([]ProductDetails, error)

@@ -15,17 +15,9 @@ create table users(
     updated_at timestamptz not null default now()
 );
 
-create table categories(
-    id integer generated always as identity primary key,
-    name varchar(50) unique not null
-);
-
 create table products(
     id integer generated always as identity primary key,
     title varchar(50) not null,
-    unit varchar(10) not null,
-    category_id integer not null,
-    foreign key(category_id) references categories(id) on delete restrict
 );
 
 create table product_aliases(

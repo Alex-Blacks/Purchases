@@ -60,20 +60,18 @@ func main() {
 	orderRepo := storage.NewOrderRepo()
 	orderItemRepo := storage.NewOrderItemRepo()
 	storeRepo := storage.NewStoreRepo()
-	categoryRepo := storage.NewCategoryRepo()
 	productRepo := storage.NewProductRepo()
 
 	// services
 	userSvc := service.NewServiceUser(st, userRepo)
 	orderSvc := service.NewServiceOrderItem(st, orderRepo, orderItemRepo)
 	storeSvc := service.NewServiceStore(st, storeRepo)
-	categorySvc := service.NewServiceCategory(st, categoryRepo)
 	productSvc := service.NewServiceProduct(st, productRepo)
 
 	authSvc := service.NewAuthService(userSvc, cfg.JWTSecret, cfg.TokenLifetime)
 
 	// handlers
-	handlers := handler.NewHandlers(userSvc, storeSvc, productSvc, orderSvc, categorySvc, authSvc)
+	handlers := handler.NewHandlers(userSvc, storeSvc, productSvc, orderSvc, authSvc)
 
 	// routers
 	publicRouter := handler.PublicRouter(handlers, time.Second*time.Duration(timeout), logger)
