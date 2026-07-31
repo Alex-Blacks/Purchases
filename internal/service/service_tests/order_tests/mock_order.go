@@ -68,6 +68,7 @@ type orderItemRow struct {
 	ID        int
 	OrderID   int
 	ProductID int
+	UnitID    int
 	Quantity  int
 }
 
@@ -78,6 +79,7 @@ type MockOrder struct {
 	nextItemID  int
 	stores      map[int]bool
 	products    map[int]string
+	units       map[int]string
 }
 
 func NewMockOrder() *MockOrder {
@@ -88,6 +90,7 @@ func NewMockOrder() *MockOrder {
 		nextItemID:  1,
 		stores:      make(map[int]bool),
 		products:    make(map[int]string),
+		units:       make(map[int]string),
 	}
 }
 
@@ -97,6 +100,10 @@ func (m *MockOrder) AddStore(id int) {
 
 func (m *MockOrder) AddProduct(id int, title string) {
 	m.products[id] = title
+}
+
+func (m *MockOrder) AddUnit(id int, name string) {
+	m.units[id] = name
 }
 
 func (m *MockOrder) getOrderWithItems(orderID int) (domain.OrderWithItemDetails, error) {
@@ -111,10 +118,16 @@ func (m *MockOrder) getOrderWithItems(orderID int) (domain.OrderWithItemDetails,
 			if !ok {
 				title = "unknown_product"
 			}
+			unit, ok := m.units[it.UnitID]
+			if !ok {
+				unit = "unknown_unit"
+			}
 			items = append(items, domain.OrderItemDetails{
 				ID:        it.ID,
 				ProductID: it.ProductID,
 				Title:     title,
+				UnitID:    it.UnitID,
+				Unit:      unit,
 				Quantity:  it.Quantity,
 			})
 		}
@@ -223,23 +236,29 @@ func (m *MockOrder) GetItemByOrderAndProduct(ctx context.Context, q domain.Queri
 	}
 	item := m.orderItems[foundID]
 	title, _ := m.products[productID]
+	unit, _ := m.units[item.UnitID]
 	return domain.OrderItemDetails{
 		ID:        foundID,
 		ProductID: productID,
 		Title:     title,
+		UnitID:    item.UnitID,
+		Unit:      unit,
 		Quantity:  item.Quantity,
 	}, nil
 }
 
-func (m *MockOrder) UpsertItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) error {
+func (m *MockOrder) UpsertItem(ctx context.Context, q domain.Querier, orderID, productID, unitID, quantity int) error {
 	return nil
 }
 
-func (m *MockOrder) AddItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+func (m *MockOrder) AddItem(ctx context.Context, q domain.Querier, orderID, productID, unitID, quantity int) (domain.OrderItemDetails, error) {
 	if !m.orderExists(orderID) {
 		return domain.OrderItemDetails{}, domain.ErrNotFound
 	}
 	if _, ok := m.products[productID]; !ok {
+		return domain.OrderItemDetails{}, domain.ErrConflict
+	}
+	if _, ok := m.units[unitID]; !ok {
 		return domain.OrderItemDetails{}, domain.ErrConflict
 	}
 	for _, it := range m.orderItems {
@@ -253,38 +272,19 @@ func (m *MockOrder) AddItem(ctx context.Context, q domain.Querier, orderID, prod
 		ID:        id,
 		OrderID:   orderID,
 		ProductID: productID,
+		UnitID:    unitID,
 		Quantity:  quantity,
 	}
 	m.orderItems[id] = item
 	title, _ := m.products[productID]
+	unit, _ := m.units[unitID]
 	return domain.OrderItemDetails{
 		ID:        id,
 		ProductID: productID,
 		Title:     title,
+		UnitID:    unitID,
+		Unit:      unit,
 		Quantity:  quantity,
-	}, nil
-}
-
-func (m *MockOrder) UpdateItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
-	var foundID int
-	for id, it := range m.orderItems {
-		if it.OrderID == orderID && it.ProductID == productID {
-			foundID = id
-			break
-		}
-	}
-	if foundID == 0 {
-		return domain.OrderItemDetails{}, domain.ErrNotFound
-	}
-	item := m.orderItems[foundID]
-	item.Quantity += quantity
-	m.orderItems[foundID] = item
-	title, _ := m.products[productID]
-	return domain.OrderItemDetails{
-		ID:        foundID,
-		ProductID: productID,
-		Title:     title,
-		Quantity:  item.Quantity,
 	}, nil
 }
 

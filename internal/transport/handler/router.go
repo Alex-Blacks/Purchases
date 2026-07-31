@@ -61,6 +61,11 @@ func PrivateRouter(h *Handlers, secret string, timeout time.Duration, logger *sl
 		r.Delete("/{id}", h.Store.DeleteStoreHandler)
 	})
 
+	// Units
+	router.Route("/units", func(r chi.Router) {
+		r.Get("/", h.Unit.ListUnitsHandler)
+	})
+
 	// Orders
 	router.Route("/orders", func(r chi.Router) {
 		r.Post("/", h.Order.CreateOrderHandler)

@@ -26,9 +26,9 @@ func (u *UserRepo) CreateUser(ctx context.Context, q domain.Querier, name, passw
 	`, name, password_hash, email, role, status).Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.Role, &user.Status); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
-			return user, domain.ErrAlreadyExists
+			return domain.User{}, domain.ErrAlreadyExists
 		}
-		return user, fmt.Errorf("query create user: %w", err)
+		return domain.User{}, fmt.Errorf("query create user: %w", err)
 	}
 	return user, nil
 }
@@ -40,9 +40,9 @@ func (u *UserRepo) GetUserByID(ctx context.Context, q domain.Querier, userID int
 		WHERE id = $1
 	`, userID).Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.Role, &user.Status); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return user, domain.ErrNotFound
+			return domain.User{}, domain.ErrNotFound
 		}
-		return user, fmt.Errorf("query get user: %w", err)
+		return domain.User{}, fmt.Errorf("query get user: %w", err)
 	}
 	return user, nil
 }
@@ -59,7 +59,7 @@ func (u *UserRepo) DeleteUser(ctx context.Context, q domain.Querier, userID int)
 func (u *UserRepo) ListUsers(ctx context.Context, q domain.Querier) ([]domain.User, error) {
 	rows, err := q.Query(ctx, `SELECT id,name,password_hash,email,role, status FROM users`)
 	if err != nil {
-		return nil, fmt.Errorf("query list users: %w", err)
+		return []domain.User{}, fmt.Errorf("query list users: %w", err)
 	}
 	defer rows.Close()
 
@@ -68,14 +68,14 @@ func (u *UserRepo) ListUsers(ctx context.Context, q domain.Querier) ([]domain.Us
 		var user domain.User
 
 		if err := rows.Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.Role, &user.Status); err != nil {
-			return nil, fmt.Errorf("scan list users: %w", err)
+			return []domain.User{}, fmt.Errorf("scan list users: %w", err)
 		}
 
 		users = append(users, user)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iteration failed: %w", err)
+		return []domain.User{}, fmt.Errorf("iteration failed: %w", err)
 	}
 	return users, nil
 }
@@ -112,7 +112,7 @@ func (u *UserRepo) UpdateUser(ctx context.Context, q domain.Querier, userID int,
 
 	set := strings.Join(setParts, ", ")
 	if strings.TrimSpace(set) == "" {
-		return user, domain.ErrNoFieldsToUpdate
+		return domain.User{}, domain.ErrNoFieldsToUpdate
 	}
 	if err := q.QueryRow(ctx, `
 		UPDATE users
@@ -121,9 +121,9 @@ func (u *UserRepo) UpdateUser(ctx context.Context, q domain.Querier, userID int,
 		RETURNING id,name,password_hash,email,role, status
 	`, args...).Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.Role, &user.Status); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return user, domain.ErrNotFound
+			return domain.User{}, domain.ErrNotFound
 		}
-		return user, fmt.Errorf("query get user: %w", err)
+		return domain.User{}, fmt.Errorf("query get user: %w", err)
 	}
 	return user, nil
 }
@@ -136,9 +136,9 @@ func (u *UserRepo) GetUserByEmail(ctx context.Context, q domain.Querier, email s
 		WHERE email = $1
 	`, email).Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.Role, &user.Status); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return user, domain.ErrNotFound
+			return domain.User{}, domain.ErrNotFound
 		}
-		return user, fmt.Errorf("query get user: %w", err)
+		return domain.User{}, fmt.Errorf("query get user: %w", err)
 	}
 	return user, nil
 }

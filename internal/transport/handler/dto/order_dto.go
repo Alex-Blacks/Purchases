@@ -31,6 +31,7 @@ type OrderWithItemDetailsResponse struct {
 
 type ItemRequest struct {
 	ProductID int `json:"productId"`
+	UnitID    int `json:"unitId"`
 	Quantity  int `json:"quantity"`
 }
 
@@ -44,6 +45,7 @@ func ToItemsRequest(items ListItemsRequest) []domain.OrderItem {
 	for id, i := range items.Items {
 		resp[id] = domain.OrderItem{
 			ProductID: i.ProductID,
+			UnitID:    i.UnitID,
 			Quantity:  i.Quantity,
 		}
 	}
@@ -52,6 +54,7 @@ func ToItemsRequest(items ListItemsRequest) []domain.OrderItem {
 }
 
 type ItemUpdateRequest struct {
+	UnitID   int `json:"unitId"`
 	Quantity int `json:"quantity"`
 }
 
@@ -59,6 +62,8 @@ type ItemDetailsResponse struct {
 	ID        int    `json:"id"`
 	ProductID int    `json:"productId"`
 	Title     string `json:"title"`
+	UnitID    int    `json:"unitId"`
+	Unit      string `json:"unit"`
 	Quantity  int    `json:"quantity"`
 }
 
@@ -68,6 +73,8 @@ func ToResponseOrder(o domain.OrderWithItemDetails) OrderWithItemDetailsResponse
 		items[i] = ItemDetailsResponse{
 			ProductID: it.ProductID,
 			Title:     it.Title,
+			UnitID:    it.UnitID,
+			Unit:      it.Unit,
 			Quantity:  it.Quantity,
 		}
 	}

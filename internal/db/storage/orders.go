@@ -43,14 +43,15 @@ func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Querier, userID, s
 func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orderID int) (domain.OrderWithItemDetails, error) {
 	var result domain.OrderWithItemDetails
 	rowsOrder := q.QueryRow(ctx, `
-		SELECT o.id, o.user_id, s.name, o.created_at, o.updated_at 
+		SELECT o.id, o.user_id, u.name, s.name, o.created_at, o.updated_at 
 		FROM orders o
 		JOIN stores s ON o.store_id = s.id 
+		JOIN users u ON o.user_id = u.id
 		WHERE o.user_id = $1 AND o.id = $2
 	`, userID, orderID)
 
 	var order domain.OrderDetails
-	if err := rowsOrder.Scan(&order.ID, &order.UserID, &order.Store, &order.CreatedAt, &order.UpdatedAt); err != nil {
+	if err := rowsOrder.Scan(&order.ID, &order.UserID, &order.User, &order.Store, &order.CreatedAt, &order.UpdatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return result, domain.ErrNotFound
 		}
@@ -58,9 +59,10 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orde
 	}
 
 	rowsItems, err := q.Query(ctx, `
-		SELECT oi.id, oi.product_id, p.title, oi.quantity 
+		SELECT oi.id, oi.product_id, p.title, oi.unit_id, u.short_name, oi.quantity 
 		FROM order_items oi
 		JOIN products p ON oi.product_id = p.id
+		JOIN units u ON oi.unit_id = u.id
 		WHERE oi.order_id = $1 
 	`, orderID)
 	if err != nil {
@@ -72,7 +74,7 @@ func (r *OrderRepo) GetOrder(ctx context.Context, q domain.Querier, userID, orde
 	for rowsItems.Next() {
 		var item domain.OrderItemDetails
 
-		if err = rowsItems.Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
+		if err = rowsItems.Scan(&item.ID, &item.ProductID, &item.Title, &item.UnitID, &item.Unit, &item.Quantity); err != nil {
 			return domain.OrderWithItemDetails{}, fmt.Errorf("scan rows order items: %w", err)
 		}
 
@@ -139,11 +141,12 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 func (r *OrderItemRepo) GetItemByOrderAndProduct(ctx context.Context, q domain.Querier, orderID, productID int) (domain.OrderItemDetails, error) {
 	var item domain.OrderItemDetails
 	if err := q.QueryRow(ctx, `
-		SELECT oi.id, oi.product_id, p.title ,oi.quantity
+		SELECT oi.id, oi.product_id, p.title, oi.unit_id, u.short_name, oi.quantity
 		FROM order_items oi
 		JOIN products p ON oi.product_id = p.id
+		JOIN units u ON oi.unit_id = u.id
 		WHERE oi.order_id = $1 AND oi.product_id = $2
-	`, orderID, productID).Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
+	`, orderID, productID).Scan(&item.ID, &item.ProductID, &item.Title, &item.UnitID, &item.Unit, &item.Quantity); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.OrderItemDetails{}, domain.ErrNotFound
 		}
@@ -153,18 +156,19 @@ func (r *OrderItemRepo) GetItemByOrderAndProduct(ctx context.Context, q domain.Q
 	return item, nil
 }
 
-func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, productID, unitID, quantity int) (domain.OrderItemDetails, error) {
 	var item domain.OrderItemDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
-			INSERT INTO order_items(order_id, product_id, quantity) 
-			VALUES ($1,$2,$3) 
-			RETURNING id, product_id, quantity
+			INSERT INTO order_items(order_id, product_id, unit_id, quantity) 
+			VALUES ($1,$2,$3,$4) 
+			RETURNING id, product_id, unit_id, quantity
 		)
-		SELECT i.id, i.product_id, p.title, i.quantity
+		SELECT i.id, i.product_id, p.title, i.unit_id, u.short_name, i.quantity
 		FROM inserted i
 		JOIN products p ON i.product_id = p.id 
-	`, orderID, productID, quantity).Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
+		JOIN units u ON i.unit_id = u.id 
+	`, orderID, productID, unitID, quantity).Scan(&item.ID, &item.ProductID, &item.Title, &item.UnitID, &item.Unit, &item.Quantity); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.OrderItemDetails{}, domain.ErrNotFound
@@ -173,28 +177,6 @@ func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, 
 			return domain.OrderItemDetails{}, domain.ErrAlreadyExists
 		}
 		return domain.OrderItemDetails{}, fmt.Errorf("add item: %w", err)
-	}
-
-	return item, nil
-}
-
-func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
-	var item domain.OrderItemDetails
-	if err := q.QueryRow(ctx, `
-		WITH updated AS (
-			UPDATE order_items
-			SET quantity = $1
-			WHERE order_id = $2 AND product_id = $3
-			RETURNING id, product_id, quantity
-		)
-		SELECT u.id, u.product_id, p.title, u.quantity 
-		FROM updated u	
-		JOIN products p ON u.product_id = p.id 
-	`, quantity, orderID, productID).Scan(&item.ID, &item.ProductID, &item.Title, &item.Quantity); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.OrderItemDetails{}, domain.ErrNotFound
-		}
-		return domain.OrderItemDetails{}, fmt.Errorf("update item: %w", err)
 	}
 
 	return item, nil
@@ -223,13 +205,13 @@ func (r *OrderItemRepo) DeleteAllItems(ctx context.Context, q domain.Querier, or
 	return nil
 }
 
-func (r *OrderItemRepo) UpsertItem(ctx context.Context, q domain.Querier, orderID, productID, quantity int) error {
+func (r *OrderItemRepo) UpsertItem(ctx context.Context, q domain.Querier, orderID, productID, unitID, quantity int) error {
 	_, err := q.Exec(ctx, `
-        INSERT INTO order_items (order_id, product_id, quantity)
-        VALUES ($1, $2, $3)
+        INSERT INTO order_items (order_id, product_id, unit_id, quantity)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (order_id, product_id) DO UPDATE
         SET quantity = EXCLUDED.quantity
-    `, orderID, productID, quantity)
+    `, orderID, productID, unitID, quantity)
 	if err != nil {
 		return fmt.Errorf("upsert item: %w", err)
 	}

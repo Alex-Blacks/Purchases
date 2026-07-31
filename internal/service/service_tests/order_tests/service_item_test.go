@@ -21,6 +21,7 @@ func TestOrder_AddItem(t *testing.T) {
 		actorUserID  int
 		orderID      int
 		productID    int
+		unitID       int
 		quantity     int
 		wantErr      bool
 		wantErrIs    error
@@ -36,6 +37,7 @@ func TestOrder_AddItem(t *testing.T) {
 			actorUserID:  1,
 			orderID:      100,
 			productID:    200,
+			unitID:       1,
 			quantity:     3,
 			wantErr:      false,
 			checkItem: func(t *testing.T, item domain.OrderItemDetails) {
@@ -73,6 +75,7 @@ func TestOrder_AddItem(t *testing.T) {
 			actorUserID:  1,
 			orderID:      101,
 			productID:    201,
+			unitID:       1,
 			quantity:     4,
 			wantErr:      false,
 			checkItem: func(t *testing.T, item domain.OrderItemDetails) {
@@ -103,6 +106,7 @@ func TestOrder_AddItem(t *testing.T) {
 			actorUserID: 1,
 			orderID:     999,
 			productID:   200,
+			unitID:      1,
 			quantity:    1,
 			wantErr:     true,
 			wantErrIs:   domain.ErrNotFound,
@@ -125,6 +129,7 @@ func TestOrder_AddItem(t *testing.T) {
 			actorUserID: 1,
 			orderID:     102,
 			productID:   200,
+			unitID:      1,
 			quantity:    1,
 			wantErr:     true,
 			wantErrIs:   domain.ErrNotFound,
@@ -146,6 +151,7 @@ func TestOrder_AddItem(t *testing.T) {
 			actorUserID:  1,
 			orderID:      103,
 			productID:    999,
+			unitID:       1,
 			quantity:     1,
 			wantErr:      true,
 			wantErrIs:    domain.ErrConflict, // внешний ключ нарушен
@@ -186,7 +192,7 @@ func TestOrder_AddItem(t *testing.T) {
 			svc := service.NewServiceOrderItem(txMock, repoMock, repoMock)
 			actor := policy.Actor{UserID: tt.actorUserID}
 
-			item, err := svc.AddItem(context.Background(), actor, tt.orderID, tt.productID, tt.quantity)
+			item, err := svc.AddItem(context.Background(), actor, tt.orderID, tt.productID, tt.unitID, tt.quantity)
 
 			if tt.wantErr {
 				if err == nil {
@@ -220,6 +226,7 @@ func TestOrder_UpdateItem(t *testing.T) {
 		userID       int
 		orderID      int
 		productID    int
+		unitID       int
 		newQuantity  int
 		actorUserID  int
 		wantErr      bool
@@ -233,12 +240,13 @@ func TestOrder_UpdateItem(t *testing.T) {
 				100: {ID: 100, UserID: 1, StoreID: 10, StoreName: "Store", CreatedAt: now, UpdatedAt: now},
 			},
 			seedItems: map[int]orderItemRow{
-				1: {ID: 1, OrderID: 100, ProductID: 200, Quantity: 2},
+				1: {ID: 1, OrderID: 100, ProductID: 200, UnitID: 1, Quantity: 2},
 			},
 			seedProducts: map[int]string{200: "Apple"},
 			userID:       1,
 			orderID:      100,
 			productID:    200,
+			unitID:       1,
 			newQuantity:  7,
 			actorUserID:  1,
 			wantErr:      false,
@@ -265,6 +273,7 @@ func TestOrder_UpdateItem(t *testing.T) {
 			userID:      1,
 			orderID:     100,
 			productID:   200,
+			unitID:      1,
 			newQuantity: 5,
 			actorUserID: 1,
 			wantErr:     true,
@@ -290,7 +299,7 @@ func TestOrder_UpdateItem(t *testing.T) {
 			svc := service.NewServiceOrderItem(txMock, repoMock, repoMock)
 			actor := policy.Actor{UserID: tt.actorUserID}
 
-			item, err := svc.UpdateItem(context.Background(), actor, tt.orderID, tt.productID, tt.newQuantity)
+			item, err := svc.UpdateItem(context.Background(), actor, tt.orderID, tt.productID, tt.unitID, tt.newQuantity)
 
 			if tt.wantErr {
 				if err == nil {

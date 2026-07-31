@@ -18,10 +18,10 @@ type ServiceOrderInterface interface {
 	DeleteOrder(ctx context.Context, actor policy.Actor, orderID int) error
 	ListOrders(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error)
 
-	AddItem(ctx context.Context, actor policy.Actor, orderID int, productID int, quantity int) (domain.OrderItemDetails, error)
+	AddItem(ctx context.Context, actor policy.Actor, orderID int, productID int, UnitID int, quantity int) (domain.OrderItemDetails, error)
 	AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItem) error
 	UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItem) error
-	UpdateItem(ctx context.Context, actor policy.Actor, orderID int, productID int, quantity int) (domain.OrderItemDetails, error)
+	UpdateItem(ctx context.Context, actor policy.Actor, orderID int, productID int, UnitID int, quantity int) (domain.OrderItemDetails, error)
 	DeleteItem(ctx context.Context, actor policy.Actor, orderID int, productID int) error
 
 	GetAccessibleOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error)
@@ -229,7 +229,7 @@ func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.orderService.AddItem(r.Context(), actor, orderID, req.ProductID, req.Quantity)
+	item, err := h.orderService.AddItem(r.Context(), actor, orderID, req.ProductID, req.UnitID, req.Quantity)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{
 			"orderId": orderID,
@@ -414,7 +414,7 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	item, err := h.orderService.UpdateItem(r.Context(), actor, orderID, productID, req.Quantity)
+	item, err := h.orderService.UpdateItem(r.Context(), actor, orderID, productID, req.UnitID, req.Quantity)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{
 			"orderId":   orderID,

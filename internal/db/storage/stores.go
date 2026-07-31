@@ -33,9 +33,9 @@ func (s *StoreRepo) GetStore(ctx context.Context, q domain.Querier, id int) (dom
 	var store domain.Store
 	if err := q.QueryRow(ctx, `SELECT id,name FROM stores WHERE id=$1`, id).Scan(&store.ID, &store.Name); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return store, domain.ErrNotFound
+			return domain.Store{}, domain.ErrNotFound
 		}
-		return store, fmt.Errorf("get store: %w", err)
+		return domain.Store{}, fmt.Errorf("get store: %w", err)
 	}
 	return store, nil
 }
@@ -60,7 +60,7 @@ func (s *StoreRepo) DeleteStore(ctx context.Context, q domain.Querier, id int) e
 func (s *StoreRepo) ListStores(ctx context.Context, q domain.Querier) ([]domain.Store, error) {
 	rows, err := q.Query(ctx, `SELECT id,name FROM stores`)
 	if err != nil {
-		return nil, fmt.Errorf("query stores: %w", err)
+		return []domain.Store{}, fmt.Errorf("query stores: %w", err)
 	}
 	defer rows.Close()
 
@@ -69,14 +69,14 @@ func (s *StoreRepo) ListStores(ctx context.Context, q domain.Querier) ([]domain.
 		var store domain.Store
 
 		if err := rows.Scan(&store.ID, &store.Name); err != nil {
-			return nil, fmt.Errorf("scan store: %w", err)
+			return []domain.Store{}, fmt.Errorf("scan store: %w", err)
 		}
 
 		stores = append(stores, store)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("iteration failed: %w", rows.Err())
+		return []domain.Store{}, fmt.Errorf("iteration failed: %w", rows.Err())
 	}
 
 	return stores, nil

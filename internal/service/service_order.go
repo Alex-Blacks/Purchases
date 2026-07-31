@@ -129,8 +129,8 @@ func (s *ServiceOrderItem) ListOrders(ctx context.Context, actor policy.Actor) (
 	return orders, nil
 }
 
-func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
-	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID, "quantity", quantity)
+func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orderID, productID, unitID, quantity int) (domain.OrderItemDetails, error) {
+	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID, "unit_id", unitID, "quantity", quantity)
 	logger.InfoContext(ctx, "adding item to order")
 
 	_, err := s.GetAccessibleOrder(ctx, actor, orderID)
@@ -140,7 +140,7 @@ func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orde
 	}
 	var item domain.OrderItemDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
-		if err := s.item.UpsertItem(ctx, q, orderID, item.ProductID, item.Quantity); err != nil {
+		if err := s.item.UpsertItem(ctx, q, orderID, productID, unitID, quantity); err != nil {
 			return fmt.Errorf("upsert item %d: %w", item.ProductID, err)
 		}
 		return err
@@ -165,7 +165,7 @@ func (s *ServiceOrderItem) AddListItems(ctx context.Context, actor policy.Actor,
 
 	return s.WithTx(ctx, func(q domain.Querier) error {
 		for _, item := range items {
-			if err := s.item.UpsertItem(ctx, q, orderID, item.ProductID, item.Quantity); err != nil {
+			if err := s.item.UpsertItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity); err != nil {
 				return fmt.Errorf("upsert item %d: %w", item.ProductID, err)
 			}
 		}
@@ -189,7 +189,7 @@ func (s *ServiceOrderItem) UpdateListItems(ctx context.Context, actor policy.Act
 			return err
 		}
 		for _, item := range items {
-			if err := s.item.UpsertItem(ctx, q, orderID, item.ProductID, item.Quantity); err != nil {
+			if err := s.item.UpsertItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity); err != nil {
 				return fmt.Errorf("upsert item %d: %w", item.ProductID, err)
 			}
 		}
@@ -198,7 +198,7 @@ func (s *ServiceOrderItem) UpdateListItems(ctx context.Context, actor policy.Act
 	})
 }
 
-func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, orderID, productID, quantity int) (domain.OrderItemDetails, error) {
+func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, orderID, productID, unitID, quantity int) (domain.OrderItemDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID, "quantity", quantity)
 	logger.InfoContext(ctx, "updating item quantity")
 
@@ -210,7 +210,7 @@ func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, o
 	var item domain.OrderItemDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		item, err = s.item.UpdateItem(ctx, q, orderID, productID, quantity)
+		err = s.item.UpsertItem(ctx, q, orderID, productID, unitID, quantity)
 		return err
 	}); err != nil {
 		logger.ErrorContext(ctx, "failed to update item", "error", err)

@@ -19,6 +19,7 @@ func (o OrderDetails) OwnerID() int { return o.UserID }
 
 type OrderItem struct {
 	ProductID int
+	UnitID    int
 	Quantity  int
 }
 
@@ -26,6 +27,8 @@ type OrderItemDetails struct {
 	ID        int
 	ProductID int
 	Title     string
+	UnitID    int
+	Unit      string
 	Quantity  int
 }
 
@@ -43,9 +46,8 @@ type OrderRepository interface {
 
 type OrderItemRepository interface {
 	GetItemByOrderAndProduct(ctx context.Context, q Querier, orderID, productID int) (OrderItemDetails, error)
-	AddItem(ctx context.Context, q Querier, orderID, productID int, quantity int) (OrderItemDetails, error)
-	UpdateItem(ctx context.Context, q Querier, orderID, productID int, quantity int) (OrderItemDetails, error)
+	AddItem(ctx context.Context, q Querier, orderID, productID, UnitID, quantity int) (OrderItemDetails, error)
 	DeleteItem(ctx context.Context, q Querier, orderID, productID int) error
 	DeleteAllItems(ctx context.Context, q Querier, orderID int) error
-	UpsertItem(ctx context.Context, q Querier, orderID, productID, quantity int) error
+	UpsertItem(ctx context.Context, q Querier, orderID, productID, UnitID, quantity int) error
 }
