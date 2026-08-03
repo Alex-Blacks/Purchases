@@ -1,1 +1,0 @@
-drop index if exists idx_unique_order_product;

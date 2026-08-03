@@ -15,9 +15,16 @@ create table users(
     updated_at timestamptz not null default now()
 );
 
+create table units(
+    id integer generated always as identity primary key,
+    name varchar(50) unique not null,
+    short_name varchar(50) unique not null    
+);
+
+
 create table products(
     id integer generated always as identity primary key,
-    title varchar(50) not null,
+    title varchar(50) unique not null
 );
 
 create table product_aliases(
@@ -49,9 +56,11 @@ create table order_items(
     id integer generated always as identity primary key,
     order_id integer not null,
     product_id integer not null,
+    unit_id integer not null,
     quantity numeric(10,3) check (quantity > 0) default 1,
     foreign key(order_id) references orders(id) on delete cascade,
-    foreign key(product_id) references products(id) on delete restrict
+    foreign key(product_id) references products(id) on delete restrict,
+    constraint fk_order_items_unit_id foreign key (unit_id) references units (id) on delete restrict
 );
 
 
