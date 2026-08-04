@@ -9,6 +9,8 @@ type User struct {
 	Name         string
 	PasswordHash string
 	Email        string
+	GroupID      int
+	Group        string
 	Role         string
 	Status       string
 }
@@ -16,6 +18,7 @@ type UpdateUser struct {
 	Name     *string
 	Password *string
 	Email    *string
+	GroupID  *int
 	Role     *string
 	Status   *string
 }
@@ -23,7 +26,7 @@ type UpdateUser struct {
 func (u User) OwnerID() int { return u.ID }
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, q Querier, name, password_hash, email, role, status string) (User, error)
+	CreateUser(ctx context.Context, q Querier, name, password_hash, email string, group_id int, role, status string) (User, error)
 	GetUserByID(ctx context.Context, q Querier, userID int) (User, error)
 	DeleteUser(ctx context.Context, q Querier, userID int) error
 	ListUsers(ctx context.Context, q Querier) ([]User, error)

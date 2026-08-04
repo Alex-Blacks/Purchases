@@ -7,6 +7,7 @@ drop table if exists product_aliases;
 drop table if exists stores;
 drop table if exists units;
 drop table if exists users;
+drop table if exists groups;
 
 drop extension if exists citext;
 drop type if exists user_status;
