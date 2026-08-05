@@ -133,7 +133,7 @@ func (u *UserRepo) UpdateUser(ctx context.Context, q domain.Querier, userID int,
 		UPDATE users u
 		SET `+set+`
 		FROM groups g
-		WHERE u.id = $1
+		WHERE u.id = $1 AND u.group_id = g.id
 		RETURNING u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status
 	`, args...).Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.GroupID, &user.Group, &user.Role, &user.Status); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

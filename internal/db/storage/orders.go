@@ -211,6 +211,7 @@ func (r *OrderItemRepo) UpsertItem(ctx context.Context, q domain.Querier, orderI
         VALUES ($1, $2, $3, $4)
         ON CONFLICT (order_id, product_id) DO UPDATE
         SET quantity = EXCLUDED.quantity
+		SET unit_id = EXCLUDED.unit_id
     `, orderID, productID, unitID, quantity)
 	if err != nil {
 		return fmt.Errorf("upsert item: %w", err)
