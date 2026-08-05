@@ -30,8 +30,13 @@ func (g *GroupRepo) CreateGroup(ctx context.Context, q domain.Querier, name stri
 		JOIN users u ON i.admin_user_id = u.id
 	`, name, userID).Scan(&group.Id, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
-			return domain.GroupDetails{}, domain.ErrAlreadyExists
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case pgUniqueViolation:
+				return domain.GroupDetails{}, domain.ErrAlreadyExists
+			case pgForeignKeyViolation:
+				return domain.GroupDetails{}, domain.ErrConflict
+			}
 		}
 		return domain.GroupDetails{}, fmt.Errorf("query create group: %w", err)
 	}
@@ -54,17 +59,17 @@ func (g *GroupRepo) GetGroupById(ctx context.Context, q domain.Querier, groupID 
 	return group, nil
 }
 
-func (g *GroupRepo) UpdateGroupByID(ctx context.Context, q domain.Querier, groupID int, updateGroup domain.UpdateGroup) (domain.GroupDetails, error) {
+func (g *GroupRepo) UpdateGroupByID(ctx context.Context, q domain.Querier, groupID int, updateGroup domain.GroupUpdate) (domain.GroupDetails, error) {
 	var group domain.GroupDetails
 	args := []any{groupID}
 	setParts := []string{}
 	argPos := 2
-	if updateGroup.Name != nil {
+	if updateGroup.Name != nil && strings.TrimSpace(*updateGroup.Name) != "" {
 		setParts = append(setParts, fmt.Sprintf("name = $%d", argPos))
 		args = append(args, *updateGroup.Name)
 		argPos++
 	}
-	if updateGroup.AdminUserID != nil {
+	if updateGroup.AdminUserID != nil && *updateGroup.AdminUserID >= 1 {
 		setParts = append(setParts, fmt.Sprintf("admin_user_id = $%d", argPos))
 		args = append(args, *updateGroup.AdminUserID)
 		argPos++
@@ -84,6 +89,15 @@ func (g *GroupRepo) UpdateGroupByID(ctx context.Context, q domain.Querier, group
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.GroupDetails{}, domain.ErrNotFound
 		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case pgUniqueViolation:
+				return domain.GroupDetails{}, domain.ErrAlreadyExists
+			case pgForeignKeyViolation:
+				return domain.GroupDetails{}, domain.ErrConflict
+			}
+		}
 		return domain.GroupDetails{}, fmt.Errorf("query get group: %w", err)
 	}
 	return group, nil
@@ -94,6 +108,10 @@ func (g *GroupRepo) DeleteGroupByID(ctx context.Context, q domain.Querier, group
 	if err := q.QueryRow(ctx, `DELETE FROM groups WHERE groups.id = $1 RETURNING id`, groupID).Scan(&id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ErrNotFound
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgForeignKeyViolation {
+			return domain.ErrConflict
 		}
 		return fmt.Errorf("delete group: %w", err)
 	}

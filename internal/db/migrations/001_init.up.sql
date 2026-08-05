@@ -15,7 +15,7 @@ create table users(
     name varchar(50) not null,
     password_hash text not null,
     email citext unique not null,
-    group_id integer not null references groups(id) on delete cascade,
+    group_id integer references groups(id) on delete cascade,
     role user_role not null default 'user',
     status user_status not null default 'active',
     created_at timestamptz not null default now(),
@@ -71,8 +71,7 @@ create table order_items(
     product_id integer not null references products(id) on delete restrict,
     unit_id integer not null references units(id) on delete restrict,
     quantity numeric(10,3) check (quantity > 0) default 1,
-    group_id integer not null references groups(id) on delete cascade,
-    foreign key (order_id) references orders(id) on delete cascade
+    group_id integer not null references groups(id) on delete cascade
 );
 
 
