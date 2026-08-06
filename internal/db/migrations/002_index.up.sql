@@ -3,9 +3,13 @@ create index idx_groups_admin_user on groups(admin_user);
 create index idx_users_email on users(email);
 create index idx_users_group on users(group_id);
 
+create index idx_invites_group on invites(group_id);
+create index idx_invites_status on invites(status);
+create index idx_invites_token on invites(token);
+
 create index idx_products_group on products(group_id);
 
-create index idx_products_aliases_group on product_aliases(group_id);
+create index idx_product_aliases_group on product_aliases(group_id);
 create index idx_product_aliases_products on product_aliases(product_id);
 create unique index idx_product_aliases_unique_alias on product_aliases(product_id, lower(trim(alias)));
 

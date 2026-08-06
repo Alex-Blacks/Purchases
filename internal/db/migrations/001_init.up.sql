@@ -1,6 +1,6 @@
 create type user_role as enum('user', 'admin');
-
 create type user_status as enum('active', 'blocked');
+create type invite_status as enum('pending','accepted','rejected');
 
 create extension if not exists citext;
 
@@ -15,12 +15,23 @@ create table users(
     name varchar(50) not null,
     password_hash text not null,
     email citext unique not null,
-    group_id integer references groups(id) on delete cascade,
+    group_id integer not null references groups(id) on delete cascade,
     role user_role not null default 'user',
     status user_status not null default 'active',
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+
+create table invites(
+    id integer generated always as identity primary key,
+    group_id integer not null references groups(id) on delete cascade, 
+    inviter_user_id integer not null references users(id) on delete cascade, 
+    invitee_email citext not null, 
+    status invate_status not null default 'pending', 
+    token text not null unique, 
+    created_at timestamptz not null default now(), 
+    expires_at timestamptz not null
+)
 
 create table units(
     id integer generated always as identity primary key,

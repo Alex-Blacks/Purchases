@@ -6,6 +6,24 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION set_updated_at();
+
+CREATE OR REPLACE FUNCTION set_invite_expires()
+RETURNS trigger AS $$
+BEGIN
+    NEW.expires_at := NOW() + INTERVAL '7 days';
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER expires_invite
+    BEFORE INSERT ON invites
+    FOR EACH ROW
+    EXECUTE FUNCTION set_invite_expires();
+
 CREATE OR REPLACE FUNCTION update_order_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -26,9 +44,3 @@ CREATE TRIGGER update_order_on_change
     AFTER INSERT OR UPDATE OR DELETE ON order_items
     FOR EACH ROW
     EXECUTE FUNCTION update_order_updated_at();
-
-
-CREATE TRIGGER update_users_updated_at
-    BEFORE UPDATE ON users
-    FOR EACH ROW
-    EXECUTE FUNCTION set_updated_at();

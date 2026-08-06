@@ -17,6 +17,10 @@ drop index if exists idx_product_aliases_unique_alias;
 drop index if exists idx_product_aliases_products;
 drop index if exists idx_products_aliases_group;
 drop index if exists idx_products_group;
+drop index if exists idx_invites_token;
+drop index if exists idx_invites_status;
+drop index if exists idx_invites_group;
 drop index if exists idx_users_group;
 drop index if exists idx_users_email;
 drop index if exists idx_groups_admin_user;
+
