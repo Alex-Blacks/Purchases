@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strings"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
@@ -45,11 +46,11 @@ func (s *ServiceUser) WithTx(ctx context.Context, fn func(q domain.Querier) erro
 	return err
 }
 
-func (s *ServiceUser) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
+func (s *ServiceUser) GetUserByEmail(ctx context.Context, email string) (domain.UserDetails, error) {
 	return s.user.GetUserByEmail(ctx, s.storage, email)
 }
 
-func (s *ServiceUser) CheckPassword(user domain.User, password string) error {
+func (s *ServiceUser) CheckPassword(user domain.UserDetails, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 }
 
@@ -61,19 +62,19 @@ func (s *ServiceUser) GeneratePassword(password string) (string, error) {
 	return string(bytes), nil
 }
 
-func (s *ServiceUser) GetAccessibleUser(ctx context.Context, actor policy.Actor, userID int) (domain.User, error) {
+func (s *ServiceUser) GetAccessibleUser(ctx context.Context, actor policy.Actor, userID int) (domain.UserDetails, error) {
 	user, err := s.user.GetUserByID(ctx, s.storage, userID)
 	if err != nil {
-		return domain.User{}, err
+		return domain.UserDetails{}, err
 	}
 	if err := policy.CanAccess(actor, user); err != nil {
-		return domain.User{}, err
+		return domain.UserDetails{}, err
 	}
 	return user, nil
 }
 
-func (s *ServiceUser) CreateUser(ctx context.Context, name, password, email, role, status string) (domain.User, error) {
-	var user domain.User
+func (s *ServiceUser) CreateUser(ctx context.Context, name, password, email, role, status string) (domain.UserDetails, error) {
+	var user domain.UserDetails
 	if _, err := s.user.GetUserByEmail(ctx, s.storage, email); err == nil {
 		return user, domain.ErrEmailConflict
 	}
@@ -83,9 +84,11 @@ func (s *ServiceUser) CreateUser(ctx context.Context, name, password, email, rol
 		return user, fmt.Errorf("generate password failed: %w", err)
 	}
 
+	groupID := rand.Int()
+
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		user, err = s.user.CreateUser(ctx, q, name, password_hash, email, role, status)
+		user, err = s.user.CreateUser(ctx, q, name, password_hash, email, groupID, role, status)
 		return err
 	}); err != nil {
 		return user, err
@@ -93,10 +96,10 @@ func (s *ServiceUser) CreateUser(ctx context.Context, name, password, email, rol
 	return user, nil
 }
 
-func (s *ServiceUser) GetUserByID(ctx context.Context, actor policy.Actor, userID int) (domain.User, error) {
+func (s *ServiceUser) GetUserByID(ctx context.Context, actor policy.Actor, userID int) (domain.UserDetails, error) {
 	user, err := s.GetAccessibleUser(ctx, actor, userID)
 	if err != nil {
-		return domain.User{}, err
+		return domain.UserDetails{}, err
 	}
 	return user, nil
 }

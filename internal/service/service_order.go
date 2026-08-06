@@ -49,7 +49,7 @@ func (s *ServiceOrderItem) WithTx(ctx context.Context, fn func(q domain.Querier)
 func (s *ServiceOrderItem) GetAccessibleOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error) {
 	logger := logging.LoggerFromContext(ctx)
 
-	order, err := s.order.GetOrder(ctx, s.storage, actor.UserID, orderID)
+	order, err := s.order.GetOrderByID(ctx, s.storage, orderID)
 	if err != nil {
 		logger.WarnContext(ctx, "failed to get order for access check", "order_id", orderID, "error", err)
 		return domain.OrderWithItemDetails{}, err
@@ -68,7 +68,7 @@ func (s *ServiceOrderItem) CreateOrder(ctx context.Context, actor policy.Actor, 
 	var order domain.OrderWithItemDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		order, err = s.order.CreateOrder(ctx, q, actor.UserID, storeID)
+		order, err = s.order.CreateOrder(ctx, q, actor.UserID, storeID, groupID)
 		return err
 	}); err != nil {
 		logger.ErrorContext(ctx, "failed to create order", "error", err)

@@ -3,13 +3,15 @@ package policy
 type Role string
 
 const (
-	RoleUser  Role = "user"
-	RoleAdmin Role = "admin"
+	CommonGroupID int  = 1
+	RoleUser      Role = "user"
+	RoleAdmin     Role = "admin"
 )
 
 type Actor struct {
-	UserID int
-	Role   Role
+	UserID  int
+	GroupID int
+	Role    Role
 }
 
 func (a *Actor) HasRole(role Role) bool {
@@ -19,9 +21,10 @@ func (a *Actor) HasRole(role Role) bool {
 	return false
 }
 
-func ToActor(userID int, role Role) Actor {
+func ToActor(userID int, groupID int, role Role) Actor {
 	return Actor{
-		UserID: userID,
-		Role:   role,
+		UserID:  userID,
+		GroupID: groupID,
+		Role:    role,
 	}
 }

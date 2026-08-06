@@ -71,11 +71,6 @@ func (u *StoreRepo) UpdateStoreByID(ctx context.Context, q domain.Querier, store
 		args = append(args, *updateStore.Name)
 		argPos++
 	}
-	if updateStore.GroupID != nil && *updateStore.GroupID >= 1 {
-		setParts = append(setParts, fmt.Sprintf("group_id = $%d", argPos))
-		args = append(args, *updateStore.GroupID)
-		argPos++
-	}
 
 	set := strings.Join(setParts, ", ")
 	if strings.TrimSpace(set) == "" {
@@ -122,12 +117,13 @@ func (s *StoreRepo) DeleteStoreByID(ctx context.Context, q domain.Querier, store
 	return nil
 }
 
-func (s *StoreRepo) ListStores(ctx context.Context, q domain.Querier) ([]domain.StoreDetails, error) {
+func (s *StoreRepo) ListStores(ctx context.Context, q domain.Querier, groupID []int) ([]domain.StoreDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT s.id, s.name, s.group_id, g.name 
 		FROM stores s
 		JOIN groups g ON s.group_id = g.id
-	`)
+		WHERE s.group_id = ANY($1::int[])
+	`, groupID)
 	if err != nil {
 		return []domain.StoreDetails{}, fmt.Errorf("query stores: %w", err)
 	}

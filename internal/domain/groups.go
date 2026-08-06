@@ -14,6 +14,8 @@ type GroupUpdate struct {
 	AdminUserID *int
 }
 
+func (g *GroupDetails) AdminGroup() int { return g.AdminUserID }
+
 type GroupRepository interface {
 	CreateGroup(ctx context.Context, q Querier, name string, AdminUserID int) (GroupDetails, error)
 	GetGroupByID(ctx context.Context, q Querier, groupID int) (GroupDetails, error)

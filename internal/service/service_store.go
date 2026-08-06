@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
+	"github.com/Alex-Blacks/Purchases/internal/policy"
 )
 
 type ServiceStore struct {
@@ -42,29 +43,73 @@ func (s *ServiceStore) WithTx(ctx context.Context, fn func(q domain.Querier) err
 	return err
 }
 
-func (s *ServiceStore) CreateStore(ctx context.Context, name string) (domain.Store, error) {
-	var store domain.Store
+func (s *ServiceStore) AccessReadStore(ctx context.Context, actor policy.Actor, storeID int) (domain.StoreDetails, error) {
+	store, err := s.store.GetStoreByID(ctx, s.storage, storeID)
+	if err != nil {
+		return domain.StoreDetails{}, err
+	}
+	if err := policy.CanGroupAccessForReading(actor, store); err != nil {
+		return domain.StoreDetails{}, err
+	}
+	return store, nil
+}
+
+func (s *ServiceStore) AccessWriteStore(ctx context.Context, actor policy.Actor, storeID int) error {
+	store, err := s.store.GetStoreByID(ctx, s.storage, storeID)
+	if err != nil {
+		return err
+	}
+	if err := policy.CanGroupAccessForModify(actor, store); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceStore) CreateStore(ctx context.Context, actor policy.Actor, name string) (domain.StoreDetails, error) {
+	var store domain.StoreDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		store, err = s.store.CreateStore(ctx, q, name)
+		store, err = s.store.CreateStore(ctx, q, name, actor.GroupID)
 		return err
 	}); err != nil {
-		return domain.Store{}, err
+		return domain.StoreDetails{}, err
+	}
+	return store, nil
+}
+
+func (s *ServiceStore) GetStore(ctx context.Context, actor policy.Actor, storeID int) (domain.StoreDetails, error) {
+	store, err := s.AccessReadStore(ctx, actor, storeID)
+	if err != nil {
+		return domain.StoreDetails{}, err
+	}
+	return store, nil
+}
+
+func (s *ServiceStore) UpdateStore(ctx context.Context, actor policy.Actor, storeID int, name string) (domain.StoreDetails, error) {
+	if err := s.AccessWriteStore(ctx, actor, storeID); err != nil {
+		return domain.StoreDetails{}, err
+	}
+	var store domain.StoreDetails
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
+		var err error
+		store, err = s.store.UpdateStoreByID(ctx, q, storeID, domain.StoreUpdate{Name: &name})
+		return err
+	}); err != nil {
+		return domain.StoreDetails{}, err
 	}
 
 	return store, nil
 }
 
-func (s *ServiceStore) GetStore(ctx context.Context, id int) (domain.Store, error) {
-	return s.store.GetStore(ctx, s.storage, id)
-}
-
-func (s *ServiceStore) DeleteStore(ctx context.Context, id int) error {
+func (s *ServiceStore) DeleteStore(ctx context.Context, actor policy.Actor, storeID int) error {
+	if err := s.AccessWriteStore(ctx, actor, storeID); err != nil {
+		return err
+	}
 	return s.WithTx(ctx, func(q domain.Querier) error {
-		return s.store.DeleteStore(ctx, q, id)
+		return s.store.DeleteStoreByID(ctx, q, storeID)
 	})
 }
 
-func (s *ServiceStore) ListStores(ctx context.Context) ([]domain.Store, error) {
-	return s.store.ListStores(ctx, s.storage)
+func (s *ServiceStore) ListStores(ctx context.Context, actor policy.Actor) ([]domain.StoreDetails, error) {
+	return s.store.ListStores(ctx, s.storage, []int{actor.GroupID, policy.CommonGroupID})
 }

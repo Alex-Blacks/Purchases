@@ -1,14 +1,27 @@
 package policy
 
-type ResourceOwner interface {
-	OwnerID() int
+type ResourceGroup interface {
+	GetGroupID() int
 }
 
-func CanAccess(actor Actor, resource ResourceOwner) error {
+func CanGroupAccessForReading(actor Actor, resource ResourceGroup) error {
 	if actor.HasRole(RoleAdmin) {
 		return nil
 	}
-	if actor.UserID == resource.OwnerID() {
+	if resource.GetGroupID() == commonGroupID {
+		return nil
+	}
+	if actor.GroupID == resource.GetGroupID() {
+		return nil
+	}
+	return ErrForbidden
+}
+
+func CanGroupAccessForModify(actor Actor, resource ResourceGroup) error {
+	if actor.HasRole(RoleAdmin) {
+		return nil
+	}
+	if actor.GroupID == resource.GetGroupID() {
 		return nil
 	}
 	return ErrForbidden

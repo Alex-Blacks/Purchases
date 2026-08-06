@@ -7,19 +7,19 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
 
-type ServiceUnit struct {
+type ServiceGroup struct {
 	storage domain.Storage
-	unit    domain.UnitRepository
+	group   domain.GroupRepository
 }
 
-func NewServiceUnit(st domain.Storage, unit domain.UnitRepository) *ServiceUnit {
-	return &ServiceUnit{
+func NewServiceGroup(st domain.Storage, group domain.GroupRepository) *ServiceGroup {
+	return &ServiceGroup{
 		storage: st,
-		unit:    unit,
+		group:   group,
 	}
 }
 
-func (s *ServiceUnit) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
+func (s *ServiceGroup) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
 	tx, err := s.storage.BeginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin tx: %w", err)
@@ -32,16 +32,11 @@ func (s *ServiceUnit) WithTx(ctx context.Context, fn func(q domain.Querier) erro
 			}
 			return
 		}
-
 		if commitErr := tx.Commit(ctx); commitErr != nil {
-			err = fmt.Errorf("tx err: %v, commit err: %w", err, commitErr)
+			err = fmt.Errorf("commit err: %w", commitErr)
 		}
 	}()
 
 	err = fn(tx)
 	return err
-}
-
-func (s *ServiceUnit) ListUnits(ctx context.Context) ([]domain.UnitDetails, error) {
-	return s.unit.ListUnits(ctx, s.storage)
 }

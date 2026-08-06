@@ -98,7 +98,7 @@ func (g *GroupRepo) UpdateGroupByID(ctx context.Context, q domain.Querier, group
 				return domain.GroupDetails{}, domain.ErrConflict
 			}
 		}
-		return domain.GroupDetails{}, fmt.Errorf("query get group: %w", err)
+		return domain.GroupDetails{}, fmt.Errorf("update group: %w", err)
 	}
 	return group, nil
 }

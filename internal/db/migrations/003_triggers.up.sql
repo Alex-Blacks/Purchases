@@ -14,7 +14,7 @@ CREATE TRIGGER update_users_updated_at
 CREATE OR REPLACE FUNCTION set_invite_expires()
 RETURNS trigger AS $$
 BEGIN
-    NEW.expires_at := NOW() + INTERVAL '7 days';
+    NEW.expires_at := NOW() + INTERVAL '1 days';
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
