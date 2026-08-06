@@ -70,11 +70,6 @@ func (p *ProductRepo) UpdateProductByID(ctx context.Context, q domain.Querier, p
 		args = append(args, *updateProduct.Title)
 		argPos++
 	}
-	if updateProduct.GroupID != nil && *updateProduct.GroupID >= 1 {
-		setParts = append(setParts, fmt.Sprintf("group_id = $%d", argPos))
-		args = append(args, *updateProduct.GroupID)
-		argPos++
-	}
 
 	set := strings.Join(setParts, ", ")
 	if strings.TrimSpace(set) == "" {
@@ -120,11 +115,12 @@ func (p *ProductRepo) DeleteProductByID(ctx context.Context, q domain.Querier, p
 	return nil
 }
 
-func (p *ProductRepo) ListProducts(ctx context.Context, q domain.Querier) ([]domain.ProductDetails, error) {
+func (p *ProductRepo) ListProducts(ctx context.Context, q domain.Querier, groupID []int) ([]domain.ProductDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT p.id, p.title, p.group_id, g.name
 		FROM products p
 		JOIN groups g ON p.group_id = g.id
+		WHERE p.group_id = ANY($1::int[])
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("query products: %w", err)
@@ -257,13 +253,13 @@ func (a *ProductRepo) DeleteProductAliasByID(ctx context.Context, q domain.Queri
 	}
 	return nil
 }
-func (a *ProductRepo) ListProductAliases(ctx context.Context, q domain.Querier, productID int) ([]domain.ProductAliasDetails, error) {
+func (a *ProductRepo) ListProductAliases(ctx context.Context, q domain.Querier, productID int, groupID []int) ([]domain.ProductAliasDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT pa.id, p.title, pa.alias, pa.group_id, g.name
 		FROM product_aliases pa
 		JOIN products p ON pa.product_id = p.id
 		JOIN groups g ON pa.group_id = g.id
-		WHERE pa.product_id = $1
+		WHERE pa.product_id = $1 AND pa.group_id = ANY($1::int[])
 	`, productID)
 	if err != nil {
 		return nil, fmt.Errorf("query product aliases: %w", err)

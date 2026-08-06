@@ -8,7 +8,7 @@ func CanGroupAccessForReading(actor Actor, resource ResourceGroup) error {
 	if actor.HasRole(RoleAdmin) {
 		return nil
 	}
-	if resource.GetGroupID() == commonGroupID {
+	if resource.GetGroupID() == CommonGroupID {
 		return nil
 	}
 	if actor.GroupID == resource.GetGroupID() {
