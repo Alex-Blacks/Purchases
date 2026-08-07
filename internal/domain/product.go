@@ -12,9 +12,7 @@ type ProductAliasDetails struct {
 }
 
 type ProductAliasUpdate struct {
-	ProductID *int
-	Alias     *string
-	GroupID   *int
+	Alias *string
 }
 
 type ProductDetails struct {
@@ -37,12 +35,15 @@ type ProductRepository interface {
 	UpdateProductByID(ctx context.Context, q Querier, productID int, updateProduct ProductUpdate) (ProductDetails, error)
 	DeleteProductByID(ctx context.Context, q Querier, productID int) error
 	ListProducts(ctx context.Context, q Querier, groupID []int) ([]ProductDetails, error)
+	ListAdminProducts(ctx context.Context, q Querier) ([]ProductDetails, error)
 
 	CreateProductAlias(ctx context.Context, q Querier, productID int, alias string, groupID int) (ProductAliasDetails, error)
 	GetProductAliasByID(ctx context.Context, q Querier, aliasID int) (ProductAliasDetails, error)
 	UpdateProductAliasByID(ctx context.Context, q Querier, aliasID int, updateAlias ProductAliasUpdate) (ProductAliasDetails, error)
 	DeleteProductAliasByID(ctx context.Context, q Querier, aliasID int) error
 	ListProductAliases(ctx context.Context, q Querier, productID int, groupID []int) ([]ProductAliasDetails, error)
+	ListAdminProductAliases(ctx context.Context, q Querier, productID int) ([]ProductAliasDetails, error)
 	DeleteAllProductAliases(ctx context.Context, q Querier, productID int) error
-	FindProductByAlias(ctx context.Context, q Querier, alias string) (string, error)
+	FindProductByAlias(ctx context.Context, q Querier, alias string, groupID []int) (string, error)
+	FindAdminProductByAlias(ctx context.Context, q Querier, alias string) (string, error)
 }

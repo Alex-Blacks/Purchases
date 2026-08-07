@@ -58,11 +58,27 @@ func (u *UserRepo) GetUserByID(ctx context.Context, q domain.Querier, userID int
 	return user, nil
 }
 
-func (u *UserRepo) UpdateUserByID(ctx context.Context, q domain.Querier, userID int, groupID int, updateUser domain.UserUpdate) (domain.UserDetails, error) {
+func (u *UserRepo) GetUserByEmail(ctx context.Context, q domain.Querier, email string) (domain.UserDetails, error) {
 	var user domain.UserDetails
-	args := []any{userID, groupID}
+	if err := q.QueryRow(ctx, `
+		SELECT u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status 
+		FROM users u
+		JOIN groups g ON u.group_id = g.id
+		WHERE u.email = $1
+	`, email).Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.GroupID, &user.Group, &user.Role, &user.Status); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.UserDetails{}, domain.ErrNotFound
+		}
+		return domain.UserDetails{}, fmt.Errorf("query get user: %w", err)
+	}
+	return user, nil
+}
+
+func (u *UserRepo) UpdateUserByID(ctx context.Context, q domain.Querier, userID int, updateUser domain.UserUpdate) (domain.UserDetails, error) {
+	var user domain.UserDetails
+	args := []any{userID}
 	setParts := []string{}
-	argPos := 3
+	argPos := 2
 	if updateUser.Name != nil && strings.TrimSpace(*updateUser.Name) != "" {
 		setParts = append(setParts, fmt.Sprintf("name = $%d", argPos))
 		args = append(args, *updateUser.Name)
@@ -102,7 +118,7 @@ func (u *UserRepo) UpdateUserByID(ctx context.Context, q domain.Querier, userID 
 		UPDATE users u
 		SET `+set+`
 		FROM groups g
-		WHERE u.id = $1 AND u.group_id = $2 AND u.group_id = g.id
+		WHERE u.id = $1 AND u.group_id = g.id
 		RETURNING u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status
 	`, args...).Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.GroupID, &user.Group, &user.Role, &user.Status); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -122,9 +138,9 @@ func (u *UserRepo) UpdateUserByID(ctx context.Context, q domain.Querier, userID 
 	return user, nil
 }
 
-func (u *UserRepo) DeleteUserByID(ctx context.Context, q domain.Querier, userID int, groupID int) error {
+func (u *UserRepo) DeleteUserByID(ctx context.Context, q domain.Querier, userID int) error {
 	var id int
-	if err := q.QueryRow(ctx, `DELETE FROM users WHERE users.id = $1 AND users.group_id = $2 RETURNING id`, userID, groupID).Scan(&id); err != nil {
+	if err := q.QueryRow(ctx, `DELETE FROM users WHERE users.id = $1 RETURNING id`, userID).Scan(&id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ErrNotFound
 		}
@@ -136,7 +152,7 @@ func (u *UserRepo) DeleteUserByID(ctx context.Context, q domain.Querier, userID 
 	}
 	return nil
 }
-func (u *UserRepo) ListUsers(ctx context.Context, q domain.Querier, groupID int) ([]domain.UserDetails, error) {
+func (u *UserRepo) ListUsersInGroup(ctx context.Context, q domain.Querier, groupID int) ([]domain.UserDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status 
 		FROM users u
@@ -165,18 +181,30 @@ func (u *UserRepo) ListUsers(ctx context.Context, q domain.Querier, groupID int)
 	return users, nil
 }
 
-func (u *UserRepo) GetUserByEmail(ctx context.Context, q domain.Querier, email string) (domain.UserDetails, error) {
-	var user domain.UserDetails
-	if err := q.QueryRow(ctx, `
+func (u *UserRepo) ListAdminUsers(ctx context.Context, q domain.Querier) ([]domain.UserDetails, error) {
+	rows, err := q.Query(ctx, `
 		SELECT u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status 
 		FROM users u
 		JOIN groups g ON u.group_id = g.id
-		WHERE u.email = $1
-	`, email).Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.GroupID, &user.Group, &user.Role, &user.Status); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.UserDetails{}, domain.ErrNotFound
-		}
-		return domain.UserDetails{}, fmt.Errorf("query get user: %w", err)
+	`)
+	if err != nil {
+		return []domain.UserDetails{}, fmt.Errorf("query list users: %w", err)
 	}
-	return user, nil
+	defer rows.Close()
+
+	var users []domain.UserDetails
+	for rows.Next() {
+		var user domain.UserDetails
+
+		if err := rows.Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.GroupID, &user.Group, &user.Role, &user.Status); err != nil {
+			return []domain.UserDetails{}, fmt.Errorf("scan list users: %w", err)
+		}
+
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return []domain.UserDetails{}, fmt.Errorf("iteration failed: %w", err)
+	}
+	return users, nil
 }

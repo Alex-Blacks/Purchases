@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-func (o OrderDetails) OwnerID() int { return o.UserID }
-
 type OrderDetails struct {
 	ID         int
 	UserID     int
@@ -60,17 +58,20 @@ type OrderWithItemDetails struct {
 	Items []OrderItemDetails
 }
 
+func (o OrderWithItemDetails) GetGroupID() int { return o.Order.GroupID }
+
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, q Querier, userID, storeID, groupID int) (OrderCreateDetails, error)
 	GetOrderByID(ctx context.Context, q Querier, orderID int) (OrderWithItemDetails, error)
 	DeleteOrderByID(ctx context.Context, q Querier, orderID int) error
 	ListOrders(ctx context.Context, q Querier, userID int, groupID int) ([]OrderDetails, error)
+	ListAdminOrders(ctx context.Context, q Querier) ([]OrderDetails, error)
 }
 
 type OrderItemRepository interface {
 	GetItemByOrderAndProduct(ctx context.Context, q Querier, orderID, productID int) (OrderItemDetails, error)
 	AddItem(ctx context.Context, q Querier, orderID, productID, UnitID, quantity, groupID int) (OrderItemDetails, error)
-	DeleteItemByID(ctx context.Context, q Querier, orderID, productID int) error
+	DeleteItemByOrderAndProduct(ctx context.Context, q Querier, orderID, productID int) error
 	DeleteAllItems(ctx context.Context, q Querier, orderID int) error
 	UpdateItem(ctx context.Context, q Querier, orderID, productID int, updateItem OrderItemUpdate) (OrderItemDetails, error)
 }

@@ -23,13 +23,14 @@ type UserUpdate struct {
 	Status   *string
 }
 
-func (u UserDetails) OwnerID() int { return u.ID }
+func (u UserDetails) GetGroupID() int { return u.GroupID }
 
 type UserRepository interface {
 	CreateUser(ctx context.Context, q Querier, name, password_hash, email string, group_id int, role, status string) (UserDetails, error)
 	GetUserByID(ctx context.Context, q Querier, userID int) (UserDetails, error)
+	GetUserByEmail(ctx context.Context, q Querier, email string) (UserDetails, error)
 	UpdateUserByID(ctx context.Context, q Querier, userID int, updateUser UserUpdate) (UserDetails, error)
 	DeleteUserByID(ctx context.Context, q Querier, userID int) error
-	ListUsers(ctx context.Context, q Querier) ([]UserDetails, error)
-	GetUserByEmail(ctx context.Context, q Querier, email string) (UserDetails, error)
+	ListUsersInGroup(ctx context.Context, q Querier, groupID int) ([]UserDetails, error)
+	ListAdminUsers(ctx context.Context, q Querier) ([]UserDetails, error)
 }

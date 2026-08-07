@@ -17,7 +17,7 @@ func NewGroupRepo() *GroupRepo {
 	return &GroupRepo{}
 }
 
-func (g *GroupRepo) CreateGroup(ctx context.Context, q domain.Querier, name string, userID int) (domain.GroupDetails, error) {
+func (g *GroupRepo) CreateGroup(ctx context.Context, q domain.Querier, name string, adminUserID int) (domain.GroupDetails, error) {
 	var group domain.GroupDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
@@ -28,7 +28,7 @@ func (g *GroupRepo) CreateGroup(ctx context.Context, q domain.Querier, name stri
 		SELECT i.id, i.name, i.admin_user_id, u.name
 		FROM inserted i
 		JOIN users u ON i.admin_user_id = u.id
-	`, name, userID).Scan(&group.Id, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
+	`, name, adminUserID).Scan(&group.Id, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			switch pgErr.Code {
@@ -57,6 +57,17 @@ func (g *GroupRepo) GetGroupById(ctx context.Context, q domain.Querier, groupID 
 		return domain.GroupDetails{}, fmt.Errorf("get group: %w", err)
 	}
 	return group, nil
+}
+
+func (g *GroupRepo) CheckGroupAdmin(ctx context.Context, q domain.Querier, adminUserID int) (bool, error) {
+	var id int
+	if err := q.QueryRow(ctx, `SELECT group_id FROM groups WHERE admin_user_id = $1`, adminUserID).Scan(&id); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, domain.ErrNotFound
+		}
+		return false, fmt.Errorf("check group: %w", err)
+	}
+	return true, nil
 }
 
 func (g *GroupRepo) UpdateGroupByID(ctx context.Context, q domain.Querier, groupID int, updateGroup domain.GroupUpdate) (domain.GroupDetails, error) {
@@ -101,6 +112,11 @@ func (g *GroupRepo) UpdateGroupByID(ctx context.Context, q domain.Querier, group
 		return domain.GroupDetails{}, fmt.Errorf("update group: %w", err)
 	}
 	return group, nil
+}
+
+func (g *GroupRepo) UpdateGroupAdmin(ctx context.Context, q domain.Querier, groupID, adminUserID int) error {
+	_, err := q.Exec(ctx, `UPDATE groups SET admin_user_id = $1 WHERE id = $2`, adminUserID, groupID)
+	return err
 }
 
 func (g *GroupRepo) DeleteGroupByID(ctx context.Context, q domain.Querier, groupID int) error {

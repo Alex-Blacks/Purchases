@@ -8,6 +8,7 @@ var (
 	ErrNotFound         = errors.New("not found")
 	ErrAlreadyExists    = errors.New("already exists")
 	ErrConflict         = errors.New("conflict")
+	ErrConflictGroups   = errors.New("conflict groups")
 	ErrNoFieldsToUpdate = errors.New("no fields to update")
 
 	ErrStatusBlocked      = errors.New("status blocked")

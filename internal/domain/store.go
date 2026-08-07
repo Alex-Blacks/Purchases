@@ -21,4 +21,5 @@ type StoreRepository interface {
 	UpdateStoreByID(ctx context.Context, q Querier, storeID int, updateStore StoreUpdate) (StoreDetails, error)
 	DeleteStoreByID(ctx context.Context, q Querier, storeID int) error
 	ListStores(ctx context.Context, q Querier, groupID []int) ([]StoreDetails, error)
+	ListAdminStores(ctx context.Context, q Querier) ([]StoreDetails, error)
 }

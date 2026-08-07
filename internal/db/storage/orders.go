@@ -152,6 +152,39 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 	return lists, nil
 }
 
+func (r *OrderRepo) ListAdminOrders(ctx context.Context, q domain.Querier) ([]domain.OrderDetails, error) {
+	rows, err := q.Query(ctx, `
+		SELECT 
+			o.id, o.user_id, u.name, o.store_id, s.name, o.group_id, g.name, o.created_at, o.updated_at, 
+			COUNT(oi.id) AS items_quantity
+		FROM orders o
+		JOIN stores s ON o.store_id = s.id
+		JOIN users u ON o.user_id = u.id
+		JOIN groups g ON o.group_id = g.id
+		LEFT JOIN order_items oi ON oi.order_id = o.id
+		GROUP BY o.id, o.user_id, u.name, o.store_id, s.name, o.group_id, g.name, o.created_at, o.updated_at
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("query order: %w", err)
+	}
+	defer rows.Close()
+
+	var lists []domain.OrderDetails
+	for rows.Next() {
+		var list domain.OrderDetails
+		if err := rows.Scan(&list.ID, &list.UserID, &list.User, &list.StoreID, &list.Store, &list.GroupID, &list.Group, &list.CreatedAt, &list.UpdatedAt, &list.ItemsCount); err != nil {
+			return nil, fmt.Errorf("scan orders: %w", err)
+		}
+
+		lists = append(lists, list)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iteration failed: %w", err)
+	}
+
+	return lists, nil
+}
+
 func (r *OrderItemRepo) GetItemByOrderAndProduct(ctx context.Context, q domain.Querier, orderID, productID int) (domain.OrderItemDetails, error) {
 	var item domain.OrderItemDetails
 	if err := q.QueryRow(ctx, `
@@ -198,7 +231,7 @@ func (r *OrderItemRepo) AddItem(ctx context.Context, q domain.Querier, orderID, 
 	return item, nil
 }
 
-func (r *OrderItemRepo) DeleteItemByID(ctx context.Context, q domain.Querier, orderID, productID int) error {
+func (r *OrderItemRepo) DeleteItemByOrderAndProduct(ctx context.Context, q domain.Querier, orderID, productID int) error {
 	var item int
 	if err := q.QueryRow(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1 AND order_items.product_id = $2 RETURNING id`, orderID, productID).Scan(&item); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

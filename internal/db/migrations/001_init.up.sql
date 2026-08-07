@@ -7,7 +7,7 @@ create extension if not exists citext;
 create table groups(
     id integer generated always as identity primary key,
     name varchar(50) not null,
-    admin_user_id integer not null references users(id) on delete restrict
+    admin_user_id integer default null references users(id) on delete restrict
 )
 
 create table users(

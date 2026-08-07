@@ -85,14 +85,14 @@ func (s *ServiceStore) GetStore(ctx context.Context, actor policy.Actor, storeID
 	return store, nil
 }
 
-func (s *ServiceStore) UpdateStore(ctx context.Context, actor policy.Actor, storeID int, name string) (domain.StoreDetails, error) {
+func (s *ServiceStore) UpdateStore(ctx context.Context, actor policy.Actor, storeID int, updateStore domain.StoreUpdate) (domain.StoreDetails, error) {
 	if err := s.AccessWriteStore(ctx, actor, storeID); err != nil {
 		return domain.StoreDetails{}, err
 	}
 	var store domain.StoreDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		store, err = s.store.UpdateStoreByID(ctx, q, storeID, domain.StoreUpdate{Name: &name})
+		store, err = s.store.UpdateStoreByID(ctx, q, storeID, updateStore)
 		return err
 	}); err != nil {
 		return domain.StoreDetails{}, err

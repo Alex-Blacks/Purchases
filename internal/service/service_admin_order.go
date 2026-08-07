@@ -7,24 +7,23 @@ import (
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
-	"github.com/Alex-Blacks/Purchases/internal/policy"
 )
 
-type ServiceOrderItem struct {
+type ServiceAdminOrderItem struct {
 	storage domain.Storage
 	order   domain.OrderRepository
 	item    domain.OrderItemRepository
 }
 
-func NewServiceOrderItem(st domain.Storage, order domain.OrderRepository, item domain.OrderItemRepository) *ServiceOrderItem {
-	return &ServiceOrderItem{
+func NewServiceAdminOrderItem(st domain.Storage, order domain.OrderRepository, item domain.OrderItemRepository) *ServiceAdminOrderItem {
+	return &ServiceAdminOrderItem{
 		storage: st,
 		order:   order,
 		item:    item,
 	}
 }
 
-func (s *ServiceOrderItem) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
+func (s *ServiceAdminOrderItem) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
 	tx, err := s.storage.BeginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin tx: %w", err)
@@ -47,36 +46,14 @@ func (s *ServiceOrderItem) WithTx(ctx context.Context, fn func(q domain.Querier)
 	return err
 }
 
-func (s *ServiceOrderItem) AccessReadOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error) {
-	order, err := s.order.GetOrderByID(ctx, s.storage, orderID)
-	if err != nil {
-		return domain.OrderWithItemDetails{}, err
-	}
-	if err := policy.CanGroupAccessForReading(actor, order); err != nil {
-		return domain.OrderWithItemDetails{}, err
-	}
-	return order, nil
-}
-
-func (s *ServiceOrderItem) AccessWriteOrder(ctx context.Context, actor policy.Actor, orderID int) error {
-	order, err := s.order.GetOrderByID(ctx, s.storage, orderID)
-	if err != nil {
-		return err
-	}
-	if err := policy.CanGroupAccessForModify(actor, order); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *ServiceOrderItem) CreateOrder(ctx context.Context, actor policy.Actor, storeID int) (domain.OrderCreateDetails, error) {
+func (s *ServiceAdminOrderItem) CreateOrder(ctx context.Context, UserID, storeID, groupID int) (domain.OrderCreateDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("store_id", storeID)
 	logger.InfoContext(ctx, "creating new order")
 
 	var order domain.OrderCreateDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		order, err = s.order.CreateOrder(ctx, q, actor.UserID, storeID, actor.GroupID)
+		order, err = s.order.CreateOrder(ctx, q, UserID, storeID, groupID)
 		return err
 	}); err != nil {
 		logger.ErrorContext(ctx, "failed to create order", "error", err)
@@ -87,28 +64,21 @@ func (s *ServiceOrderItem) CreateOrder(ctx context.Context, actor policy.Actor, 
 	return order, nil
 }
 
-func (s *ServiceOrderItem) GetOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error) {
+func (s *ServiceAdminOrderItem) GetOrder(ctx context.Context, orderID int) (domain.OrderWithItemDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID)
 	logger.InfoContext(ctx, "getting order")
 
-	order, err := s.AccessReadOrder(ctx, actor, orderID)
+	order, err := s.order.GetOrderByID(ctx, s.storage, orderID)
 	if err != nil {
-		logger.WarnContext(ctx, "failed to get order", "error", err)
 		return domain.OrderWithItemDetails{}, err
 	}
-
 	logger.InfoContext(ctx, "order retrieved")
 	return order, nil
 }
 
-func (s *ServiceOrderItem) DeleteOrder(ctx context.Context, actor policy.Actor, orderID int) error {
+func (s *ServiceAdminOrderItem) DeleteOrder(ctx context.Context, orderID int) error {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID)
 	logger.InfoContext(ctx, "deleting order")
-
-	if err := s.AccessWriteOrder(ctx, actor, orderID); err != nil {
-		logger.WarnContext(ctx, "access denied or order not found", "error", err)
-		return err
-	}
 
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		return s.order.DeleteOrderByID(ctx, q, orderID)
@@ -121,11 +91,11 @@ func (s *ServiceOrderItem) DeleteOrder(ctx context.Context, actor policy.Actor, 
 	return nil
 }
 
-func (s *ServiceOrderItem) ListOrders(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error) {
+func (s *ServiceAdminOrderItem) ListOrders(ctx context.Context) ([]domain.OrderDetails, error) {
 	logger := logging.LoggerFromContext(ctx)
 	logger.InfoContext(ctx, "listing orders")
 
-	orders, err := s.order.ListOrders(ctx, s.storage, actor.UserID, actor.GroupID)
+	orders, err := s.order.ListAdminOrders(ctx, s.storage)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to list orders", "error", err)
 		return nil, err
@@ -139,18 +109,14 @@ func (s *ServiceOrderItem) ListOrders(ctx context.Context, actor policy.Actor) (
 // --------------------------------------ITEMS--------------------------------------
 // ---------------------------------------------------------------------------------
 
-func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orderID, productID, unitID, quantity int) (domain.OrderItemDetails, error) {
+func (s *ServiceAdminOrderItem) AddItem(ctx context.Context, orderID, productID, unitID, quantity, groupID int) (domain.OrderItemDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID, "unitID", unitID, "quantity", quantity)
 	logger.InfoContext(ctx, "adding item to order")
 
-	if err := s.AccessWriteOrder(ctx, actor, orderID); err != nil {
-		logger.WarnContext(ctx, "access denied or order not found", "error", err)
-		return domain.OrderItemDetails{}, err
-	}
 	var item domain.OrderItemDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		if item, err = s.item.AddItem(ctx, q, orderID, productID, unitID, quantity, actor.GroupID); err != nil {
+		if item, err = s.item.AddItem(ctx, q, orderID, productID, unitID, quantity, groupID); err != nil {
 			return fmt.Errorf("add item: %w", err)
 		}
 		return err
@@ -163,20 +129,15 @@ func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orde
 	return item, nil
 }
 
-func (s *ServiceOrderItem) AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemDetails) error {
+func (s *ServiceAdminOrderItem) AddListItems(ctx context.Context, orderID int, items []domain.OrderItemDetails, groupID int) error {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "count", len(items))
 	logger.InfoContext(ctx, "adding list items to order")
 
-	if err := s.AccessWriteOrder(ctx, actor, orderID); err != nil {
-		logger.WarnContext(ctx, "access denied or order not found", "error", err)
-		return err
-	}
-
 	return s.WithTx(ctx, func(q domain.Querier) error {
 		for _, item := range items {
 			if _, err := s.item.GetItemByOrderAndProduct(ctx, q, orderID, item.ProductID); err != nil {
 				if errors.Is(err, domain.ErrNotFound) {
-					if _, err := s.item.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, actor.GroupID); err != nil {
+					if _, err := s.item.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, groupID); err != nil {
 						return fmt.Errorf("add item %d: %w", item.ProductID, err)
 					}
 					continue
@@ -192,20 +153,15 @@ func (s *ServiceOrderItem) AddListItems(ctx context.Context, actor policy.Actor,
 	})
 }
 
-func (s *ServiceOrderItem) UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemDetails) error {
+func (s *ServiceAdminOrderItem) UpdateListItems(ctx context.Context, orderID int, items []domain.OrderItemDetails, groupID int) error {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "count", len(items))
 	logger.InfoContext(ctx, "updating list items")
 
-	if err := s.AccessWriteOrder(ctx, actor, orderID); err != nil {
-		logger.WarnContext(ctx, "access denied or order not found", "error", err)
-		return err
-	}
-
 	return s.WithTx(ctx, func(q domain.Querier) error {
 		for _, item := range items {
 			if _, err := s.item.GetItemByOrderAndProduct(ctx, q, orderID, item.ProductID); err != nil {
 				if errors.Is(err, domain.ErrNotFound) {
-					if _, err := s.item.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, actor.GroupID); err != nil {
+					if _, err := s.item.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, groupID); err != nil {
 						return fmt.Errorf("add item %d: %w", item.ProductID, err)
 					}
 					continue
@@ -221,14 +177,10 @@ func (s *ServiceOrderItem) UpdateListItems(ctx context.Context, actor policy.Act
 	})
 }
 
-func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, orderID, productID int, updateOrder domain.OrderItemUpdate) (domain.OrderItemDetails, error) {
+func (s *ServiceAdminOrderItem) UpdateItem(ctx context.Context, orderID, productID int, updateOrder domain.OrderItemUpdate) (domain.OrderItemDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID, "updateOrder", updateOrder)
 	logger.InfoContext(ctx, "updating item quantity")
 
-	if err := s.AccessWriteOrder(ctx, actor, orderID); err != nil {
-		logger.WarnContext(ctx, "access denied or order not found", "error", err)
-		return domain.OrderItemDetails{}, err
-	}
 	var item domain.OrderItemDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
@@ -243,14 +195,10 @@ func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, o
 	return item, nil
 }
 
-func (s *ServiceOrderItem) DeleteItem(ctx context.Context, actor policy.Actor, orderID, productID int) error {
+func (s *ServiceAdminOrderItem) DeleteItem(ctx context.Context, orderID, productID int) error {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID)
 	logger.InfoContext(ctx, "deleting item from order")
 
-	if err := s.AccessWriteOrder(ctx, actor, orderID); err != nil {
-		logger.WarnContext(ctx, "access denied or order not found", "error", err)
-		return err
-	}
 	err := s.WithTx(ctx, func(q domain.Querier) error {
 		return s.item.DeleteItemByOrderAndProduct(ctx, q, orderID, productID)
 	})

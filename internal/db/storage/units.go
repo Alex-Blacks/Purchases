@@ -28,7 +28,7 @@ func (u *UnitRepo) CreateUnit(ctx context.Context, q domain.Querier, name string
 		SELECT i.id, i.name, i.short_name, i.group_id, g.name
 		FROM inserted i
 		JOIN groups g ON i.group_id = g.id
-	`, name, shortName, groupID).Scan(&unit.Id, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
+	`, name, shortName, groupID).Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			switch pgErr.Code {
@@ -50,7 +50,7 @@ func (u *UnitRepo) GetUnitByID(ctx context.Context, q domain.Querier, unitID int
 		FROM units u
 		JOIN groups g ON u.group_id = g.id
 		WHERE u.id = $1
-	`, unitID).Scan(&unit.Id, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
+	`, unitID).Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.UnitDetails{}, domain.ErrNotFound
 		}
@@ -75,11 +75,6 @@ func (u *UnitRepo) UpdateUnitByID(ctx context.Context, q domain.Querier, unitID 
 		args = append(args, *unitUpdate.ShortName)
 		argPos++
 	}
-	if unitUpdate.GroupID != nil {
-		setParts = append(setParts, fmt.Sprintf("group_id = $%d", argPos))
-		args = append(args, *unitUpdate.GroupID)
-		argPos++
-	}
 
 	set := strings.Join(setParts, ", ")
 	if strings.TrimSpace(set) == "" {
@@ -92,7 +87,7 @@ func (u *UnitRepo) UpdateUnitByID(ctx context.Context, q domain.Querier, unitID 
 		FROM groups g
 		WHERE u.id = $1 AND u.group_id = g.id
 		RETURNING u.id, u.name, u.short_name, u.group_id, g.name
-	`, args...).Scan(&unit.Id, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
+	`, args...).Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.UnitDetails{}, domain.ErrNotFound
 		}
@@ -125,7 +120,35 @@ func (u *UnitRepo) DeleteUnitByID(ctx context.Context, q domain.Querier, unitID 
 	return nil
 }
 
-func (u *UnitRepo) ListUnits(ctx context.Context, q domain.Querier) ([]domain.UnitDetails, error) {
+func (u *UnitRepo) ListUnits(ctx context.Context, q domain.Querier, groupID []int) ([]domain.UnitDetails, error) {
+	rows, err := q.Query(ctx, `
+		SELECT u.id, u.name, u.short_name, u.group_id, g.name 
+		FROM units u
+		JOIN groups g ON u.group_id = g.id
+		WHERE u.group_id = ANY($1::int[])
+	`, groupID)
+	if err != nil {
+		return []domain.UnitDetails{}, fmt.Errorf("query units: %w", err)
+	}
+	defer rows.Close()
+
+	var units []domain.UnitDetails
+	for rows.Next() {
+		var unit domain.UnitDetails
+		if err := rows.Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
+			return []domain.UnitDetails{}, fmt.Errorf("scan unit: %w", err)
+		}
+
+		units = append(units, unit)
+	}
+	if err := rows.Err(); err != nil {
+		return []domain.UnitDetails{}, fmt.Errorf("iteration failed: %w", err)
+	}
+
+	return units, nil
+}
+
+func (u *UnitRepo) ListAdminUnits(ctx context.Context, q domain.Querier) ([]domain.UnitDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT u.id, u.name, u.short_name, u.group_id, g.name 
 		FROM units u
@@ -139,7 +162,7 @@ func (u *UnitRepo) ListUnits(ctx context.Context, q domain.Querier) ([]domain.Un
 	var units []domain.UnitDetails
 	for rows.Next() {
 		var unit domain.UnitDetails
-		if err := rows.Scan(&unit.Id, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
+		if err := rows.Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
 			return []domain.UnitDetails{}, fmt.Errorf("scan unit: %w", err)
 		}
 

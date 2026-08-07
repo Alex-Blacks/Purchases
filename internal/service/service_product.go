@@ -135,20 +135,25 @@ func (s *ServiceProduct) ListProducts(ctx context.Context, actor policy.Actor) (
 	return s.product.ListProducts(ctx, s.storage, []int{actor.GroupID, policy.CommonGroupID})
 }
 
-func (s *ServiceProduct) CreateProductAlias(ctx context.Context, actor policy.Actor, productID int, alias string, groupID int) (domain.ProductAliasDetails, error) {
+// ---------------------------------------------------------------------------------
+// --------------------------------------ALIAS--------------------------------------
+// ---------------------------------------------------------------------------------
+
+func (s *ServiceProduct) CreateProductAlias(ctx context.Context, actor policy.Actor, productID int, alias string) (domain.ProductAliasDetails, error) {
 	if err := s.AccessWriteProduct(ctx, actor, productID); err != nil {
 		return domain.ProductAliasDetails{}, err
 	}
 	var productAlias domain.ProductAliasDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
-		productAlias, err = s.product.CreateProductAlias(ctx, q, productID, alias, groupID)
+		productAlias, err = s.product.CreateProductAlias(ctx, q, productID, alias, actor.GroupID)
 		return err
 	}); err != nil {
 		return domain.ProductAliasDetails{}, err
 	}
 	return productAlias, nil
 }
+
 func (s *ServiceProduct) GetProductAliasByID(ctx context.Context, actor policy.Actor, aliasID int) (domain.ProductAliasDetails, error) {
 	alias, err := s.AccessReadProductAlias(ctx, actor, aliasID)
 	if err != nil {
@@ -156,6 +161,22 @@ func (s *ServiceProduct) GetProductAliasByID(ctx context.Context, actor policy.A
 	}
 	return alias, nil
 }
+
+func (s *ServiceProduct) UpdateProductAliasByID(ctx context.Context, actor policy.Actor, aliasID int, newAlias string) (domain.ProductAliasDetails, error) {
+	if err := s.AccessWriteProductAlias(ctx, actor, aliasID); err != nil {
+		return domain.ProductAliasDetails{}, err
+	}
+	var alias domain.ProductAliasDetails
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
+		var err error
+		alias, err = s.product.UpdateProductAliasByID(ctx, q, aliasID, domain.ProductAliasUpdate{Alias: &newAlias})
+		return err
+	}); err != nil {
+		return domain.ProductAliasDetails{}, err
+	}
+	return alias, nil
+}
+
 func (s *ServiceProduct) DeleteProductAlias(ctx context.Context, actor policy.Actor, aliasID int) error {
 	if err := s.AccessWriteProductAlias(ctx, actor, aliasID); err != nil {
 		return err
@@ -164,9 +185,14 @@ func (s *ServiceProduct) DeleteProductAlias(ctx context.Context, actor policy.Ac
 		return s.product.DeleteProductAliasByID(ctx, q, aliasID)
 	})
 }
-func (s *ServiceProduct) ListProductAliases(ctx context.Context, productID int, groupID []int) ([]domain.ProductAliasDetails, error) {
-	return s.product.ListProductAliases(ctx, s.storage, productID, groupID)
+
+func (s *ServiceProduct) ListProductAliases(ctx context.Context, actor policy.Actor, productID int) ([]domain.ProductAliasDetails, error) {
+	if _, err := s.AccessReadProduct(ctx, actor, productID); err != nil {
+		return []domain.ProductAliasDetails{}, err
+	}
+	return s.product.ListProductAliases(ctx, s.storage, productID, []int{actor.GroupID, policy.CommonGroupID})
 }
+
 func (s *ServiceProduct) DeleteAllProductAliases(ctx context.Context, actor policy.Actor, productID int) error {
 	if err := s.AccessWriteProduct(ctx, actor, productID); err != nil {
 		return err
@@ -175,6 +201,7 @@ func (s *ServiceProduct) DeleteAllProductAliases(ctx context.Context, actor poli
 		return s.product.DeleteAllProductAliases(ctx, q, productID)
 	})
 }
+
 func (s *ServiceProduct) FindProductByAlias(ctx context.Context, actor policy.Actor, alias string) (string, error) {
-	return s.product.FindProductByAlias(ctx, s.storage, alias)
+	return s.product.FindProductByAlias(ctx, s.storage, alias, []int{actor.GroupID, policy.CommonGroupID})
 }
