@@ -17,7 +17,7 @@ func NewGroupRepo() *GroupRepo {
 	return &GroupRepo{}
 }
 
-func (g *GroupRepo) CreateGroup(ctx context.Context, q domain.Querier, name string, adminUserID int) (domain.GroupDetails, error) {
+func (g *GroupRepo) CreateGroup(ctx context.Context, q domain.Querier, name string, adminUserID *int) (domain.GroupDetails, error) {
 	var group domain.GroupDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
@@ -25,10 +25,10 @@ func (g *GroupRepo) CreateGroup(ctx context.Context, q domain.Querier, name stri
 			VALUES ($1,$2)
 			RETURNING id, name, admin_user_id
 		)
-		SELECT i.id, i.name, i.admin_user_id, u.name
+		SELECT i.id, i.name, i.admin_user_id, COALESCE(u.name, '')
 		FROM inserted i
-		JOIN users u ON i.admin_user_id = u.id
-	`, name, adminUserID).Scan(&group.Id, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
+		LEFT JOIN users u ON i.admin_user_id = u.id
+	`, name, adminUserID).Scan(&group.ID, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			switch pgErr.Code {
@@ -46,11 +46,11 @@ func (g *GroupRepo) CreateGroup(ctx context.Context, q domain.Querier, name stri
 func (g *GroupRepo) GetGroupById(ctx context.Context, q domain.Querier, groupID int) (domain.GroupDetails, error) {
 	var group domain.GroupDetails
 	if err := q.QueryRow(ctx, `
-		SELECT g.id, g.name, g.admin_user_id, u.name
+		SELECT g.id, g.name, g.admin_user_id, COALESCE(u.name, '')
 		FROM groups g
-		JOIN users u ON g.admin_user_id = u.id
+		LEFT JOIN users u ON g.admin_user_id = u.id
 		WHERE g.id = $1
-	`, groupID).Scan(&group.Id, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
+	`, groupID).Scan(&group.ID, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.GroupDetails{}, domain.ErrNotFound
 		}
@@ -59,11 +59,11 @@ func (g *GroupRepo) GetGroupById(ctx context.Context, q domain.Querier, groupID 
 	return group, nil
 }
 
-func (g *GroupRepo) CheckGroupAdmin(ctx context.Context, q domain.Querier, adminUserID int) (bool, error) {
+func (g *GroupRepo) CheckGroupAdmin(ctx context.Context, q domain.Querier, groupID int, adminUserID int) (bool, error) {
 	var id int
-	if err := q.QueryRow(ctx, `SELECT group_id FROM groups WHERE admin_user_id = $1`, adminUserID).Scan(&id); err != nil {
+	if err := q.QueryRow(ctx, `SELECT 1 FROM groups WHERE id = $1 AND admin_user_id = $2`, groupID, adminUserID).Scan(&id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return false, domain.ErrNotFound
+			return false, nil
 		}
 		return false, fmt.Errorf("check group: %w", err)
 	}
@@ -95,8 +95,8 @@ func (g *GroupRepo) UpdateGroupByID(ctx context.Context, q domain.Querier, group
 		SET `+set+`
 		FROM users u
 		WHERE g.id = $1 AND g.admin_user_id = u.id
-		RETURNING g.id, g.name, g.admin_user_id, u.name
-	`, args...).Scan(&group.Id, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
+		RETURNING g.id, g.name, g.admin_user_id, (SELECT u.name FROM users u WHERE u.id = g.admin_user_id)
+	`, args...).Scan(&group.ID, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.GroupDetails{}, domain.ErrNotFound
 		}
@@ -136,9 +136,9 @@ func (g *GroupRepo) DeleteGroupByID(ctx context.Context, q domain.Querier, group
 
 func (g *GroupRepo) ListGroups(ctx context.Context, q domain.Querier) ([]domain.GroupDetails, error) {
 	rows, err := q.Query(ctx, `
-		SELECT g.id, g.name, g.admin_user_id, u.name
+		SELECT g.id, g.name, g.admin_user_id, COALESCE(u.name, '')
 		FROM groups g
-		JOIN users u ON g.admin_user_id = u.id
+		LEFT JOIN users u ON g.admin_user_id = u.id
 	`)
 	if err != nil {
 		return []domain.GroupDetails{}, fmt.Errorf("query groups: %w", err)
@@ -147,7 +147,7 @@ func (g *GroupRepo) ListGroups(ctx context.Context, q domain.Querier) ([]domain.
 	var groups []domain.GroupDetails
 	for rows.Next() {
 		var group domain.GroupDetails
-		if err := rows.Scan(&group.Id, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
+		if err := rows.Scan(&group.ID, &group.Name, &group.AdminUserID, &group.AdminUser); err != nil {
 			return []domain.GroupDetails{}, fmt.Errorf("scan group: %w", err)
 		}
 

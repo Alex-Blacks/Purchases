@@ -77,17 +77,17 @@ func (s *ServiceUser) CreateUser(ctx context.Context, name, password, email, rol
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
 
-		group, err := s.group.CreateGroup(ctx, q, "Личная группа "+name, 0)
+		group, err := s.group.CreateGroup(ctx, q, "Личная группа "+name, nil)
 		if err != nil {
 			return fmt.Errorf("create group: %w", err)
 		}
 
-		user, err = s.user.CreateUser(ctx, q, name, password_hash, email, group.Id, role, status)
+		user, err = s.user.CreateUser(ctx, q, name, password_hash, email, group.ID, role, status)
 		if err != nil {
 			return fmt.Errorf("create user: %w", err)
 		}
 
-		if err = s.group.UpdateGroupAdmin(ctx, q, group.Id, user.ID); err != nil {
+		if err = s.group.UpdateGroupAdmin(ctx, q, group.ID, user.ID); err != nil {
 			return fmt.Errorf("update group admin: %w", err)
 		}
 		return nil
@@ -175,7 +175,7 @@ func (s *ServiceUser) DeleteUser(ctx context.Context, actor policy.Actor, userID
 	if err != nil {
 		return fmt.Errorf("get user: %w", err)
 	}
-	isGroupAdmin, err := s.group.CheckGroupAdmin(ctx, s.storage, actor.UserID)
+	isGroupAdmin, err := s.group.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID)
 	if err != nil {
 		return domain.ErrConflictGroups
 	}

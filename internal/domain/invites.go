@@ -31,7 +31,9 @@ type InviteUpdate struct {
 type InviteRepository interface {
 	CreateInvite(ctx context.Context, q Querier, groupID int, inviterUserID int, inviteeEmail string, token string) (InviteDetails, error)
 	GetInviteByID(ctx context.Context, q Querier, inviteID int, groupID int) (InviteDetails, error)
+	GetInviteByEmail(ctx context.Context, q Querier, email string, groupID int) (InviteDetails, error)
 	UpdateInviteByID(ctx context.Context, q Querier, inviteID int, groupID int, updateInvite InviteUpdate) (InviteDetails, error)
 	DeleteInviteByID(ctx context.Context, q Querier, inviteID int, groupID int) error
 	ListInvites(ctx context.Context, q Querier, groupID int) ([]InviteDetails, error)
+	ListAdminInvites(ctx context.Context, q Querier) ([]InviteDetails, error)
 }

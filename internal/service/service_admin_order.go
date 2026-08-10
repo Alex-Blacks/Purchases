@@ -7,6 +7,7 @@ import (
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
+	"github.com/Alex-Blacks/Purchases/internal/policy"
 )
 
 type ServiceAdminOrderItem struct {
@@ -46,7 +47,10 @@ func (s *ServiceAdminOrderItem) WithTx(ctx context.Context, fn func(q domain.Que
 	return err
 }
 
-func (s *ServiceAdminOrderItem) CreateOrder(ctx context.Context, UserID, storeID, groupID int) (domain.OrderCreateDetails, error) {
+func (s *ServiceAdminOrderItem) CreateOrder(ctx context.Context, actor policy.Actor, UserID, storeID, groupID int) (domain.OrderCreateDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.OrderCreateDetails{}, policy.ErrForbidden
+	}
 	logger := logging.LoggerFromContext(ctx).With("store_id", storeID)
 	logger.InfoContext(ctx, "creating new order")
 
@@ -64,7 +68,10 @@ func (s *ServiceAdminOrderItem) CreateOrder(ctx context.Context, UserID, storeID
 	return order, nil
 }
 
-func (s *ServiceAdminOrderItem) GetOrder(ctx context.Context, orderID int) (domain.OrderWithItemDetails, error) {
+func (s *ServiceAdminOrderItem) GetOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.OrderWithItemDetails{}, policy.ErrForbidden
+	}
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID)
 	logger.InfoContext(ctx, "getting order")
 
@@ -76,7 +83,10 @@ func (s *ServiceAdminOrderItem) GetOrder(ctx context.Context, orderID int) (doma
 	return order, nil
 }
 
-func (s *ServiceAdminOrderItem) DeleteOrder(ctx context.Context, orderID int) error {
+func (s *ServiceAdminOrderItem) DeleteOrder(ctx context.Context, actor policy.Actor, orderID int) error {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return policy.ErrForbidden
+	}
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID)
 	logger.InfoContext(ctx, "deleting order")
 
@@ -91,7 +101,10 @@ func (s *ServiceAdminOrderItem) DeleteOrder(ctx context.Context, orderID int) er
 	return nil
 }
 
-func (s *ServiceAdminOrderItem) ListOrders(ctx context.Context) ([]domain.OrderDetails, error) {
+func (s *ServiceAdminOrderItem) ListOrders(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return []domain.OrderDetails{}, policy.ErrForbidden
+	}
 	logger := logging.LoggerFromContext(ctx)
 	logger.InfoContext(ctx, "listing orders")
 
@@ -109,7 +122,10 @@ func (s *ServiceAdminOrderItem) ListOrders(ctx context.Context) ([]domain.OrderD
 // --------------------------------------ITEMS--------------------------------------
 // ---------------------------------------------------------------------------------
 
-func (s *ServiceAdminOrderItem) AddItem(ctx context.Context, orderID, productID, unitID, quantity, groupID int) (domain.OrderItemDetails, error) {
+func (s *ServiceAdminOrderItem) AddItem(ctx context.Context, actor policy.Actor, orderID, productID, unitID, quantity, groupID int) (domain.OrderItemDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.OrderItemDetails{}, policy.ErrForbidden
+	}
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID, "unitID", unitID, "quantity", quantity)
 	logger.InfoContext(ctx, "adding item to order")
 
@@ -129,7 +145,10 @@ func (s *ServiceAdminOrderItem) AddItem(ctx context.Context, orderID, productID,
 	return item, nil
 }
 
-func (s *ServiceAdminOrderItem) AddListItems(ctx context.Context, orderID int, items []domain.OrderItemDetails, groupID int) error {
+func (s *ServiceAdminOrderItem) AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemDetails, groupID int) error {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return policy.ErrForbidden
+	}
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "count", len(items))
 	logger.InfoContext(ctx, "adding list items to order")
 
@@ -153,7 +172,10 @@ func (s *ServiceAdminOrderItem) AddListItems(ctx context.Context, orderID int, i
 	})
 }
 
-func (s *ServiceAdminOrderItem) UpdateListItems(ctx context.Context, orderID int, items []domain.OrderItemDetails, groupID int) error {
+func (s *ServiceAdminOrderItem) UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemDetails, groupID int) error {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return policy.ErrForbidden
+	}
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "count", len(items))
 	logger.InfoContext(ctx, "updating list items")
 
@@ -177,7 +199,10 @@ func (s *ServiceAdminOrderItem) UpdateListItems(ctx context.Context, orderID int
 	})
 }
 
-func (s *ServiceAdminOrderItem) UpdateItem(ctx context.Context, orderID, productID int, updateOrder domain.OrderItemUpdate) (domain.OrderItemDetails, error) {
+func (s *ServiceAdminOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, orderID, productID int, updateOrder domain.OrderItemUpdate) (domain.OrderItemDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.OrderItemDetails{}, policy.ErrForbidden
+	}
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID, "updateOrder", updateOrder)
 	logger.InfoContext(ctx, "updating item quantity")
 
@@ -195,7 +220,10 @@ func (s *ServiceAdminOrderItem) UpdateItem(ctx context.Context, orderID, product
 	return item, nil
 }
 
-func (s *ServiceAdminOrderItem) DeleteItem(ctx context.Context, orderID, productID int) error {
+func (s *ServiceAdminOrderItem) DeleteItem(ctx context.Context, actor policy.Actor, orderID, productID int) error {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return policy.ErrForbidden
+	}
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID)
 	logger.InfoContext(ctx, "deleting item from order")
 

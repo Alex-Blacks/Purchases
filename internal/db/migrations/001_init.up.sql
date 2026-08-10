@@ -27,7 +27,7 @@ create table invites(
     group_id integer not null references groups(id) on delete cascade, 
     inviter_user_id integer not null references users(id) on delete cascade, 
     invitee_email citext not null, 
-    status invate_status not null default 'pending', 
+    status invite_status not null default 'pending', 
     token text not null unique, 
     created_at timestamptz not null default now(), 
     expires_at timestamptz not null

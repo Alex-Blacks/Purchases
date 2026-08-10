@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
+	"github.com/Alex-Blacks/Purchases/internal/policy"
 )
 
 type ServiceAdminProduct struct {
@@ -39,7 +40,10 @@ func (s *ServiceAdminProduct) WithTx(ctx context.Context, fn func(q domain.Queri
 	return err
 }
 
-func (s *ServiceAdminProduct) CreateProduct(ctx context.Context, title string, groupID int) (domain.ProductDetails, error) {
+func (s *ServiceAdminProduct) CreateProduct(ctx context.Context, actor policy.Actor, title string, groupID int) (domain.ProductDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.ProductDetails{}, policy.ErrForbidden
+	}
 	var product domain.ProductDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
@@ -51,11 +55,17 @@ func (s *ServiceAdminProduct) CreateProduct(ctx context.Context, title string, g
 	return product, nil
 }
 
-func (s *ServiceAdminProduct) GetProductByID(ctx context.Context, productID int) (domain.ProductDetails, error) {
+func (s *ServiceAdminProduct) GetProductByID(ctx context.Context, actor policy.Actor, productID int) (domain.ProductDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.ProductDetails{}, policy.ErrForbidden
+	}
 	return s.product.GetProductByID(ctx, s.storage, productID)
 }
 
-func (s *ServiceAdminProduct) UpdateProductByID(ctx context.Context, productID int, updateProduct domain.ProductUpdate) (domain.ProductDetails, error) {
+func (s *ServiceAdminProduct) UpdateProductByID(ctx context.Context, actor policy.Actor, productID int, updateProduct domain.ProductUpdate) (domain.ProductDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.ProductDetails{}, policy.ErrForbidden
+	}
 	var product domain.ProductDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
@@ -67,13 +77,19 @@ func (s *ServiceAdminProduct) UpdateProductByID(ctx context.Context, productID i
 	return product, nil
 }
 
-func (s *ServiceAdminProduct) DeleteProductByID(ctx context.Context, productID int) error {
+func (s *ServiceAdminProduct) DeleteProductByID(ctx context.Context, actor policy.Actor, productID int) error {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return policy.ErrForbidden
+	}
 	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.product.DeleteProductByID(ctx, q, productID)
 	})
 }
 
-func (s *ServiceAdminProduct) ListProducts(ctx context.Context) ([]domain.ProductDetails, error) {
+func (s *ServiceAdminProduct) ListProducts(ctx context.Context, actor policy.Actor) ([]domain.ProductDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return []domain.ProductDetails{}, policy.ErrForbidden
+	}
 	return s.product.ListAdminProducts(ctx, s.storage)
 }
 
@@ -81,7 +97,10 @@ func (s *ServiceAdminProduct) ListProducts(ctx context.Context) ([]domain.Produc
 // --------------------------------------ALIAS--------------------------------------
 // ---------------------------------------------------------------------------------
 
-func (s *ServiceAdminProduct) CreateProductAlias(ctx context.Context, productID int, alias string, groupID int) (domain.ProductAliasDetails, error) {
+func (s *ServiceAdminProduct) CreateProductAlias(ctx context.Context, actor policy.Actor, productID int, alias string, groupID int) (domain.ProductAliasDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.ProductAliasDetails{}, policy.ErrForbidden
+	}
 	var productAlias domain.ProductAliasDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
@@ -93,11 +112,17 @@ func (s *ServiceAdminProduct) CreateProductAlias(ctx context.Context, productID 
 	return productAlias, nil
 }
 
-func (s *ServiceAdminProduct) GetProductAliasByID(ctx context.Context, aliasID int) (domain.ProductAliasDetails, error) {
+func (s *ServiceAdminProduct) GetProductAliasByID(ctx context.Context, actor policy.Actor, aliasID int) (domain.ProductAliasDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.ProductAliasDetails{}, policy.ErrForbidden
+	}
 	return s.product.GetProductAliasByID(ctx, s.storage, aliasID)
 }
 
-func (s *ServiceAdminProduct) UpdateProductAliasByID(ctx context.Context, aliasID int, updateAlias domain.ProductAliasUpdate) (domain.ProductAliasDetails, error) {
+func (s *ServiceAdminProduct) UpdateProductAliasByID(ctx context.Context, actor policy.Actor, aliasID int, updateAlias domain.ProductAliasUpdate) (domain.ProductAliasDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.ProductAliasDetails{}, policy.ErrForbidden
+	}
 	var alias domain.ProductAliasDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
@@ -109,22 +134,34 @@ func (s *ServiceAdminProduct) UpdateProductAliasByID(ctx context.Context, aliasI
 	return alias, nil
 }
 
-func (s *ServiceAdminProduct) DeleteProductAlias(ctx context.Context, aliasID int) error {
+func (s *ServiceAdminProduct) DeleteProductAlias(ctx context.Context, actor policy.Actor, aliasID int) error {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return policy.ErrForbidden
+	}
 	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.product.DeleteProductAliasByID(ctx, q, aliasID)
 	})
 }
 
-func (s *ServiceAdminProduct) ListProductAliases(ctx context.Context, productID int) ([]domain.ProductAliasDetails, error) {
+func (s *ServiceAdminProduct) ListProductAliases(ctx context.Context, actor policy.Actor, productID int) ([]domain.ProductAliasDetails, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return []domain.ProductAliasDetails{}, policy.ErrForbidden
+	}
 	return s.product.ListAdminProductAliases(ctx, s.storage, productID)
 }
 
-func (s *ServiceAdminProduct) DeleteAllProductAliases(ctx context.Context, productID int) error {
+func (s *ServiceAdminProduct) DeleteAllProductAliases(ctx context.Context, actor policy.Actor, productID int) error {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return policy.ErrForbidden
+	}
 	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.product.DeleteAllProductAliases(ctx, q, productID)
 	})
 }
 
-func (s *ServiceAdminProduct) FindProductByAlias(ctx context.Context, alias string) (string, error) {
+func (s *ServiceAdminProduct) FindProductByAlias(ctx context.Context, actor policy.Actor, alias string) (string, error) {
+	if !actor.HasRole(policy.RoleAdmin) {
+		return "", policy.ErrForbidden
+	}
 	return s.product.FindAdminProductByAlias(ctx, s.storage, alias)
 }
