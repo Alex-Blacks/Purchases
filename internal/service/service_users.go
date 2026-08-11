@@ -175,10 +175,7 @@ func (s *ServiceUser) DeleteUser(ctx context.Context, actor policy.Actor, userID
 	if err != nil {
 		return fmt.Errorf("get user: %w", err)
 	}
-	isGroupAdmin, err := s.group.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID)
-	if err != nil {
-		return domain.ErrConflictGroups
-	}
+	isGroupAdmin := s.group.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID)
 	if err := policy.CanDeleteUser(actor, user, isGroupAdmin); err != nil {
 		return policy.ErrForbidden
 	}

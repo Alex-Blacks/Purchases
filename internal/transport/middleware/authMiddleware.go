@@ -61,14 +61,15 @@ func AuthMiddleware(secret string) func(http.Handler) http.Handler {
 			}
 
 			userIDFloat, ok1 := claims["sub"].(float64)
-			role, ok2 := claims["role"].(string)
-			if !ok1 || !ok2 {
-				logger.Warn("missing userID or role in JWT claims")
+			groupID, ok2 := claims["group"].(int)
+			role, ok3 := claims["role"].(string)
+			if !ok1 || !ok2 || !ok3 {
+				logger.Warn("missing userID, groupID or role in JWT claims")
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
 
-			actor := policy.ToActor(int(userIDFloat), policy.Role(role))
+			actor := policy.ToActor(int(userIDFloat), groupID, policy.Role(role))
 
 			logger = logger.With("actor", actor)
 

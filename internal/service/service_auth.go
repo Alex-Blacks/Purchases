@@ -58,9 +58,10 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	exp := time.Now().Add(s.tokenLifetime).Unix()
 
 	claims := jwt.MapClaims{
-		"sub":  user.ID,
-		"role": user.Role,
-		"exp":  exp,
+		"sub":   user.ID,
+		"group": user.GroupID,
+		"role":  user.Role,
+		"exp":   exp,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -105,9 +106,10 @@ func (s *AuthService) Register(ctx context.Context, name, email, password string
 	exp := time.Now().Add(s.tokenLifetime).Unix()
 
 	claims := jwt.MapClaims{
-		"sub":  user.ID,
-		"role": user.Role,
-		"exp":  exp,
+		"sub":   user.ID,
+		"group": user.GroupID,
+		"role":  user.Role,
+		"exp":   exp,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

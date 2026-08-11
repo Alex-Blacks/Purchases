@@ -50,10 +50,7 @@ func (s *ServiceGroup) GetGroup(ctx context.Context, actor policy.Actor, groupID
 }
 
 func (s *ServiceGroup) UpdateGroup(ctx context.Context, actor policy.Actor, groupID int, updateGroup domain.GroupUpdate) (domain.GroupDetails, error) {
-	isGroupAdmin, err := s.group.CheckGroupAdmin(ctx, s.storage, groupID, actor.UserID)
-	if err != nil {
-		return domain.GroupDetails{}, domain.ErrConflictGroups
-	}
+	isGroupAdmin := s.group.CheckGroupAdmin(ctx, s.storage, groupID, actor.UserID)
 	if !policy.IsAccessWriteGroup(actor, isGroupAdmin) {
 		return domain.GroupDetails{}, policy.ErrForbidden
 	}
@@ -69,10 +66,7 @@ func (s *ServiceGroup) UpdateGroup(ctx context.Context, actor policy.Actor, grou
 }
 
 func (s *ServiceGroup) DeleteGroup(ctx context.Context, actor policy.Actor, groupID int) error {
-	isGroupAdmin, err := s.group.CheckGroupAdmin(ctx, s.storage, groupID, actor.UserID)
-	if err != nil {
-		return domain.ErrConflictGroups
-	}
+	isGroupAdmin := s.group.CheckGroupAdmin(ctx, s.storage, groupID, actor.UserID)
 	if !policy.IsAccessWriteGroup(actor, isGroupAdmin) {
 		return policy.ErrForbidden
 	}

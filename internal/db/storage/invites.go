@@ -56,15 +56,15 @@ func (i *InviteRepo) CreateInvite(ctx context.Context, q domain.Querier, groupID
 	return invite, nil
 }
 
-func (i *InviteRepo) GetInviteByID(ctx context.Context, q domain.Querier, inviteID int, groupID int) (domain.InviteDetails, error) {
+func (i *InviteRepo) GetInviteByID(ctx context.Context, q domain.Querier, inviteID int) (domain.InviteDetails, error) {
 	var invite domain.InviteDetails
 	if err := q.QueryRow(ctx, `
 		SELECT i.id, i.group_id, g.name, i.inviter_user_id, u.name, i.invitee_email, i.status, i.token, i.created_at, i.expires_at
 		FROM invites i
 		JOIN groups g ON i.group_id = g.id
 		JOIN users u ON i.inviter_user_id = u.id
-		WHERE i.id = $1 AND i.group_id = $2
-	`, inviteID, groupID).Scan(
+		WHERE i.id = $1 AND
+	`, inviteID).Scan(
 		&invite.ID,
 		&invite.GroupID,
 		&invite.Group,
@@ -85,7 +85,37 @@ func (i *InviteRepo) GetInviteByID(ctx context.Context, q domain.Querier, invite
 	return invite, nil
 }
 
-func (i *InviteRepo) GetInviteByEmail(ctx context.Context, q domain.Querier, email string, groupID int) (domain.InviteDetails, error) {
+func (i *InviteRepo) GetInviteByToken(ctx context.Context, q domain.Querier, token string) (domain.InviteDetails, error) {
+	var invite domain.InviteDetails
+	if err := q.QueryRow(ctx, `
+		SELECT i.id, i.group_id, g.name, i.inviter_user_id, u.name, i.invitee_email, i.status, i.token, i.created_at, i.expires_at
+		FROM invites i
+		JOIN groups g ON i.group_id = g.id
+		JOIN users u ON i.inviter_user_id = u.id
+		WHERE i.token = $1
+		ORDER BY created_at DESC LIMIT 1
+	`, token).Scan(
+		&invite.ID,
+		&invite.GroupID,
+		&invite.Group,
+		&invite.InviterUserID,
+		&invite.InviterUser,
+		&invite.InviteeEmail,
+		&invite.Status,
+		&invite.Token,
+		&invite.CreatedAt,
+		&invite.ExpiresAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.InviteDetails{}, domain.ErrNotFound
+		}
+		return domain.InviteDetails{}, fmt.Errorf("get invite: %w", err)
+	}
+
+	return invite, nil
+}
+
+func (i *InviteRepo) GetInviteByEmail(ctx context.Context, q domain.Querier, groupID int, email string) (domain.InviteDetails, error) {
 	var invite domain.InviteDetails
 	if err := q.QueryRow(ctx, `
 		SELECT i.id, i.group_id, g.name, i.inviter_user_id, u.name, i.invitee_email, i.status, i.token, i.created_at, i.expires_at
@@ -120,7 +150,7 @@ func (i *InviteRepo) UpdateInviteByID(ctx context.Context, q domain.Querier, inv
 	args := []any{inviteID, groupID}
 	setPath := []string{}
 	argPos := 3
-	if updateInvite.Status != nil && strings.TrimSpace(*updateInvite.Status) != "" {
+	if updateInvite.Status != nil && *updateInvite.Status != "" {
 		setPath = append(setPath, fmt.Sprintf("status = $%d", argPos))
 		args = append(args, *updateInvite.Status)
 		argPos++
