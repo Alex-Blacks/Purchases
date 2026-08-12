@@ -13,17 +13,17 @@ import (
 )
 
 type ServiceUserInterface interface {
-	CreateUser(ctx context.Context, name string, password string, email string, role string, status string) (domain.User, error)
-	GetUserByEmail(ctx context.Context, email string) (domain.User, error)
-	GetUserByID(ctx context.Context, actor policy.Actor, userID int) (domain.User, error)
+	CreateUser(ctx context.Context, name string, password string, email string, role string, status string) (domain.UserDetails, error)
+	GetUserByEmail(ctx context.Context, email string) (domain.UserDetails, error)
+	GetUserByID(ctx context.Context, actor policy.Actor, userID int) (domain.UserDetails, error)
 	DeleteUser(ctx context.Context, actor policy.Actor, userID int) error
-	UpdateUser(ctx context.Context, actor policy.Actor, userID int, updateUser domain.UpdateUser) (domain.User, error)
-	ListUsers(ctx context.Context, actor policy.Actor) ([]domain.User, error)
+	UpdateUser(ctx context.Context, actor policy.Actor, userID int, updateUser domain.UserUpdate) (domain.UserDetails, error)
+	ListUsers(ctx context.Context, actor policy.Actor) ([]domain.UserDetails, error)
 
-	CheckPassword(user domain.User, password string) error
+	CheckPassword(user domain.UserDetails, password string) error
 	GeneratePassword(password string) (string, error)
 
-	GetAccessibleUser(ctx context.Context, actor policy.Actor, userID int) (domain.User, error)
+	GetAccessibleUser(ctx context.Context, actor policy.Actor, userID int) (domain.UserDetails, error)
 }
 
 type UserHandler struct {

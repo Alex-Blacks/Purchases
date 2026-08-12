@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
+	"github.com/Alex-Blacks/Purchases/internal/logging"
+	"github.com/Alex-Blacks/Purchases/internal/policy"
 )
 
 type ServiceAdminUnit struct {
@@ -19,6 +21,7 @@ func NewServiceAdminUnit(st domain.Storage, unit domain.UnitRepository) *Service
 	}
 }
 
+// WithTx выполняет функцию в транзакции.
 func (s *ServiceAdminUnit) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
 	tx, err := s.storage.BeginTx(ctx)
 	if err != nil {
@@ -32,9 +35,8 @@ func (s *ServiceAdminUnit) WithTx(ctx context.Context, fn func(q domain.Querier)
 			}
 			return
 		}
-
 		if commitErr := tx.Commit(ctx); commitErr != nil {
-			err = fmt.Errorf("tx err: %v, commit err: %w", err, commitErr)
+			err = fmt.Errorf("commit err: %w", commitErr)
 		}
 	}()
 
@@ -42,41 +44,125 @@ func (s *ServiceAdminUnit) WithTx(ctx context.Context, fn func(q domain.Querier)
 	return err
 }
 
-func (s *ServiceAdminUnit) CreateUnit(ctx context.Context, name string, shortName string, groupID int) (domain.UnitDetails, error) {
+// CreateUnit создаёт новую единицу измерения. Доступно только администраторам.
+func (s *ServiceAdminUnit) CreateUnit(ctx context.Context, actor policy.Actor, name string, shortName string, groupID int) (domain.UnitDetails, error) {
+	// 1. Проверка прав
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.UnitDetails{}, policy.ErrForbidden
+	}
+
+	logger := logging.LoggerFromContext(ctx).With("name", name, "short_name", shortName, "group_id", groupID)
+	logger.InfoContext(ctx, "creating new unit")
+
 	var unit domain.UnitDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
+		// 2. Создание единицы измерения в БД
 		unit, err = s.unit.CreateUnit(ctx, q, name, groupID, shortName)
-		return err
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to create unit", "error", err)
+			return fmt.Errorf("create unit: %w", err)
+		}
+		return nil
 	}); err != nil {
-		return domain.UnitDetails{}, err
+		return domain.UnitDetails{}, fmt.Errorf("create unit: %w", err)
 	}
+
+	logger.InfoContext(ctx, "unit created successfully", "unit_id", unit.ID)
 	return unit, nil
 }
 
-func (s *ServiceAdminUnit) GetUnit(ctx context.Context, unitID int) (domain.UnitDetails, error) {
-	return s.unit.GetUnitByID(ctx, s.storage, unitID)
+// GetUnit возвращает единицу измерения по ID. Доступно только администраторам.
+func (s *ServiceAdminUnit) GetUnit(ctx context.Context, actor policy.Actor, unitID int) (domain.UnitDetails, error) {
+	// 1. Проверка прав
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.UnitDetails{}, policy.ErrForbidden
+	}
+
+	logger := logging.LoggerFromContext(ctx).With("unit_id", unitID)
+	logger.InfoContext(ctx, "getting unit by id")
+
+	// 2. Получение единицы измерения из БД (без транзакции)
+	unit, err := s.unit.GetUnitByID(ctx, s.storage, unitID)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to get unit", "error", err)
+		return domain.UnitDetails{}, fmt.Errorf("get unit: %w", err)
+	}
+
+	logger.InfoContext(ctx, "unit retrieved successfully")
+	return unit, nil
 }
 
-func (s *ServiceAdminUnit) UpdateUnit(ctx context.Context, unitID int, updateUnit domain.UnitUpdate) (domain.UnitDetails, error) {
+// UpdateUnit обновляет единицу измерения. Доступно только администраторам.
+func (s *ServiceAdminUnit) UpdateUnit(ctx context.Context, actor policy.Actor, unitID int, updateUnit domain.UnitUpdate) (domain.UnitDetails, error) {
+	// 1. Проверка прав
+	if !actor.HasRole(policy.RoleAdmin) {
+		return domain.UnitDetails{}, policy.ErrForbidden
+	}
+
+	logger := logging.LoggerFromContext(ctx).With("unit_id", unitID)
+	logger.InfoContext(ctx, "updating unit")
+
 	var unit domain.UnitDetails
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
 		var err error
+		// 2. Обновление единицы измерения в БД
 		unit, err = s.unit.UpdateUnitByID(ctx, q, unitID, updateUnit)
-		return err
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to update unit", "error", err)
+			return fmt.Errorf("update unit: %w", err)
+		}
+		return nil
 	}); err != nil {
-		return domain.UnitDetails{}, err
+		return domain.UnitDetails{}, fmt.Errorf("update unit: %w", err)
 	}
 
+	logger.InfoContext(ctx, "unit updated successfully")
 	return unit, nil
 }
 
-func (s *ServiceAdminUnit) DeleteUnit(ctx context.Context, unitID int) error {
-	return s.WithTx(ctx, func(q domain.Querier) error {
-		return s.unit.DeleteUnitByID(ctx, q, unitID)
-	})
+// DeleteUnit удаляет единицу измерения по ID. Доступно только администраторам.
+func (s *ServiceAdminUnit) DeleteUnit(ctx context.Context, actor policy.Actor, unitID int) error {
+	// 1. Проверка прав
+	if !actor.HasRole(policy.RoleAdmin) {
+		return policy.ErrForbidden
+	}
+
+	logger := logging.LoggerFromContext(ctx).With("unit_id", unitID)
+	logger.InfoContext(ctx, "deleting unit")
+
+	// 2. Удаление единицы измерения в транзакции
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
+		if err := s.unit.DeleteUnitByID(ctx, q, unitID); err != nil {
+			logger.ErrorContext(ctx, "failed to delete unit", "error", err)
+			return fmt.Errorf("delete unit: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("delete unit: %w", err)
+	}
+
+	logger.InfoContext(ctx, "unit deleted successfully")
+	return nil
 }
 
-func (s *ServiceAdminUnit) ListUnits(ctx context.Context) ([]domain.UnitDetails, error) {
-	return s.unit.ListAdminUnits(ctx, s.storage)
+// ListUnits возвращает список всех единиц измерения. Доступно только администраторам.
+func (s *ServiceAdminUnit) ListUnits(ctx context.Context, actor policy.Actor) ([]domain.UnitDetails, error) {
+	// 1. Проверка прав
+	if !actor.HasRole(policy.RoleAdmin) {
+		return []domain.UnitDetails{}, policy.ErrForbidden
+	}
+
+	logger := logging.LoggerFromContext(ctx)
+	logger.InfoContext(ctx, "listing units")
+
+	// 2. Получение списка единиц измерения из БД (без транзакции)
+	units, err := s.unit.ListAdminUnits(ctx, s.storage)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to list units", "error", err)
+		return []domain.UnitDetails{}, fmt.Errorf("list units: %w", err)
+	}
+
+	logger.InfoContext(ctx, "units listed successfully", "count", len(units))
+	return units, nil
 }

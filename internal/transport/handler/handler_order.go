@@ -19,8 +19,8 @@ type ServiceOrderInterface interface {
 	ListOrders(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error)
 
 	AddItem(ctx context.Context, actor policy.Actor, orderID int, productID int, UnitID int, quantity int) (domain.OrderItemDetails, error)
-	AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItem) error
-	UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItem) error
+	AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemDetails) error
+	UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemDetails) error
 	UpdateItem(ctx context.Context, actor policy.Actor, orderID int, productID int, UnitID int, quantity int) (domain.OrderItemDetails, error)
 	DeleteItem(ctx context.Context, actor policy.Actor, orderID int, productID int) error
 

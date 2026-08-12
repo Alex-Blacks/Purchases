@@ -11,7 +11,7 @@ import (
 )
 
 type ServiceUnitInterface interface {
-	ListUnits(ctx context.Context) ([]domain.Unit, error)
+	ListUnits(ctx context.Context) ([]domain.UnitDetails, error)
 }
 
 type UnitHandler struct {

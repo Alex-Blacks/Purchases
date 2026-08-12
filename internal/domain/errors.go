@@ -2,23 +2,38 @@ package domain
 
 import "errors"
 
+// Общие ошибки
 var (
-	ErrEmptyName                = errors.New("empty name")
-	ErrInvalidInput             = errors.New("invalid input")
-	ErrNotFound                 = errors.New("not found")
-	ErrAlreadyExists            = errors.New("already exists")
-	ErrConflict                 = errors.New("conflict")
-	ErrConflictGroups           = errors.New("conflict groups")
-	ErrNoFieldsToUpdate         = errors.New("no fields to update")
+	ErrNotFound         = errors.New("not found")
+	ErrInvalidInput     = errors.New("invalid input")
+	ErrNoFieldsToUpdate = errors.New("no fields to update")
+	ErrEmptyName        = errors.New("empty name")
+)
+
+// Ошибки конфликтов
+var (
+	ErrAlreadyExists = errors.New("already exists")
+	ErrConflict      = errors.New("conflict")
+	ErrEmailConflict = errors.New("email has already been created")
+)
+
+// Ошибки приглашений
+var (
 	ErrUserAlreadyInGroup       = errors.New("user already in group")
 	ErrSelfInvite               = errors.New("cannot invite yourself")
 	ErrInviteRejected           = errors.New("invite was rejected")
 	ErrInviteExpired            = errors.New("invite has expired")
 	ErrInviteRejectedStillValid = errors.New("rejected invite is still valid")
 	ErrInviteAlreadyPending     = errors.New("invite already pending")
+)
 
+// Ошибки статуса и аутентификации
+var (
 	ErrStatusBlocked      = errors.New("status blocked")
 	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrNoRights           = errors.New("no rights")
-	ErrEmailConflict      = errors.New("email has already been created")
 )
+
+// IsNotFound возвращает true, если ошибка является ErrNotFound.
+func IsNotFound(err error) bool {
+	return errors.Is(err, ErrNotFound)
+}

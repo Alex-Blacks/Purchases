@@ -13,12 +13,12 @@ type UnitResponse struct {
 	ShortName string `json:"shortName"`
 }
 
-func ToUnitResponse(units []domain.Unit) []UnitResponse {
+func ToUnitResponse(units []domain.UnitDetails) []UnitResponse {
 	resp := make([]UnitResponse, len(units))
 
 	for i, u := range units {
 		resp[i] = UnitResponse{
-			Id:        u.Id,
+			Id:        u.ID,
 			Name:      u.Name,
 			ShortName: u.ShortName,
 		}

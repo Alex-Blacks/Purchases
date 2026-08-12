@@ -5,17 +5,20 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Alex-Blacks/Purchases/internal/authctx"
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
+	"github.com/Alex-Blacks/Purchases/internal/policy"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
 )
 
 type ServiceStoreInterface interface {
-	CreateStore(ctx context.Context, name string) (domain.Store, error)
-	GetStore(ctx context.Context, id int) (domain.Store, error)
-	DeleteStore(ctx context.Context, id int) error
-	ListStores(ctx context.Context) ([]domain.Store, error)
+	CreateStore(ctx context.Context, actor policy.Actor, name string) (domain.StoreDetails, error)
+	GetStore(ctx context.Context, actor policy.Actor, storeID int) (domain.StoreDetails, error)
+	UpdateStore(ctx context.Context, actor policy.Actor, storeID int, updateStore domain.StoreUpdate) (domain.StoreDetails, error)
+	DeleteStore(ctx context.Context, actor policy.Actor, storeID int) error
+	ListStores(ctx context.Context, actor policy.Actor) ([]domain.StoreDetails, error)
 }
 
 type StoreHandler struct {
@@ -39,6 +42,12 @@ type StoreHandler struct {
 func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
+	actor, ok := authctx.ActorFromContext(r.Context())
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	var req dto.StoreRequest
 
 	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
@@ -50,7 +59,7 @@ func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	store, err := h.storeService.CreateStore(r.Context(), req.Name)
+	store, err := h.storeService.CreateStore(r.Context(), actor, req.Name)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, req)
 		return
@@ -81,13 +90,74 @@ func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request)
 func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
+	actor, ok := authctx.ActorFromContext(r.Context())
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	storeID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	store, err := h.storeService.GetStore(r.Context(), storeID)
+	store, err := h.storeService.GetStore(r.Context(), actor, storeID)
+	if err != nil {
+		helpers.WriteDomainError(w, logger, err, map[string]any{"storeId": storeID})
+		return
+	}
+	resp := dto.StoreResponse{
+		ID:   store.ID,
+		Name: store.Name,
+	}
+
+	helpers.WriteJSON(w, logger, http.StatusOK, resp)
+}
+
+// UpdateStoreHandler godoc
+//
+// @Security BearerAuth
+// @Summary Update store
+// @Description Update store
+// @Tags stores
+// @Produce json
+// @Param id path int true "store ID"
+// @Success 200 {object} dto.StoreResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
+// @Router /private/stores/{id} [get]
+func (h StoreHandler) UpdateStoreHandler(w http.ResponseWriter, r *http.Request) {
+	logger := logging.LoggerFromContext(r.Context())
+
+	actor, ok := authctx.ActorFromContext(r.Context())
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	storeID, err := helpers.ParsePositiveIntParam(r, "id")
+	if err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var req dto.StoreRequest
+	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if strings.TrimSpace(req.Name) == "" {
+		helpers.WriteError(w, logger, http.StatusBadRequest, "empty name")
+		return
+	}
+
+	updateStore := domain.StoreUpdate{Name: &req.Name}
+
+	store, err := h.storeService.UpdateStore(r.Context(), actor, storeID, updateStore)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"storeId": storeID})
 		return
@@ -117,13 +187,19 @@ func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
+	actor, ok := authctx.ActorFromContext(r.Context())
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	storeID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := h.storeService.DeleteStore(r.Context(), storeID); err != nil {
+	if err := h.storeService.DeleteStore(r.Context(), actor, storeID); err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"storeId": storeID})
 		return
 	}
@@ -145,7 +221,14 @@ func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request)
 // @Router /private/stores [get]
 func (h StoreHandler) ListStoresHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
-	list, err := h.storeService.ListStores(r.Context())
+
+	actor, ok := authctx.ActorFromContext(r.Context())
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	list, err := h.storeService.ListStores(r.Context(), actor)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return

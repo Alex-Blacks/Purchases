@@ -19,7 +19,7 @@ type UserResponse struct {
 	Status string `json:"status"`
 }
 
-func ToUserResponse(user domain.User) UserResponse {
+func ToUserResponse(user domain.UserDetails) UserResponse {
 	return UserResponse{
 		ID:     user.ID,
 		Name:   user.Name,
@@ -29,7 +29,7 @@ func ToUserResponse(user domain.User) UserResponse {
 	}
 }
 
-func ToUsersResponse(user []domain.User) []UserResponse {
+func ToUsersResponse(user []domain.UserDetails) []UserResponse {
 	resp := make([]UserResponse, len(user))
 
 	for i, it := range user {
@@ -53,8 +53,8 @@ type UserUpdateRequest struct {
 	Status   *string `json:"status,omitempty"`
 }
 
-func ToUserUpdateRequest(up UserUpdateRequest) domain.UpdateUser {
-	return domain.UpdateUser{
+func ToUserUpdateRequest(up UserUpdateRequest) domain.UserUpdate {
+	return domain.UserUpdate{
 		Name:     up.Name,
 		Password: up.Password,
 		Email:    up.Email,

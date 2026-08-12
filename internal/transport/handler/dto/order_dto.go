@@ -39,11 +39,11 @@ type ListItemsRequest struct {
 	Items []ItemRequest `json:"items"`
 }
 
-func ToItemsRequest(items ListItemsRequest) []domain.OrderItem {
-	resp := make([]domain.OrderItem, len(items.Items))
+func ToItemsRequest(items ListItemsRequest) []domain.OrderItemDetails {
+	resp := make([]domain.OrderItemDetails, len(items.Items))
 
 	for id, i := range items.Items {
-		resp[id] = domain.OrderItem{
+		resp[id] = domain.OrderItemDetails{
 			ProductID: i.ProductID,
 			UnitID:    i.UnitID,
 			Quantity:  i.Quantity,

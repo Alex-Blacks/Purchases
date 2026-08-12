@@ -11,7 +11,7 @@ type StoreResponse struct {
 	Name string `json:"name"`
 }
 
-func ToStoreResponse(store []domain.Store) []StoreResponse {
+func ToStoreResponse(store []domain.StoreDetails) []StoreResponse {
 	resp := make([]StoreResponse, len(store))
 
 	for i, s := range store {

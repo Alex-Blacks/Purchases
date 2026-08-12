@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
+	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/policy"
 )
 
@@ -20,6 +21,7 @@ func NewServiceGroup(st domain.Storage, group domain.GroupRepository) *ServiceGr
 	}
 }
 
+// WithTx выполняет функцию в транзакции.
 func (s *ServiceGroup) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
 	tx, err := s.storage.BeginTx(ctx)
 	if err != nil {
@@ -42,35 +44,81 @@ func (s *ServiceGroup) WithTx(ctx context.Context, fn func(q domain.Querier) err
 	return err
 }
 
+// GetGroup возвращает группу по ID с проверкой прав на чтение.
 func (s *ServiceGroup) GetGroup(ctx context.Context, actor policy.Actor, groupID int) (domain.GroupDetails, error) {
-	if !policy.IsAccessReadGroup(actor, groupID) {
-		return domain.GroupDetails{}, policy.ErrForbidden
-	}
-	return s.group.GetGroupByID(ctx, s.storage, groupID)
-}
+	logger := logging.LoggerFromContext(ctx).With("group_id", groupID)
+	logger.InfoContext(ctx, "getting group by id")
 
-func (s *ServiceGroup) UpdateGroup(ctx context.Context, actor policy.Actor, groupID int, updateGroup domain.GroupUpdate) (domain.GroupDetails, error) {
-	isGroupAdmin := s.group.CheckGroupAdmin(ctx, s.storage, groupID, actor.UserID)
-	if !policy.IsAccessWriteGroup(actor, isGroupAdmin) {
+	// 1. Проверка прав на чтение
+	if !policy.IsAccessReadGroup(actor, groupID) {
+		logger.WarnContext(ctx, "read access denied")
 		return domain.GroupDetails{}, policy.ErrForbidden
 	}
-	var group domain.GroupDetails
-	if err := s.WithTx(ctx, func(q domain.Querier) error {
-		var err error
-		group, err = s.group.UpdateGroupByID(ctx, q, groupID, updateGroup)
-		return err
-	}); err != nil {
-		return domain.GroupDetails{}, fmt.Errorf("update group: %w", err)
+
+	// 2. Получение группы из БД (без транзакции)
+	group, err := s.group.GetGroupByID(ctx, s.storage, groupID)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to get group", "error", err)
+		return domain.GroupDetails{}, fmt.Errorf("get group: %w", err)
 	}
+
+	logger.InfoContext(ctx, "group retrieved successfully")
 	return group, nil
 }
 
-func (s *ServiceGroup) DeleteGroup(ctx context.Context, actor policy.Actor, groupID int) error {
+// UpdateGroup обновляет группу с проверкой прав на запись.
+func (s *ServiceGroup) UpdateGroup(ctx context.Context, actor policy.Actor, groupID int, updateGroup domain.GroupUpdate) (domain.GroupDetails, error) {
+	logger := logging.LoggerFromContext(ctx).With("group_id", groupID)
+	logger.InfoContext(ctx, "updating group")
+
+	// 1. Проверка прав на запись
 	isGroupAdmin := s.group.CheckGroupAdmin(ctx, s.storage, groupID, actor.UserID)
 	if !policy.IsAccessWriteGroup(actor, isGroupAdmin) {
+		logger.WarnContext(ctx, "write access denied")
+		return domain.GroupDetails{}, policy.ErrForbidden
+	}
+
+	var group domain.GroupDetails
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
+		var err error
+		// 2. Обновление группы в БД
+		group, err = s.group.UpdateGroupByID(ctx, q, groupID, updateGroup)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to update group", "error", err)
+			return fmt.Errorf("update group: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return domain.GroupDetails{}, fmt.Errorf("update group: %w", err)
+	}
+
+	logger.InfoContext(ctx, "group updated successfully")
+	return group, nil
+}
+
+// DeleteGroup удаляет группу с проверкой прав на запись.
+func (s *ServiceGroup) DeleteGroup(ctx context.Context, actor policy.Actor, groupID int) error {
+	logger := logging.LoggerFromContext(ctx).With("group_id", groupID)
+	logger.InfoContext(ctx, "deleting group")
+
+	// 1. Проверка прав на запись
+	isGroupAdmin := s.group.CheckGroupAdmin(ctx, s.storage, groupID, actor.UserID)
+	if !policy.IsAccessWriteGroup(actor, isGroupAdmin) {
+		logger.WarnContext(ctx, "write access denied")
 		return policy.ErrForbidden
 	}
-	return s.WithTx(ctx, func(q domain.Querier) error {
-		return s.group.DeleteGroupByID(ctx, s.storage, groupID)
-	})
+
+	// 2. Удаление группы в транзакции
+	if err := s.WithTx(ctx, func(q domain.Querier) error {
+		if err := s.group.DeleteGroupByID(ctx, q, groupID); err != nil {
+			logger.ErrorContext(ctx, "failed to delete group", "error", err)
+			return fmt.Errorf("delete group: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("delete group: %w", err)
+	}
+
+	logger.InfoContext(ctx, "group deleted successfully")
+	return nil
 }
