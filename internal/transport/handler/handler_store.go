@@ -128,7 +128,7 @@ func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/stores/{id} [get]
+// @Router /private/stores/{id} [put]
 func (h StoreHandler) UpdateStoreHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
