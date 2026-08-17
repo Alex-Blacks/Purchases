@@ -3,15 +3,20 @@ package dto
 import "github.com/Alex-Blacks/Purchases/internal/domain"
 
 type UnitRequest struct {
-	Name      string `json:"name"`
-	ShortName string `json:"shortName"`
+	Name      string `json:"name" validate:"required,min=1,max=50"`
+	ShortName string `json:"shortName" validate:"required,min=1,max=50"`
+}
+
+type UnitUpdateRequest struct {
+	Name      *string `json:"name,omitempty" validate:"min=1,max=50"`
+	ShortName *string `json:"shortName,omitempty" validate:"min=1,max=50"`
 }
 
 type UnitResponse struct {
 	ID        int    `json:"id"`
 	Name      string `json:"name"`
 	ShortName string `json:"shortName"`
-	GroupID   int    `json:"groupID"`
+	GroupID   int    `json:"groupId"`
 	Group     string `json:"group"`
 }
 
@@ -22,6 +27,13 @@ func ToUnitResponse(unit domain.UnitDetails) UnitResponse {
 		ShortName: unit.ShortName,
 		GroupID:   unit.GroupID,
 		Group:     unit.Group,
+	}
+}
+
+func ToUnitUpdateRequest(up UnitUpdateRequest) domain.UnitUpdate {
+	return domain.UnitUpdate{
+		Name:      up.Name,
+		ShortName: up.ShortName,
 	}
 }
 

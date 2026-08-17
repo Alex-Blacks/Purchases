@@ -36,6 +36,17 @@ func ValidateCreateUser(input dto.UserRequest) error {
 	return nil
 }
 
+func ValidateCreateUnit(input dto.UnitRequest) error {
+	if strings.TrimSpace(input.Name) == "" {
+		return fmt.Errorf("name must not be empty")
+	}
+
+	if strings.TrimSpace(input.ShortName) == "" {
+		return fmt.Errorf("short name must not be empty")
+	}
+	return nil
+}
+
 func ValidatePositiveInt(name string, val int) error {
 	if val <= 0 {
 		return fmt.Errorf("invalid input: %s must be > 0", name)

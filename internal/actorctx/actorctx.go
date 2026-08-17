@@ -1,4 +1,4 @@
-package authctx
+package actorctx
 
 import (
 	"context"
@@ -16,7 +16,7 @@ func WithActor(ctx context.Context, actor policy.Actor) context.Context {
 
 func ActorFromContext(ctx context.Context) (policy.Actor, bool) {
 	if actor, ok := ctx.Value(actorKeyContext).(policy.Actor); ok {
-		return actor, true
+		return actor, false
 	}
-	return policy.Actor{}, false
+	return policy.Actor{}, true
 }

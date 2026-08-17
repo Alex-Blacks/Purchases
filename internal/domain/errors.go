@@ -4,10 +4,13 @@ import "errors"
 
 // Общие ошибки
 var (
-	ErrNotFound         = errors.New("not found")
-	ErrInvalidInput     = errors.New("invalid input")
-	ErrNoFieldsToUpdate = errors.New("no fields to update")
-	ErrEmptyName        = errors.New("empty name")
+	ErrNotFound          = errors.New("not found")
+	ErrInvalidInput      = errors.New("invalid input")
+	ErrNoFieldsToUpdate  = errors.New("no fields to update")
+	ErrEmptyName         = errors.New("empty name")
+	ErrGroupIDRequired   = errors.New("group ID is required for admin")
+	ErrInvalidGroupID    = errors.New("group ID must be positive")
+	ErrGroupIDNotAllowed = errors.New("group ID cannot be specified by non-admin")
 )
 
 // Ошибки конфликтов

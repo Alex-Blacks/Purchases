@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Alex-Blacks/Purchases/internal/authctx"
+	"github.com/Alex-Blacks/Purchases/internal/actorctx"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/policy"
 
@@ -61,7 +61,7 @@ func AuthMiddleware(secret string) func(http.Handler) http.Handler {
 			}
 
 			userIDFloat, ok1 := claims["sub"].(float64)
-			groupID, ok2 := claims["group"].(int)
+			groupIDFloat, ok2 := claims["group"].(float64)
 			role, ok3 := claims["role"].(string)
 			if !ok1 || !ok2 || !ok3 {
 				logger.Warn("missing userID, groupID or role in JWT claims")
@@ -69,12 +69,12 @@ func AuthMiddleware(secret string) func(http.Handler) http.Handler {
 				return
 			}
 
-			actor := policy.ToActor(int(userIDFloat), groupID, policy.Role(role))
+			actor := policy.ToActor(int(userIDFloat), int(groupIDFloat), policy.Role(role))
 
 			logger = logger.With("actor", actor)
 
 			ctx := logging.WithContext(r.Context(), logger)
-			ctx = authctx.WithActor(ctx, actor)
+			ctx = actorctx.WithActor(ctx, actor)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
