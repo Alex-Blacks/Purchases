@@ -97,8 +97,9 @@ func (s *ServiceStore) CreateStore(ctx context.Context, actor policy.Actor, name
 	}
 	logger.InfoContext(ctx, "creating new store")
 
-	if strings.TrimSpace(name) == "" {
-		return domain.StoreDetails{}, domain.ErrEmptyName
+	targetGroup, err := s.ResolveGroupID(actor, groupID)
+	if err != nil {
+		return domain.StoreDetails{}, err
 	}
 	var store domain.StoreDetails
 	if err := s.withTx(ctx, func(q domain.Querier) error {
