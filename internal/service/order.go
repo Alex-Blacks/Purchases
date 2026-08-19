@@ -119,7 +119,7 @@ func (s *ServiceOrderItem) List(ctx context.Context, actor policy.Actor) ([]doma
 }
 
 // ListAll возвращает список всех заказов. Доступно только администраторам.
-func (s *ServiceAdminOrderItem) ListAll(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error) {
+func (s *ServiceOrderItem) ListAll(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error) {
 	// 1. Проверка прав
 	if !actor.HasRole(policy.RoleAdmin) {
 		return []domain.OrderDetails{}, policy.ErrForbidden
@@ -129,7 +129,7 @@ func (s *ServiceAdminOrderItem) ListAll(ctx context.Context, actor policy.Actor)
 	logger.InfoContext(ctx, "listing orders")
 
 	// 2. Получение списка заказов из БД (без транзакции)
-	orders, err := s.order.ListAll(ctx, s.storage)
+	orders, err := s.orderRepo.ListAll(ctx, s.storage)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to list orders", "error", err)
 		return []domain.OrderDetails{}, fmt.Errorf("list orders: %w", err)
@@ -180,23 +180,33 @@ func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orde
 }
 
 // AddListItems добавляет несколько позиций в заказ (upsert). Проверяет права на запись заказа.
-func (s *ServiceOrderItem) AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemDetails) error {
+func (s *ServiceOrderItem) AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemCreate, groupID *int) error {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "count", len(items))
 	logger.InfoContext(ctx, "adding list items to order")
 
-	// 1. Проверка прав на запись заказа
-	if err := s.AccessWriteOrder(ctx, actor, orderID); err != nil {
-		return fmt.Errorf("access write order: %w", err)
+	if orderID < 1 {
+		return domain.ErrInvalidInput
 	}
 
-	// 2. Upsert каждой позиции в транзакции
-	if err := s.WithTx(ctx, func(q domain.Querier) error {
+	targetGroup, err := s.resolveGroupID(actor, groupID)
+	if err != nil {
+		return err
+	}
+	if err := s.withTx(ctx, func(q domain.Querier) error {
+		// 1. Проверка прав на запись заказа
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrder); err != nil {
+			return fmt.Errorf("access write order: %w", err)
+		}
 		for _, item := range items {
-			_, err := s.item.GetItemByOrderAndProduct(ctx, q, orderID, item.ProductID)
+			if item.ProductID < 1 || item.UnitID < 1 || item.Quantity < 1 {
+				return domain.ErrInvalidInput
+			}
+			// 2. Upsert каждой позиции в транзакции
+			_, err := s.itemRepo.GetItemByOrderAndProduct(ctx, q, orderID, item.ProductID)
 			if err != nil {
 				if domain.IsNotFound(err) {
 					// Если позиции нет — добавляем
-					if _, err := s.item.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, actor.GroupID); err != nil {
+					if _, err := s.itemRepo.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, targetGroup); err != nil {
 						return fmt.Errorf("add item %d: %w", item.ProductID, err)
 					}
 					continue
@@ -204,14 +214,14 @@ func (s *ServiceOrderItem) AddListItems(ctx context.Context, actor policy.Actor,
 				return fmt.Errorf("get item %d: %w", item.ProductID, err)
 			}
 			// Если есть — обновляем
-			if _, err := s.item.UpdateItem(ctx, q, orderID, item.ProductID, domain.OrderItemUpdate{UnitID: &item.UnitID, Quantity: &item.Quantity}); err != nil {
+			if _, err := s.itemRepo.UpdateItem(ctx, q, orderID, item.ProductID, domain.OrderItemUpdate{UnitID: &item.UnitID, Quantity: &item.Quantity}); err != nil {
 				return fmt.Errorf("update item %d: %w", item.ProductID, err)
 			}
 		}
 		return nil
 	}); err != nil {
 		logger.ErrorContext(ctx, "failed to add list items", "error", err)
-		return fmt.Errorf("add list items: %w", err)
+		return err
 	}
 
 	logger.InfoContext(ctx, "all items upserted successfully")
@@ -219,36 +229,46 @@ func (s *ServiceOrderItem) AddListItems(ctx context.Context, actor policy.Actor,
 }
 
 // UpdateListItems обновляет список позиций (аналогично AddListItems — upsert). Проверяет права на запись заказа.
-func (s *ServiceOrderItem) UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemDetails) error {
+func (s *ServiceOrderItem) UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemCreate, groupID *int) error {
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "count", len(items))
 	logger.InfoContext(ctx, "updating list items")
 
-	// 1. Проверка прав на запись заказа
-	if err := s.AccessWriteOrder(ctx, actor, orderID); err != nil {
-		return fmt.Errorf("access write order: %w", err)
+	if orderID < 1 {
+		return domain.ErrInvalidInput
 	}
 
-	// 2. Upsert каждой позиции в транзакции
-	if err := s.WithTx(ctx, func(q domain.Querier) error {
+	targetGroup, err := s.resolveGroupID(actor, groupID)
+	if err != nil {
+		return err
+	}
+	if err := s.withTx(ctx, func(q domain.Querier) error {
+		// 1. Проверка прав на запись заказа
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrder); err != nil {
+			return fmt.Errorf("access write order: %w", err)
+		}
 		for _, item := range items {
-			_, err := s.item.GetItemByOrderAndProduct(ctx, q, orderID, item.ProductID)
+			if item.ProductID < 1 || item.UnitID < 1 || item.Quantity < 1 {
+				return domain.ErrInvalidInput
+			}
+			// 2. Upsert каждой позиции в транзакции
+			_, err := s.itemRepo.GetItemByOrderAndProduct(ctx, q, orderID, item.ProductID)
 			if err != nil {
 				if domain.IsNotFound(err) {
-					if _, err := s.item.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, actor.GroupID); err != nil {
+					if _, err := s.itemRepo.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, targetGroup); err != nil {
 						return fmt.Errorf("add item %d: %w", item.ProductID, err)
 					}
 					continue
 				}
 				return fmt.Errorf("get item %d: %w", item.ProductID, err)
 			}
-			if _, err := s.item.UpdateItem(ctx, q, orderID, item.ProductID, domain.OrderItemUpdate{UnitID: &item.UnitID, Quantity: &item.Quantity}); err != nil {
+			if _, err := s.itemRepo.UpdateItem(ctx, q, orderID, item.ProductID, domain.OrderItemUpdate{UnitID: &item.UnitID, Quantity: &item.Quantity}); err != nil {
 				return fmt.Errorf("update item %d: %w", item.ProductID, err)
 			}
 		}
 		return nil
 	}); err != nil {
 		logger.ErrorContext(ctx, "failed to update list items", "error", err)
-		return fmt.Errorf("update list items: %w", err)
+		return err
 	}
 
 	logger.InfoContext(ctx, "all items upserted successfully")
@@ -260,23 +280,31 @@ func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, o
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID)
 	logger.InfoContext(ctx, "updating item")
 
-	// 1. Проверка прав на запись заказа
-	if err := s.AccessWriteOrder(ctx, actor, orderID); err != nil {
-		return domain.OrderItemDetails{}, fmt.Errorf("access write order: %w", err)
+	if orderID < 1 || productID < 1 {
+		return domain.OrderItemDetails{}, domain.ErrInvalidInput
 	}
-
+	if updateOrder.UnitID != nil && *updateOrder.UnitID < 1 {
+		return domain.OrderItemDetails{}, domain.ErrInvalidInput
+	}
+	if updateOrder.Quantity != nil && *updateOrder.Quantity < 1 {
+		return domain.OrderItemDetails{}, domain.ErrInvalidInput
+	}
 	var item domain.OrderItemDetails
-	if err := s.WithTx(ctx, func(q domain.Querier) error {
+	if err := s.withTx(ctx, func(q domain.Querier) error {
 		var err error
+		// 1. Проверка прав на запись заказа
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrder); err != nil {
+			return fmt.Errorf("access write order: %w", err)
+		}
 		// 2. Обновление позиции в БД
-		item, err = s.item.UpdateItem(ctx, q, orderID, productID, updateOrder)
+		item, err = s.itemRepo.UpdateItem(ctx, q, orderID, productID, updateOrder)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to update item", "error", err)
 			return fmt.Errorf("update item: %w", err)
 		}
 		return nil
 	}); err != nil {
-		return domain.OrderItemDetails{}, fmt.Errorf("update item: %w", err)
+		return domain.OrderItemDetails{}, err
 	}
 
 	logger.InfoContext(ctx, "item updated successfully", "new_quantity", item.Quantity)
@@ -288,20 +316,24 @@ func (s *ServiceOrderItem) DeleteItem(ctx context.Context, actor policy.Actor, o
 	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "product_id", productID)
 	logger.InfoContext(ctx, "deleting item from order")
 
-	// 1. Проверка прав на запись заказа
-	if err := s.AccessWriteOrder(ctx, actor, orderID); err != nil {
-		return fmt.Errorf("access write order: %w", err)
+	if orderID < 1 || productID < 1 {
+		return domain.ErrInvalidInput
 	}
 
-	// 2. Удаление позиции в транзакции
-	if err := s.WithTx(ctx, func(q domain.Querier) error {
-		if err := s.item.DeleteItemByOrderAndProduct(ctx, q, orderID, productID); err != nil {
+	if err := s.withTx(ctx, func(q domain.Querier) error {
+		// 1. Проверка прав на запись заказа
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrder); err != nil {
+			return fmt.Errorf("access write order: %w", err)
+		}
+
+		// 2. Удаление позиции в транзакции
+		if err := s.itemRepo.DeleteItemByOrderAndProduct(ctx, q, orderID, productID); err != nil {
 			logger.ErrorContext(ctx, "failed to delete item", "error", err)
 			return fmt.Errorf("delete item: %w", err)
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("delete item: %w", err)
+		return err
 	}
 
 	logger.InfoContext(ctx, "item deleted successfully")
