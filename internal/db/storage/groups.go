@@ -17,7 +17,7 @@ func NewGroupRepo() *GroupRepo {
 	return &GroupRepo{}
 }
 
-func (g *GroupRepo) CreateGroup(ctx context.Context, q domain.Querier, name string, adminUserID *int) (domain.GroupDetails, error) {
+func (g *GroupRepo) Create(ctx context.Context, q domain.Querier, name string, adminUserID *int) (domain.GroupDetails, error) {
 	var group domain.GroupDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
@@ -43,7 +43,7 @@ func (g *GroupRepo) CreateGroup(ctx context.Context, q domain.Querier, name stri
 	return group, nil
 }
 
-func (g *GroupRepo) GetGroupById(ctx context.Context, q domain.Querier, groupID int) (domain.GroupDetails, error) {
+func (g *GroupRepo) GetById(ctx context.Context, q domain.Querier, groupID int) (domain.GroupDetails, error) {
 	var group domain.GroupDetails
 	if err := q.QueryRow(ctx, `
 		SELECT g.id, g.name, g.admin_user_id, COALESCE(u.name, '')
@@ -70,7 +70,7 @@ func (g *GroupRepo) CheckGroupAdmin(ctx context.Context, q domain.Querier, group
 	return true, nil
 }
 
-func (g *GroupRepo) UpdateGroupByID(ctx context.Context, q domain.Querier, groupID int, updateGroup domain.GroupUpdate) (domain.GroupDetails, error) {
+func (g *GroupRepo) UpdateByID(ctx context.Context, q domain.Querier, groupID int, updateGroup domain.GroupUpdate) (domain.GroupDetails, error) {
 	var group domain.GroupDetails
 	args := []any{groupID}
 	setParts := []string{}
@@ -119,7 +119,7 @@ func (g *GroupRepo) UpdateGroupAdmin(ctx context.Context, q domain.Querier, grou
 	return err
 }
 
-func (g *GroupRepo) DeleteGroupByID(ctx context.Context, q domain.Querier, groupID int) error {
+func (g *GroupRepo) DeleteByID(ctx context.Context, q domain.Querier, groupID int) error {
 	var id int
 	if err := q.QueryRow(ctx, `DELETE FROM groups WHERE groups.id = $1 RETURNING id`, groupID).Scan(&id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -134,7 +134,7 @@ func (g *GroupRepo) DeleteGroupByID(ctx context.Context, q domain.Querier, group
 	return nil
 }
 
-func (g *GroupRepo) ListGroups(ctx context.Context, q domain.Querier) ([]domain.GroupDetails, error) {
+func (g *GroupRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.GroupDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT g.id, g.name, g.admin_user_id, COALESCE(u.name, '')
 		FROM groups g

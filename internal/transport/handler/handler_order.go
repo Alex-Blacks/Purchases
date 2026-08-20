@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/Alex-Blacks/Purchases/internal/authctx"
+	"github.com/Alex-Blacks/Purchases/internal/actorctx"
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/policy"
@@ -49,7 +49,7 @@ type OrderHandler struct {
 func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	actor, ok := authctx.ActorFromContext(r.Context())
+	actor, ok := actorctx.ActorFromContext(r.Context())
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -91,7 +91,7 @@ func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request)
 func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	actor, ok := authctx.ActorFromContext(r.Context())
+	actor, ok := actorctx.ActorFromContext(r.Context())
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -131,7 +131,7 @@ func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	actor, ok := authctx.ActorFromContext(r.Context())
+	actor, ok := actorctx.ActorFromContext(r.Context())
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -166,7 +166,7 @@ func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request)
 func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	actor, ok := authctx.ActorFromContext(r.Context())
+	actor, ok := actorctx.ActorFromContext(r.Context())
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -201,7 +201,7 @@ func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) 
 func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	actor, ok := authctx.ActorFromContext(r.Context())
+	actor, ok := actorctx.ActorFromContext(r.Context())
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -265,7 +265,7 @@ func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 func (h OrderHandler) AddListItemsHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	actor, ok := authctx.ActorFromContext(r.Context())
+	actor, ok := actorctx.ActorFromContext(r.Context())
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -324,7 +324,7 @@ func (h OrderHandler) AddListItemsHandler(w http.ResponseWriter, r *http.Request
 func (h OrderHandler) UpdateListItemsHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	actor, ok := authctx.ActorFromContext(r.Context())
+	actor, ok := actorctx.ActorFromContext(r.Context())
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -385,7 +385,7 @@ func (h OrderHandler) UpdateListItemsHandler(w http.ResponseWriter, r *http.Requ
 func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	actor, ok := authctx.ActorFromContext(r.Context())
+	actor, ok := actorctx.ActorFromContext(r.Context())
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -452,7 +452,7 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 func (h OrderHandler) DeleteItemHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logging.LoggerFromContext(r.Context())
 
-	actor, ok := authctx.ActorFromContext(r.Context())
+	actor, ok := actorctx.ActorFromContext(r.Context())
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return

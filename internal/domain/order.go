@@ -42,15 +42,15 @@ type OrderItemDetails struct {
 	Group     string
 }
 
-type OrderItemUpdate struct {
-	UnitID   *int
-	Quantity *int
-}
-
-type CreateOrderItem struct {
+type OrderItemCreate struct {
 	ProductID int
 	UnitID    int
 	Quantity  int
+}
+
+type OrderItemUpdate struct {
+	UnitID   *int
+	Quantity *int
 }
 
 type OrderWithItemDetails struct {
@@ -59,13 +59,14 @@ type OrderWithItemDetails struct {
 }
 
 func (o OrderWithItemDetails) GetGroupID() int { return o.Order.GroupID }
+func (o OrderWithItemDetails) GetID() int      { return o.Order.ID }
 
 type OrderRepository interface {
-	CreateOrder(ctx context.Context, q Querier, userID, storeID, groupID int) (OrderCreateDetails, error)
-	GetOrderByID(ctx context.Context, q Querier, orderID int) (OrderWithItemDetails, error)
-	DeleteOrderByID(ctx context.Context, q Querier, orderID int) error
-	ListOrders(ctx context.Context, q Querier, userID int, groupID int) ([]OrderDetails, error)
-	ListAdminOrders(ctx context.Context, q Querier) ([]OrderDetails, error)
+	Create(ctx context.Context, q Querier, userID, storeID, groupID int) (OrderCreateDetails, error)
+	GetByID(ctx context.Context, q Querier, orderID int) (OrderWithItemDetails, error)
+	DeleteByID(ctx context.Context, q Querier, orderID int) error
+	List(ctx context.Context, q Querier, userID int, groupID int) ([]OrderDetails, error)
+	ListAll(ctx context.Context, q Querier) ([]OrderDetails, error)
 }
 
 type OrderItemRepository interface {

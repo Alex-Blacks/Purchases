@@ -17,7 +17,11 @@ func NewUnitRepo() *UnitRepo {
 	return &UnitRepo{}
 }
 
-func (u *UnitRepo) CreateUnit(ctx context.Context, q domain.Querier, name string, groupID int, shortName string) (domain.UnitDetails, error) {
+func (u *UnitRepo) Create(ctx context.Context, q domain.Querier, params any, groupID int) (domain.UnitDetails, error) {
+	unitCreate, ok := params.(domain.UnitCreate)
+	if !ok {
+		return domain.UnitDetails{}, fmt.Errorf("invalid params type: expected UnitCreate, got %T", params)
+	}
 	var unit domain.UnitDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
@@ -28,7 +32,7 @@ func (u *UnitRepo) CreateUnit(ctx context.Context, q domain.Querier, name string
 		SELECT i.id, i.name, i.short_name, i.group_id, g.name
 		FROM inserted i
 		JOIN groups g ON i.group_id = g.id
-	`, name, shortName, groupID).Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
+	`, unitCreate.Name, unitCreate.ShortName, groupID).Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			switch pgErr.Code {
@@ -43,14 +47,14 @@ func (u *UnitRepo) CreateUnit(ctx context.Context, q domain.Querier, name string
 	return unit, nil
 }
 
-func (u *UnitRepo) GetUnitByID(ctx context.Context, q domain.Querier, unitID int) (domain.UnitDetails, error) {
+func (u *UnitRepo) GetByID(ctx context.Context, q domain.Querier, id int) (domain.UnitDetails, error) {
 	var unit domain.UnitDetails
 	if err := q.QueryRow(ctx, `
 		SELECT u.id, u.name, u.short_name, u.group_id, g.name
 		FROM units u
 		JOIN groups g ON u.group_id = g.id
 		WHERE u.id = $1
-	`, unitID).Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
+	`, id).Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.UnitDetails{}, domain.ErrNotFound
 		}
@@ -59,9 +63,13 @@ func (u *UnitRepo) GetUnitByID(ctx context.Context, q domain.Querier, unitID int
 	return unit, nil
 }
 
-func (u *UnitRepo) UpdateUnitByID(ctx context.Context, q domain.Querier, unitID int, unitUpdate domain.UnitUpdate) (domain.UnitDetails, error) {
+func (u *UnitRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, updates any) (domain.UnitDetails, error) {
+	unitUpdate, ok := updates.(domain.UnitUpdate)
+	if !ok {
+		return domain.UnitDetails{}, fmt.Errorf("invalid updates type: expected UnitUpdate, got %T", updates)
+	}
 	var unit domain.UnitDetails
-	args := []any{unitID}
+	args := []any{id}
 	setParts := []string{}
 	argPos := 2
 
@@ -105,9 +113,9 @@ func (u *UnitRepo) UpdateUnitByID(ctx context.Context, q domain.Querier, unitID 
 	return unit, nil
 }
 
-func (u *UnitRepo) DeleteUnitByID(ctx context.Context, q domain.Querier, unitID int) error {
-	var id int
-	if err := q.QueryRow(ctx, `DELETE FROM units WHERE units.id = $1 RETURNING id`, unitID).Scan(&id); err != nil {
+func (u *UnitRepo) DeleteByID(ctx context.Context, q domain.Querier, id int) error {
+	var deleteID int
+	if err := q.QueryRow(ctx, `DELETE FROM units WHERE units.id = $1 RETURNING id`, id).Scan(&deleteID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ErrNotFound
 		}
@@ -120,7 +128,7 @@ func (u *UnitRepo) DeleteUnitByID(ctx context.Context, q domain.Querier, unitID 
 	return nil
 }
 
-func (u *UnitRepo) ListUnits(ctx context.Context, q domain.Querier, groupID []int) ([]domain.UnitDetails, error) {
+func (u *UnitRepo) List(ctx context.Context, q domain.Querier, groupID []int) ([]domain.UnitDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT u.id, u.name, u.short_name, u.group_id, g.name 
 		FROM units u
@@ -148,7 +156,7 @@ func (u *UnitRepo) ListUnits(ctx context.Context, q domain.Querier, groupID []in
 	return units, nil
 }
 
-func (u *UnitRepo) ListAdminUnits(ctx context.Context, q domain.Querier) ([]domain.UnitDetails, error) {
+func (u *UnitRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.UnitDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT u.id, u.name, u.short_name, u.group_id, g.name 
 		FROM units u

@@ -24,7 +24,7 @@ func NewOrderItemRepo() *OrderItemRepo {
 	return &OrderItemRepo{}
 }
 
-func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Querier, userID, storeID, groupID int) (domain.OrderCreateDetails, error) {
+func (r *OrderRepo) Create(ctx context.Context, q domain.Querier, userID, storeID, groupID int) (domain.OrderCreateDetails, error) {
 	var order domain.OrderCreateDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
@@ -53,7 +53,7 @@ func (r *OrderRepo) CreateOrder(ctx context.Context, q domain.Querier, userID, s
 	return order, nil
 }
 
-func (r *OrderRepo) GetOrderByID(ctx context.Context, q domain.Querier, orderID int) (domain.OrderWithItemDetails, error) {
+func (r *OrderRepo) GetByID(ctx context.Context, q domain.Querier, orderID int) (domain.OrderWithItemDetails, error) {
 	var result domain.OrderWithItemDetails
 	rowsOrder := q.QueryRow(ctx, `
 		SELECT o.id, o.user_id, u.name, o.store_id, s.name, o.group_id, g.name, o.created_at, o.updated_at 
@@ -106,7 +106,7 @@ func (r *OrderRepo) GetOrderByID(ctx context.Context, q domain.Querier, orderID 
 	return result, nil
 }
 
-func (r *OrderRepo) DeleteOrderByID(ctx context.Context, q domain.Querier, orderID int) error {
+func (r *OrderRepo) DeleteByID(ctx context.Context, q domain.Querier, orderID int) error {
 	var id int
 	if err := q.QueryRow(ctx, `DELETE FROM orders WHERE orders.id = $1 RETURNING id`, orderID).Scan(&id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -118,7 +118,7 @@ func (r *OrderRepo) DeleteOrderByID(ctx context.Context, q domain.Querier, order
 	return nil
 }
 
-func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int, groupID int) ([]domain.OrderDetails, error) {
+func (r *OrderRepo) List(ctx context.Context, q domain.Querier, userID int, groupID int) ([]domain.OrderDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT 
 			o.id, o.user_id, u.name, o.store_id, s.name, o.group_id, g.name, o.created_at, o.updated_at, 
@@ -152,7 +152,7 @@ func (r *OrderRepo) ListOrders(ctx context.Context, q domain.Querier, userID int
 	return lists, nil
 }
 
-func (r *OrderRepo) ListAdminOrders(ctx context.Context, q domain.Querier) ([]domain.OrderDetails, error) {
+func (r *OrderRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.OrderDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT 
 			o.id, o.user_id, u.name, o.store_id, s.name, o.group_id, g.name, o.created_at, o.updated_at, 

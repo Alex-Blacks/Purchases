@@ -2,6 +2,16 @@ package domain
 
 import "context"
 
+type UnitCreate struct {
+	Name      string
+	ShortName string
+}
+
+type UnitUpdate struct {
+	Name      *string
+	ShortName *string
+}
+
 type UnitDetails struct {
 	ID        int
 	Name      string
@@ -10,18 +20,14 @@ type UnitDetails struct {
 	Group     string
 }
 
-type UnitUpdate struct {
-	Name      *string
-	ShortName *string
-}
-
 func (u UnitDetails) GetGroupID() int { return u.GroupID }
+func (u UnitDetails) GetID() int      { return u.ID }
 
 type UnitRepository interface {
-	CreateUnit(ctx context.Context, q Querier, name string, groupID int, shortName string) (UnitDetails, error)
-	GetUnitByID(ctx context.Context, q Querier, unitID int) (UnitDetails, error)
-	UpdateUnitByID(ctx context.Context, q Querier, unitID int, unitUpdate UnitUpdate) (UnitDetails, error)
-	DeleteUnitByID(ctx context.Context, q Querier, unitID int) error
-	ListUnits(ctx context.Context, q Querier, groupID []int) ([]UnitDetails, error)
-	ListAdminUnits(ctx context.Context, q Querier) ([]UnitDetails, error)
+	Create(ctx context.Context, q Querier, params any, groupID int) (UnitDetails, error)
+	GetByID(ctx context.Context, q Querier, id int) (UnitDetails, error)
+	UpdateByID(ctx context.Context, q Querier, id int, updates any) (UnitDetails, error)
+	DeleteByID(ctx context.Context, q Querier, id int) error
+	List(ctx context.Context, q Querier, groupIDs []int) ([]UnitDetails, error)
+	ListAll(ctx context.Context, q Querier) ([]UnitDetails, error)
 }

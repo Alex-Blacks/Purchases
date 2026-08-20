@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/Alex-Blacks/Purchases/internal/authctx"
+	"github.com/Alex-Blacks/Purchases/internal/actorctx"
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/policy"
@@ -96,7 +96,7 @@ func (h UserHandler) GetUserByIDHandler(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
 
-	actor, ok := authctx.ActorFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -139,7 +139,7 @@ func (h UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
 
-	actor, ok := authctx.ActorFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -182,7 +182,7 @@ func (h UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
 
-	actor, ok := authctx.ActorFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
@@ -234,7 +234,7 @@ func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
 
-	actor, ok := authctx.ActorFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
