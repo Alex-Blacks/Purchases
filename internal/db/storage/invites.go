@@ -17,7 +17,7 @@ func NewInviteRepo() *InviteRepo {
 	return &InviteRepo{}
 }
 
-func (i *InviteRepo) CreateInvite(ctx context.Context, q domain.Querier, groupID int, inviterUserID int, inviteeEmail string, token string) (domain.InviteDetails, error) {
+func (i *InviteRepo) Create(ctx context.Context, q domain.Querier, groupID int, inviterUserID int, inviteeEmail string, token string) (domain.InviteDetails, error) {
 	var invite domain.InviteDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
@@ -56,7 +56,7 @@ func (i *InviteRepo) CreateInvite(ctx context.Context, q domain.Querier, groupID
 	return invite, nil
 }
 
-func (i *InviteRepo) GetInviteByID(ctx context.Context, q domain.Querier, inviteID int) (domain.InviteDetails, error) {
+func (i *InviteRepo) GetByID(ctx context.Context, q domain.Querier, inviteID int) (domain.InviteDetails, error) {
 	var invite domain.InviteDetails
 	if err := q.QueryRow(ctx, `
 		SELECT i.id, i.group_id, g.name, i.inviter_user_id, u.name, i.invitee_email, i.status, i.token, i.created_at, i.expires_at
@@ -85,7 +85,7 @@ func (i *InviteRepo) GetInviteByID(ctx context.Context, q domain.Querier, invite
 	return invite, nil
 }
 
-func (i *InviteRepo) GetInviteByToken(ctx context.Context, q domain.Querier, token string) (domain.InviteDetails, error) {
+func (i *InviteRepo) GetByToken(ctx context.Context, q domain.Querier, token string) (domain.InviteDetails, error) {
 	var invite domain.InviteDetails
 	if err := q.QueryRow(ctx, `
 		SELECT i.id, i.group_id, g.name, i.inviter_user_id, u.name, i.invitee_email, i.status, i.token, i.created_at, i.expires_at
@@ -115,7 +115,7 @@ func (i *InviteRepo) GetInviteByToken(ctx context.Context, q domain.Querier, tok
 	return invite, nil
 }
 
-func (i *InviteRepo) GetInviteByEmail(ctx context.Context, q domain.Querier, groupID int, email string) (domain.InviteDetails, error) {
+func (i *InviteRepo) GetByEmail(ctx context.Context, q domain.Querier, groupID int, email string) (domain.InviteDetails, error) {
 	var invite domain.InviteDetails
 	if err := q.QueryRow(ctx, `
 		SELECT i.id, i.group_id, g.name, i.inviter_user_id, u.name, i.invitee_email, i.status, i.token, i.created_at, i.expires_at
@@ -145,7 +145,7 @@ func (i *InviteRepo) GetInviteByEmail(ctx context.Context, q domain.Querier, gro
 	return invite, nil
 }
 
-func (i *InviteRepo) UpdateInviteByID(ctx context.Context, q domain.Querier, inviteID int, groupID int, updateInvite domain.InviteUpdate) (domain.InviteDetails, error) {
+func (i *InviteRepo) UpdateByID(ctx context.Context, q domain.Querier, inviteID int, groupID int, updateInvite domain.InviteUpdate) (domain.InviteDetails, error) {
 	var invite domain.InviteDetails
 	args := []any{inviteID, groupID}
 	setPath := []string{}
@@ -202,7 +202,7 @@ func (i *InviteRepo) UpdateInviteByID(ctx context.Context, q domain.Querier, inv
 	return invite, nil
 }
 
-func (i *InviteRepo) DeleteInviteByID(ctx context.Context, q domain.Querier, inviteID int, groupID int) error {
+func (i *InviteRepo) DeleteByID(ctx context.Context, q domain.Querier, inviteID int, groupID int) error {
 	var id int
 	if err := q.QueryRow(ctx, `DELETE FROM invites WHERE id = $1 AND group_id = $2 RETURNING id`, inviteID, groupID).Scan(&id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -218,7 +218,7 @@ func (i *InviteRepo) DeleteInviteByID(ctx context.Context, q domain.Querier, inv
 	return nil
 }
 
-func (i *InviteRepo) ListInvites(ctx context.Context, q domain.Querier, groupID int) ([]domain.InviteDetails, error) {
+func (i *InviteRepo) List(ctx context.Context, q domain.Querier, groupID int) ([]domain.InviteDetails, error) {
 	row, err := q.Query(ctx, `
 		SELECT i.id, i.group_id, g.name, i.inviter_user_id, u.name, i.invitee_email, i.status, i.token, i.created_at, i.expires_at
 		FROM invites i
@@ -250,7 +250,7 @@ func (i *InviteRepo) ListInvites(ctx context.Context, q domain.Querier, groupID 
 	return invites, nil
 }
 
-func (i *InviteRepo) ListAdminInvites(ctx context.Context, q domain.Querier) ([]domain.InviteDetails, error) {
+func (i *InviteRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.InviteDetails, error) {
 	row, err := q.Query(ctx, `
 		SELECT i.id, i.group_id, g.name, i.inviter_user_id, u.name, i.invitee_email, i.status, i.token, i.created_at, i.expires_at
 		FROM invites i

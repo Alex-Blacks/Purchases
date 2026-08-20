@@ -39,7 +39,7 @@ func NewServiceProductAlias(st domain.Storage, repo domain.ProductAliasRepositor
 	}
 }
 
-func (s *ServiceProductAlias) getProductAlias(ctx context.Context, q domain.Querier, id int) (domain.GroupedEntity, error) {
+func (s *ServiceProductAlias) getEntity(ctx context.Context, q domain.Querier, id int) (domain.GroupedEntity, error) {
 	return s.repo.GetByID(ctx, q, id)
 }
 
@@ -64,7 +64,7 @@ func (s *ServiceProductAlias) Create(ctx context.Context, actor policy.Actor, pr
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		var err error
 		// 1. Проверка прав на запись к продукту
-		if err := s.accessWrite(ctx, q, actor, productID, s.getProductAlias); err != nil {
+		if err := s.accessWrite(ctx, q, actor, productID, s.getEntity); err != nil {
 			return fmt.Errorf("access write product: %w", err)
 		}
 
@@ -91,7 +91,7 @@ func (s *ServiceProductAlias) GetByID(ctx context.Context, actor policy.Actor, a
 	if aliasID < 1 {
 		return domain.ProductAliasDetails{}, domain.ErrInvalidInput
 	}
-	alias, err := s.accessRead(ctx, s.storage, actor, aliasID, s.getProductAlias)
+	alias, err := s.accessRead(ctx, s.storage, actor, aliasID, s.getEntity)
 	if err != nil {
 		return domain.ProductAliasDetails{}, fmt.Errorf("access read product alias: %w", err)
 	}
@@ -117,7 +117,7 @@ func (s *ServiceProductAlias) UpdateByID(ctx context.Context, actor policy.Actor
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		var err error
 		// 1. Проверка прав на запись к алиасу
-		if err := s.accessWrite(ctx, q, actor, aliasID, s.getProductAlias); err != nil {
+		if err := s.accessWrite(ctx, q, actor, aliasID, s.getEntity); err != nil {
 			return fmt.Errorf("access write product alias: %w", err)
 		}
 
@@ -147,7 +147,7 @@ func (s *ServiceProductAlias) DeleteByID(ctx context.Context, actor policy.Actor
 
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав на запись к алиасу
-		if err := s.accessWrite(ctx, q, actor, aliasID, s.getProductAlias); err != nil {
+		if err := s.accessWrite(ctx, q, actor, aliasID, s.getEntity); err != nil {
 			return fmt.Errorf("access write product alias: %w", err)
 		}
 
@@ -175,7 +175,7 @@ func (s *ServiceProductAlias) List(ctx context.Context, actor policy.Actor, prod
 	}
 
 	// 1. Проверка прав на чтение продукта (через accessRead)
-	if _, err := s.accessRead(ctx, s.storage, actor, productID, s.getProductAlias); err != nil {
+	if _, err := s.accessRead(ctx, s.storage, actor, productID, s.getEntity); err != nil {
 		return []domain.ProductAliasDetails{}, fmt.Errorf("access read product: %w", err)
 	}
 
@@ -226,7 +226,7 @@ func (s *ServiceProductAlias) DeleteAllProductAliases(ctx context.Context, actor
 
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав на запись к продукту
-		if err := s.accessWrite(ctx, q, actor, productID, s.getProductAlias); err != nil {
+		if err := s.accessWrite(ctx, q, actor, productID, s.getEntity); err != nil {
 			return fmt.Errorf("access write product: %w", err)
 		}
 

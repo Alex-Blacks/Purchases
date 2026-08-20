@@ -37,12 +37,12 @@ type InviteUpdate struct {
 }
 
 type InviteRepository interface {
-	CreateInvite(ctx context.Context, q Querier, groupID int, inviterUserID int, inviteeEmail string, token string) (InviteDetails, error)
-	GetInviteByID(ctx context.Context, q Querier, inviteID int) (InviteDetails, error)
-	GetInviteByToken(ctx context.Context, q Querier, token string) (InviteDetails, error)
-	GetInviteByEmail(ctx context.Context, q Querier, groupID int, email string) (InviteDetails, error)
-	UpdateInviteByID(ctx context.Context, q Querier, inviteID int, groupID int, updateInvite InviteUpdate) (InviteDetails, error)
-	DeleteInviteByID(ctx context.Context, q Querier, inviteID int, groupID int) error
-	ListInvites(ctx context.Context, q Querier, groupID int) ([]InviteDetails, error)
-	ListAdminInvites(ctx context.Context, q Querier) ([]InviteDetails, error)
+	Create(ctx context.Context, q Querier, groupID int, inviterUserID int, inviteeEmail string, token string) (InviteDetails, error)
+	GetByID(ctx context.Context, q Querier, inviteID int) (InviteDetails, error)
+	GetByToken(ctx context.Context, q Querier, token string) (InviteDetails, error)
+	GetByEmail(ctx context.Context, q Querier, groupID int, email string) (InviteDetails, error)
+	UpdateByID(ctx context.Context, q Querier, inviteID int, groupID int, updateInvite InviteUpdate) (InviteDetails, error)
+	DeleteByID(ctx context.Context, q Querier, inviteID int, groupID int) error
+	List(ctx context.Context, q Querier, groupID int) ([]InviteDetails, error)
+	ListAll(ctx context.Context, q Querier) ([]InviteDetails, error)
 }

@@ -4,6 +4,11 @@ import (
 	"context"
 )
 
+const (
+	UserStatusActive  string = "active"
+	UserStatusBlocked string = "blocked"
+)
+
 type UserDetails struct {
 	ID           int
 	Name         string
@@ -24,13 +29,14 @@ type UserUpdate struct {
 }
 
 func (u UserDetails) GetGroupID() int { return u.GroupID }
+func (u UserDetails) GetID() int      { return u.ID }
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, q Querier, name, password_hash, email string, group_id int, role, status string) (UserDetails, error)
-	GetUserByID(ctx context.Context, q Querier, userID int) (UserDetails, error)
-	GetUserByEmail(ctx context.Context, q Querier, email string) (UserDetails, error)
-	UpdateUserByID(ctx context.Context, q Querier, userID int, updateUser UserUpdate) (UserDetails, error)
-	DeleteUserByID(ctx context.Context, q Querier, userID int) error
-	ListUsersInGroup(ctx context.Context, q Querier, groupID int) ([]UserDetails, error)
-	ListAdminUsers(ctx context.Context, q Querier) ([]UserDetails, error)
+	Create(ctx context.Context, q Querier, name, password_hash, email string, group_id int, role, status string) (UserDetails, error)
+	GetByID(ctx context.Context, q Querier, userID int) (UserDetails, error)
+	GetByEmail(ctx context.Context, q Querier, email string) (UserDetails, error)
+	UpdateByID(ctx context.Context, q Querier, userID int, updateUser UserUpdate) (UserDetails, error)
+	DeleteByID(ctx context.Context, q Querier, userID int) error
+	ListInGroup(ctx context.Context, q Querier, groupID int) ([]UserDetails, error)
+	ListAll(ctx context.Context, q Querier) ([]UserDetails, error)
 }

@@ -17,7 +17,7 @@ func NewUserRepo() *UserRepo {
 	return &UserRepo{}
 }
 
-func (u *UserRepo) CreateUser(ctx context.Context, q domain.Querier, name, passwordHash, email string, groupID int, role, status string) (domain.UserDetails, error) {
+func (u *UserRepo) Create(ctx context.Context, q domain.Querier, name, passwordHash, email string, groupID int, role, status string) (domain.UserDetails, error) {
 	var user domain.UserDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
@@ -42,7 +42,7 @@ func (u *UserRepo) CreateUser(ctx context.Context, q domain.Querier, name, passw
 	}
 	return user, nil
 }
-func (u *UserRepo) GetUserByID(ctx context.Context, q domain.Querier, userID int) (domain.UserDetails, error) {
+func (u *UserRepo) GetByID(ctx context.Context, q domain.Querier, userID int) (domain.UserDetails, error) {
 	var user domain.UserDetails
 	if err := q.QueryRow(ctx, `
 		SELECT u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status 
@@ -58,7 +58,7 @@ func (u *UserRepo) GetUserByID(ctx context.Context, q domain.Querier, userID int
 	return user, nil
 }
 
-func (u *UserRepo) GetUserByEmail(ctx context.Context, q domain.Querier, email string) (domain.UserDetails, error) {
+func (u *UserRepo) GetByEmail(ctx context.Context, q domain.Querier, email string) (domain.UserDetails, error) {
 	var user domain.UserDetails
 	if err := q.QueryRow(ctx, `
 		SELECT u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status 
@@ -74,7 +74,7 @@ func (u *UserRepo) GetUserByEmail(ctx context.Context, q domain.Querier, email s
 	return user, nil
 }
 
-func (u *UserRepo) UpdateUserByID(ctx context.Context, q domain.Querier, userID int, updateUser domain.UserUpdate) (domain.UserDetails, error) {
+func (u *UserRepo) UpdateByID(ctx context.Context, q domain.Querier, userID int, updateUser domain.UserUpdate) (domain.UserDetails, error) {
 	var user domain.UserDetails
 	args := []any{userID}
 	setParts := []string{}
@@ -138,7 +138,7 @@ func (u *UserRepo) UpdateUserByID(ctx context.Context, q domain.Querier, userID 
 	return user, nil
 }
 
-func (u *UserRepo) DeleteUserByID(ctx context.Context, q domain.Querier, userID int) error {
+func (u *UserRepo) DeleteByID(ctx context.Context, q domain.Querier, userID int) error {
 	var id int
 	if err := q.QueryRow(ctx, `DELETE FROM users WHERE users.id = $1 RETURNING id`, userID).Scan(&id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -152,7 +152,7 @@ func (u *UserRepo) DeleteUserByID(ctx context.Context, q domain.Querier, userID 
 	}
 	return nil
 }
-func (u *UserRepo) ListUsersInGroup(ctx context.Context, q domain.Querier, groupID int) ([]domain.UserDetails, error) {
+func (u *UserRepo) ListInGroup(ctx context.Context, q domain.Querier, groupID int) ([]domain.UserDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status 
 		FROM users u
@@ -181,7 +181,7 @@ func (u *UserRepo) ListUsersInGroup(ctx context.Context, q domain.Querier, group
 	return users, nil
 }
 
-func (u *UserRepo) ListAdminUsers(ctx context.Context, q domain.Querier) ([]domain.UserDetails, error) {
+func (u *UserRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.UserDetails, error) {
 	rows, err := q.Query(ctx, `
 		SELECT u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status 
 		FROM users u

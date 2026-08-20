@@ -23,7 +23,7 @@ func NewServiceOrderItem(st domain.Storage, orderRepo domain.OrderRepository, it
 	}
 }
 
-func (s *ServiceOrderItem) getOrder(ctx context.Context, q domain.Querier, id int) (domain.GroupedEntity, error) {
+func (s *ServiceOrderItem) getEntity(ctx context.Context, q domain.Querier, id int) (domain.GroupedEntity, error) {
 	return s.orderRepo.GetByID(ctx, q, id)
 }
 
@@ -66,7 +66,7 @@ func (s *ServiceOrderItem) GetByID(ctx context.Context, actor policy.Actor, orde
 	if orderID < 1 {
 		return domain.OrderWithItemDetails{}, domain.ErrInvalidInput
 	}
-	order, err := s.accessRead(ctx, s.storage, actor, orderID, s.getOrder)
+	order, err := s.accessRead(ctx, s.storage, actor, orderID, s.getEntity)
 	if err != nil {
 		return domain.OrderWithItemDetails{}, fmt.Errorf("access read order: %w", err)
 	}
@@ -85,7 +85,7 @@ func (s *ServiceOrderItem) DeleteByID(ctx context.Context, actor policy.Actor, o
 	}
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав на запись
-		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrder); err != nil {
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getEntity); err != nil {
 			return fmt.Errorf("access write order: %w", err)
 		}
 
@@ -161,7 +161,7 @@ func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orde
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		var err error
 		// 1. Проверка прав на запись заказа
-		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrder); err != nil {
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getEntity); err != nil {
 			return fmt.Errorf("access write order: %w", err)
 		}
 		// 2. Добавление или обновление позиции
@@ -194,7 +194,7 @@ func (s *ServiceOrderItem) AddListItems(ctx context.Context, actor policy.Actor,
 	}
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав на запись заказа
-		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrder); err != nil {
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getEntity); err != nil {
 			return fmt.Errorf("access write order: %w", err)
 		}
 		for _, item := range items {
@@ -243,7 +243,7 @@ func (s *ServiceOrderItem) UpdateListItems(ctx context.Context, actor policy.Act
 	}
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав на запись заказа
-		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrder); err != nil {
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getEntity); err != nil {
 			return fmt.Errorf("access write order: %w", err)
 		}
 		for _, item := range items {
@@ -293,7 +293,7 @@ func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, o
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		var err error
 		// 1. Проверка прав на запись заказа
-		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrder); err != nil {
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getEntity); err != nil {
 			return fmt.Errorf("access write order: %w", err)
 		}
 		// 2. Обновление позиции в БД
@@ -322,7 +322,7 @@ func (s *ServiceOrderItem) DeleteItem(ctx context.Context, actor policy.Actor, o
 
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав на запись заказа
-		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrder); err != nil {
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getEntity); err != nil {
 			return fmt.Errorf("access write order: %w", err)
 		}
 

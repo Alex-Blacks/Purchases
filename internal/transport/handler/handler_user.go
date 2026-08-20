@@ -58,12 +58,7 @@ func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const (
-		role   string = string(policy.RoleUser)
-		status string = "active"
-	)
-
-	user, err := h.userService.CreateUser(ctx, req.Name, req.Password, req.Email, role, status)
+	user, err := h.userService.CreateUser(ctx, req.Name, req.Password, req.Email, string(policy.RoleUser), domain.UserStatusActive)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{
 			"name":  req.Name,
