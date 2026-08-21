@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
@@ -13,49 +15,26 @@ import (
 )
 
 type ServiceInvite struct {
-	storage domain.Storage
-	invite  domain.InviteRepository
-	group   domain.GroupRepository
-	user    domain.UserRepository
+	*BaseService
+	inviteRepo domain.InviteRepository
+	groupRepo  domain.GroupRepository
+	userRepo   domain.UserRepository
 }
 
-func NewServiceInvite(st domain.Storage, invite domain.InviteRepository, group domain.GroupRepository, user domain.UserRepository) *ServiceInvite {
+func NewServiceInvite(st domain.Storage, inviteRepo domain.InviteRepository, groupRepo domain.GroupRepository, userRepo domain.UserRepository) *ServiceInvite {
 	return &ServiceInvite{
-		storage: st,
-		invite:  invite,
-		group:   group,
-		user:    user,
+		BaseService: &BaseService{storage: st},
+		inviteRepo:  inviteRepo,
+		groupRepo:   groupRepo,
+		userRepo:    userRepo,
 	}
-}
-
-// WithTx выполняет функцию в транзакции.
-func (s *ServiceInvite) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
-	tx, err := s.storage.BeginTx(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin tx: %w", err)
-	}
-
-	defer func() {
-		if err != nil {
-			if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
-				err = fmt.Errorf("tx err: %v, rollback err: %w", err, rollbackErr)
-			}
-			return
-		}
-		if commitErr := tx.Commit(ctx); commitErr != nil {
-			err = fmt.Errorf("commit err: %w", commitErr)
-		}
-	}()
-
-	err = fn(tx)
-	return err
 }
 
 // getValidPendingInvite возвращает приглашение, если оно действительно и ожидает подтверждения.
 // Возвращает ошибку, если токен недействителен, срок истёк, статус не pending или email не совпадает.
 func (s *ServiceInvite) getValidPendingInvite(ctx context.Context, q domain.Querier, logger *slog.Logger, actor policy.Actor, token string) (domain.InviteDetails, error) {
 	// 1. Получение приглашения по токену
-	existing, err := s.invite.GetInviteByToken(ctx, q, token)
+	existing, err := s.inviteRepo.GetByToken(ctx, q, token)
 	if err != nil {
 		if domain.IsNotFound(err) {
 			logger.WarnContext(ctx, "invalid token")
@@ -81,7 +60,7 @@ func (s *ServiceInvite) getValidPendingInvite(ctx context.Context, q domain.Quer
 		}
 
 		// 4. Проверка, что пользователь совпадает с invitee_email
-		user, err := s.user.GetUserByID(ctx, q, actor.UserID)
+		user, err := s.userRepo.GetByID(ctx, q, actor.UserID)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to get user", "error", err)
 			return domain.InviteDetails{}, fmt.Errorf("get user: %w", err)
@@ -97,22 +76,27 @@ func (s *ServiceInvite) getValidPendingInvite(ctx context.Context, q domain.Quer
 	return existing, nil
 }
 
-// CreateInvite создаёт приглашение для пользователя с email inviteeEmail в группу actor.GroupID.
-func (s *ServiceInvite) CreateInvite(ctx context.Context, actor policy.Actor, inviteeEmail string) (domain.InviteDetails, error) {
+// Create создаёт приглашение для пользователя с email inviteeEmail в группу actor.GroupID.
+func (s *ServiceInvite) Create(ctx context.Context, actor policy.Actor, inviteeEmail string) (domain.InviteDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("invitee_email", inviteeEmail)
 	logger.InfoContext(ctx, "creating new invite")
 
+	if strings.TrimSpace(inviteeEmail) == "" {
+		return domain.InviteDetails{}, domain.ErrEmptyName
+	}
+	if _, err := mail.ParseAddress(inviteeEmail); err != nil {
+		return domain.InviteDetails{}, domain.ErrInvalidInput
+	}
 	var result domain.InviteDetails
-	if err := s.WithTx(ctx, func(q domain.Querier) error {
-
+	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав: только администратор группы может приглашать
-		if !s.group.CheckGroupAdmin(ctx, q, actor.GroupID, actor.UserID) {
+		if !s.groupRepo.CheckGroupAdmin(ctx, q, actor.GroupID, actor.UserID) {
 			logger.WarnContext(ctx, "user is not group admin")
 			return policy.ErrForbidden
 		}
 
 		// 2. Поиск пользователя по email
-		invitee, err := s.user.GetUserByEmail(ctx, q, inviteeEmail)
+		invitee, err := s.userRepo.GetByEmail(ctx, q, inviteeEmail)
 		if err != nil && !domain.IsNotFound(err) {
 			logger.ErrorContext(ctx, "failed to get user by email", "error", err)
 			return fmt.Errorf("get user by email: %w", err)
@@ -133,7 +117,7 @@ func (s *ServiceInvite) CreateInvite(ctx context.Context, actor policy.Actor, in
 		}
 
 		// 4. Проверяем, есть ли уже активное (pending) приглашение
-		existing, err := s.invite.GetInviteByEmail(ctx, q, actor.GroupID, inviteeEmail)
+		existing, err := s.inviteRepo.GetByEmail(ctx, q, actor.GroupID, inviteeEmail)
 		if err != nil && !domain.IsNotFound(err) {
 			logger.ErrorContext(ctx, "failed to get invite by email", "error", err)
 			return fmt.Errorf("get invite by email: %w", err)
@@ -152,7 +136,7 @@ func (s *ServiceInvite) CreateInvite(ctx context.Context, actor policy.Actor, in
 				// 4c. Если приглашение отклонено и срок истёк — можно создать новое
 				if existing.ExpiresAt.Before(time.Now()) {
 					logger.InfoContext(ctx, "rejected invite expired, removing and creating new one", "invite_id", existing.ID)
-					if err := s.invite.DeleteInviteByID(ctx, q, existing.ID, existing.GroupID); err != nil {
+					if err := s.inviteRepo.DeleteByID(ctx, q, existing.ID, existing.GroupID); err != nil {
 						logger.ErrorContext(ctx, "failed to delete expired invite", "error", err)
 						return fmt.Errorf("delete expired invite: %w", err)
 					}
@@ -171,7 +155,7 @@ func (s *ServiceInvite) CreateInvite(ctx context.Context, actor policy.Actor, in
 		token := uuid.New().String()
 
 		// 6. Создание приглашения
-		created, err := s.invite.CreateInvite(ctx, q, actor.GroupID, actor.UserID, inviteeEmail, token)
+		created, err := s.inviteRepo.Create(ctx, q, actor.GroupID, actor.UserID, inviteeEmail, token)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to create invite", "error", err)
 			return fmt.Errorf("create invite: %w", err)
@@ -181,20 +165,23 @@ func (s *ServiceInvite) CreateInvite(ctx context.Context, actor policy.Actor, in
 		return nil
 
 	}); err != nil {
-		return domain.InviteDetails{}, fmt.Errorf("create invite: %w", err)
+		return domain.InviteDetails{}, err
 	}
 
 	logger.InfoContext(ctx, "invite created successfully", "invite_id", result.ID)
 	return result, nil
 }
 
-// AcceptInvite принимает приглашение, обновляет статус и добавляет пользователя в группу.
-func (s *ServiceInvite) AcceptInvite(ctx context.Context, actor policy.Actor, token string) error {
+// Accept принимает приглашение, обновляет статус и добавляет пользователя в группу.
+func (s *ServiceInvite) Accept(ctx context.Context, actor policy.Actor, token string) error {
 	logger := logging.LoggerFromContext(ctx).With("token", token)
 	logger.InfoContext(ctx, "accepting invite")
 
-	return s.WithTx(ctx, func(q domain.Querier) error {
+	if strings.TrimSpace(token) == "" {
+		return domain.ErrEmptyName
+	}
 
+	return s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка статуса, срока и email
 		existing, err := s.getValidPendingInvite(ctx, q, logger, actor, token)
 		if err != nil {
@@ -208,13 +195,13 @@ func (s *ServiceInvite) AcceptInvite(ctx context.Context, actor policy.Actor, to
 
 		// 3. Обновить статус приглашения на 'accepted'
 		status := domain.StatusAccepted
-		if _, err := s.invite.UpdateInviteByID(ctx, q, existing.ID, existing.GroupID, domain.InviteUpdate{Status: &status}); err != nil {
+		if _, err := s.inviteRepo.UpdateByID(ctx, q, existing.ID, existing.GroupID, domain.InviteUpdate{Status: &status}); err != nil {
 			logger.ErrorContext(ctx, "failed to update invite status", "error", err)
 			return fmt.Errorf("update invite: %w", err)
 		}
 
 		// 4. Добавить пользователя в группу
-		if _, err := s.user.UpdateUserByID(ctx, q, actor.UserID, domain.UserUpdate{GroupID: &existing.GroupID}); err != nil {
+		if _, err := s.userRepo.UpdateByID(ctx, q, actor.UserID, domain.UserUpdate{GroupID: &existing.GroupID}); err != nil {
 			logger.ErrorContext(ctx, "failed to update user group", "error", err)
 			return fmt.Errorf("update user: %w", err)
 		}
@@ -224,13 +211,15 @@ func (s *ServiceInvite) AcceptInvite(ctx context.Context, actor policy.Actor, to
 	})
 }
 
-// RejectInvite отклоняет приглашение, обновляя статус на 'rejected'.
-func (s *ServiceInvite) RejectInvite(ctx context.Context, actor policy.Actor, token string) error {
+// Reject отклоняет приглашение, обновляя статус на 'rejected'.
+func (s *ServiceInvite) Reject(ctx context.Context, actor policy.Actor, token string) error {
 	logger := logging.LoggerFromContext(ctx).With("token", token)
 	logger.InfoContext(ctx, "rejecting invite")
 
-	return s.WithTx(ctx, func(q domain.Querier) error {
-
+	if strings.TrimSpace(token) == "" {
+		return domain.ErrEmptyName
+	}
+	return s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка статуса, срока и email
 		existing, err := s.getValidPendingInvite(ctx, q, logger, actor, token)
 		if err != nil {
@@ -239,7 +228,7 @@ func (s *ServiceInvite) RejectInvite(ctx context.Context, actor policy.Actor, to
 
 		// 2. Обновить статус приглашения на 'rejected'
 		status := domain.StatusRejected
-		if _, err := s.invite.UpdateInviteByID(ctx, q, existing.ID, existing.GroupID, domain.InviteUpdate{Status: &status}); err != nil {
+		if _, err := s.inviteRepo.UpdateByID(ctx, q, existing.ID, existing.GroupID, domain.InviteUpdate{Status: &status}); err != nil {
 			logger.ErrorContext(ctx, "failed to update invite status", "error", err)
 			return fmt.Errorf("update invite: %w", err)
 		}
@@ -249,19 +238,92 @@ func (s *ServiceInvite) RejectInvite(ctx context.Context, actor policy.Actor, to
 	})
 }
 
-// ListInvites возвращает список приглашений группы. Доступно только администратору группы.
-func (s *ServiceInvite) ListInvites(ctx context.Context, actor policy.Actor) ([]domain.InviteDetails, error) {
+func (s *ServiceInvite) GetByID(ctx context.Context, actor policy.Actor, inviteID int) (domain.InviteDetails, error) {
+	logger := logging.LoggerFromContext(ctx).With("invite_id", inviteID)
+	logger.InfoContext(ctx, "get invite by ID")
+
+	if inviteID < 1 {
+		return domain.InviteDetails{}, domain.ErrInvalidInput
+	}
+
+	// 1. Проверка прав: только администратор группы может смотреть приглашения
+	if !s.groupRepo.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID) {
+		logger.WarnContext(ctx, "user is not group admin")
+		return domain.InviteDetails{}, policy.ErrForbidden
+	}
+
+	// 1. Получаем приглашения
+	invite, err := s.inviteRepo.GetByID(ctx, s.storage, inviteID)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to get invite", "error", err)
+		return domain.InviteDetails{}, fmt.Errorf("get invite: %w", err)
+	}
+
+	logger.InfoContext(ctx, "invite get successfully")
+	return invite, nil
+}
+
+func (s *ServiceInvite) DeleteByID(ctx context.Context, actor policy.Actor, inviteID int) error {
+	logger := logging.LoggerFromContext(ctx).With("invite_id", inviteID)
+	logger.InfoContext(ctx, "get invite by ID")
+
+	if inviteID < 1 {
+		return domain.ErrInvalidInput
+	}
+
+	return s.withTx(ctx, func(q domain.Querier) error {
+		// 1. Проверка прав: только администратор группы может удалять приглашения
+		if !s.groupRepo.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID) {
+			logger.WarnContext(ctx, "user is not group admin")
+			return policy.ErrForbidden
+		}
+
+		// 1. Удаляем приглашения
+		err := s.inviteRepo.DeleteByID(ctx, q, inviteID, actor.GroupID)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to delete invite", "error", err)
+			return fmt.Errorf("delete invite: %w", err)
+		}
+
+		logger.InfoContext(ctx, "invite delete successfully")
+		return nil
+	})
+}
+
+// List возвращает список приглашений группы. Доступно только администратору группы.
+func (s *ServiceInvite) List(ctx context.Context, actor policy.Actor) ([]domain.InviteDetails, error) {
 	logger := logging.LoggerFromContext(ctx)
 	logger.InfoContext(ctx, "listing invites")
 
 	// 1. Проверка прав: только администратор группы может смотреть список приглашений
-	if !s.group.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID) {
+	if !s.groupRepo.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID) {
 		logger.WarnContext(ctx, "user is not group admin")
 		return []domain.InviteDetails{}, policy.ErrForbidden
 	}
 
 	// 2. Получение списка приглашений
-	result, err := s.invite.ListInvites(ctx, s.storage, actor.GroupID)
+	result, err := s.inviteRepo.List(ctx, s.storage, actor.GroupID)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to list invites", "error", err)
+		return []domain.InviteDetails{}, fmt.Errorf("list invites: %w", err)
+	}
+
+	logger.InfoContext(ctx, "invites list successfully", "count", len(result))
+	return result, nil
+}
+
+func (s *ServiceInvite) ListAll(ctx context.Context, actor policy.Actor) ([]domain.InviteDetails, error) {
+	logger := logging.LoggerFromContext(ctx)
+	logger.InfoContext(ctx, "listing invites")
+
+	// 1. Проверка прав: только администратор может создавать группы
+	if !actor.HasRole(policy.RoleAdmin) {
+		logger.WarnContext(ctx, "user is not admin")
+		return []domain.InviteDetails{}, policy.ErrForbidden
+	}
+
+	// 2. Получение списка приглашений
+	result, err := s.inviteRepo.ListAll(ctx, s.storage)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to list invites", "error", err)
 		return []domain.InviteDetails{}, fmt.Errorf("list invites: %w", err)
