@@ -339,3 +339,27 @@ func (s *ServiceOrderItem) DeleteItem(ctx context.Context, actor policy.Actor, o
 	logger.InfoContext(ctx, "item deleted successfully")
 	return nil
 }
+
+// FindProductInOrders ищет продукт в заказах и возвращает список магазинов в которых он встречается, с проверкой прав на чтение.
+func (s *ServiceOrderItem) FindProductInOrders(ctx context.Context, actor policy.Actor, productID int, groupID *int) ([]domain.OrderItemFindDetails, error) {
+	logger := logging.LoggerFromContext(ctx).With("productId", productID)
+	logger.InfoContext(ctx, "finding product usage in orders")
+
+	if productID < 1 {
+		return []domain.OrderItemFindDetails{}, domain.ErrInvalidInput
+	}
+
+	targetGroup, err := s.resolveGroupID(actor, groupID)
+	if err != nil {
+		return []domain.OrderItemFindDetails{}, err
+	}
+
+	stores, err := s.itemRepo.FindProductInOrders(ctx, s.storage, productID, targetGroup)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to find product in orders", "error", err)
+		return []domain.OrderItemFindDetails{}, err
+	}
+
+	logger.InfoContext(ctx, "product usage found", "count", len(stores))
+	return stores, nil
+}

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"strings"
 
@@ -26,12 +27,12 @@ func NewServiceUser(st domain.Storage, user domain.UserRepository, group domain.
 }
 
 // CheckPassword проверяет соответствие пароля хешу.
-func (s *ServiceUser) CheckPassword(user domain.UserDetails, password string) error {
+func (s *ServiceUser) checkPassword(user domain.UserDetails, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 }
 
-// GeneratePassword генерирует хеш пароля.
-func (s *ServiceUser) GeneratePassword(password string) (string, error) {
+// generatePassword генерирует хеш пароля.
+func (s *ServiceUser) generatePassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
 		return "", fmt.Errorf("generate password: %w", err)
@@ -41,7 +42,7 @@ func (s *ServiceUser) GeneratePassword(password string) (string, error) {
 
 // Create регистрирует нового пользователя с личной группой. Доступно без авторизации.
 func (s *ServiceUser) Create(ctx context.Context, name, password, email, role, status string) (domain.UserDetails, error) {
-	logger := logging.LoggerFromContext(ctx).With("email", email, "name", name)
+	logger := logging.LoggerFromContext(ctx).With("email_hash", fmt.Sprintf("%x", sha256.Sum256([]byte(email))), "name", name)
 	logger.InfoContext(ctx, "registering new user")
 
 	if strings.TrimSpace(name) == "" || strings.TrimSpace(password) == "" || strings.TrimSpace(email) == "" || strings.TrimSpace(role) == "" || strings.TrimSpace(status) == "" {
@@ -69,7 +70,7 @@ func (s *ServiceUser) Create(ctx context.Context, name, password, email, role, s
 			return fmt.Errorf("check email: %w", err)
 		}
 		// 2. Хеширование пароля
-		passwordHash, err := s.GeneratePassword(password)
+		passwordHash, err := s.generatePassword(password)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to hash password", "error", err)
 			return fmt.Errorf("hash password: %w", err)
@@ -130,7 +131,7 @@ func (s *ServiceUser) GetByID(ctx context.Context, actor policy.Actor, userID in
 
 // GetByEmail возвращает пользователя по email. Используется внутри сервиса.
 func (s *ServiceUser) GetByEmail(ctx context.Context, email string) (domain.UserDetails, error) {
-	logger := logging.LoggerFromContext(ctx).With("email", email)
+	logger := logging.LoggerFromContext(ctx).With("email_hash", fmt.Sprintf("%x", sha256.Sum256([]byte(email))))
 	logger.InfoContext(ctx, "getting user by email")
 
 	if strings.TrimSpace(email) == "" {
@@ -154,7 +155,7 @@ func (s *ServiceUser) UpdateByID(ctx context.Context, actor policy.Actor, userID
 	// 1. Подготовка данных для обновления
 	var passwordHash *string
 	if updateUser.Password != nil {
-		hash, err := s.GeneratePassword(*updateUser.Password)
+		hash, err := s.generatePassword(*updateUser.Password)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to hash new password", "error", err)
 			return domain.UserDetails{}, fmt.Errorf("hash password: %w", err)

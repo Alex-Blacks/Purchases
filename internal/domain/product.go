@@ -56,6 +56,6 @@ type ProductAliasRepository interface {
 	List(ctx context.Context, q Querier, productID int, groupID []int) ([]ProductAliasDetails, error)
 	ListAll(ctx context.Context, q Querier, productID int) ([]ProductAliasDetails, error)
 	DeleteAllProductAliases(ctx context.Context, q Querier, productID int) error
-	FindProductByAlias(ctx context.Context, q Querier, alias string, groupID []int) (string, error)
-	FindAllProductByAlias(ctx context.Context, q Querier, alias string) (string, error)
+	FindProductByAlias(ctx context.Context, q Querier, alias string, groupID []int) (ProductDetails, error)
+	FindAllProductByAlias(ctx context.Context, q Querier, alias string) (ProductDetails, error)
 }

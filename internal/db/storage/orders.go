@@ -305,3 +305,33 @@ func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderI
 	}
 	return item, nil
 }
+
+func (r *OrderItemRepo) FindProductInOrders(ctx context.Context, q domain.Querier, productID int, groupID int) ([]domain.OrderItemFindDetails, error) {
+	rows, err := q.Query(ctx, `
+		SELECT o.store_id, s.name, COUNT(*) as occurrences
+		FROM order_items oi
+		JOIN orders o ON oi.order_id = o.id
+		JOIN stores s ON o.store_id = s.id
+		WHERE oi.product_id = $1 AND oi.group_id = ANY($2::int[])
+		GROUP BY o.store_id, s.name
+	`, productID, groupID)
+	if err != nil {
+		return []domain.OrderItemFindDetails{}, fmt.Errorf("get order items: %w", err)
+	}
+	defer rows.Close()
+
+	var items []domain.OrderItemFindDetails
+	for rows.Next() {
+		var item domain.OrderItemFindDetails
+		if err := rows.Scan(&item.StoreID, &item.Store, &item.Quantity); err != nil {
+			return []domain.OrderItemFindDetails{}, fmt.Errorf("scan rows order items: %w", err)
+		}
+
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return []domain.OrderItemFindDetails{}, fmt.Errorf("iteration failed: %w", err)
+	}
+
+	return items, nil
+}

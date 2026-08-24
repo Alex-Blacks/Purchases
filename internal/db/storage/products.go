@@ -368,35 +368,37 @@ func (a *ProductAliasRepo) DeleteAllProductAliases(ctx context.Context, q domain
 	return nil
 }
 
-func (a *ProductAliasRepo) FindProductByAlias(ctx context.Context, q domain.Querier, alias string, groupID []int) (string, error) {
-	var product string
+func (a *ProductAliasRepo) FindProductByAlias(ctx context.Context, q domain.Querier, alias string, groupID []int) (domain.ProductDetails, error) {
+	var product domain.ProductDetails
 	if err := q.QueryRow(ctx, `
-		SELECT p.title
+		SELECT p.id, p.title, p.group_id, g.name
 		FROM product_aliases pa
 		JOIN products p ON pa.product_id = p.id
+		LEFT JOIN groups g ON p.group_id = g.id
 		WHERE pa.alias = $1 AND pa.group_id = ANY($2::int[])
-	`, alias, groupID).Scan(&product); err != nil {
+	`, alias, groupID).Scan(&product.ID, &product.Title, &product.GroupID, &product.Group); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", domain.ErrNotFound
+			return domain.ProductDetails{}, domain.ErrNotFound
 		}
-		return "", fmt.Errorf("query product alias: %w", err)
+		return domain.ProductDetails{}, fmt.Errorf("query product alias: %w", err)
 	}
 
 	return product, nil
 }
 
-func (a *ProductAliasRepo) FindAdminProductByAlias(ctx context.Context, q domain.Querier, alias string) (string, error) {
-	var product string
+func (a *ProductAliasRepo) FindAdminProductByAlias(ctx context.Context, q domain.Querier, alias string) (domain.ProductDetails, error) {
+	var product domain.ProductDetails
 	if err := q.QueryRow(ctx, `
-		SELECT p.title
+		SELECT p.id, p.title, p.group_id, g.name
 		FROM product_aliases pa
 		JOIN products p ON pa.product_id = p.id
+		LEFT JOIN groups g ON p.group_id = g.id
 		WHERE pa.alias = $1
-	`, alias).Scan(&product); err != nil {
+	`, alias).Scan(&product.ID, &product.Title, &product.GroupID, &product.Group); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", domain.ErrNotFound
+			return domain.ProductDetails{}, domain.ErrNotFound
 		}
-		return "", fmt.Errorf("query product alias: %w", err)
+		return domain.ProductDetails{}, fmt.Errorf("query product alias: %w", err)
 	}
 
 	return product, nil

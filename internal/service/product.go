@@ -101,15 +101,15 @@ func (s *ServiceProductAlias) GetByID(ctx context.Context, actor policy.Actor, a
 }
 
 // UpdateByID обновляет алиас с проверкой прав на изменение алиаса.
-func (s *ServiceProductAlias) UpdateByID(ctx context.Context, actor policy.Actor, aliasID int, newAlias string) (domain.ProductAliasDetails, error) {
-	logger := logging.LoggerFromContext(ctx).With("alias_id", aliasID, "new_alias", newAlias)
+func (s *ServiceProductAlias) UpdateByID(ctx context.Context, actor policy.Actor, aliasID int, updates domain.ProductAliasUpdate) (domain.ProductAliasDetails, error) {
+	logger := logging.LoggerFromContext(ctx).With("alias_id", aliasID, "updates", updates)
 	logger.InfoContext(ctx, "updating product alias")
 
 	if aliasID < 1 {
 		return domain.ProductAliasDetails{}, domain.ErrInvalidInput
 	}
 
-	if strings.TrimSpace(newAlias) == "" {
+	if updates.Alias != nil && strings.TrimSpace(*updates.Alias) == "" {
 		return domain.ProductAliasDetails{}, domain.ErrEmptyName
 	}
 
@@ -122,7 +122,7 @@ func (s *ServiceProductAlias) UpdateByID(ctx context.Context, actor policy.Actor
 		}
 
 		// 2. Обновление алиаса в БД
-		alias, err = s.repo.UpdateByID(ctx, q, aliasID, domain.ProductAliasUpdate{Alias: &newAlias})
+		alias, err = s.repo.UpdateByID(ctx, q, aliasID, updates)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to update product alias", "error", err)
 			return fmt.Errorf("update product alias: %w", err)
@@ -245,46 +245,46 @@ func (s *ServiceProductAlias) DeleteAllProductAliases(ctx context.Context, actor
 }
 
 // FindProductByAlias ищет название продукта по алиасу в группах актора и общей группе.
-func (s *ServiceProductAlias) FindProductByAlias(ctx context.Context, actor policy.Actor, alias string) (string, error) {
+func (s *ServiceProductAlias) FindProductByAlias(ctx context.Context, actor policy.Actor, alias string) (domain.ProductDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("alias", alias, "group_id", actor.GroupID)
 	logger.InfoContext(ctx, "finding product by alias")
 
 	if strings.TrimSpace(alias) == "" {
-		return "", domain.ErrEmptyName
+		return domain.ProductDetails{}, domain.ErrEmptyName
 	}
 
 	// Поиск продукта по алиасу с фильтром по группам
-	title, err := s.repo.FindProductByAlias(ctx, s.storage, alias, []int{actor.GroupID, policy.CommonGroupID})
+	product, err := s.repo.FindProductByAlias(ctx, s.storage, alias, []int{actor.GroupID, policy.CommonGroupID})
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to find product by alias", "error", err)
-		return "", fmt.Errorf("find product by alias: %w", err)
+		return domain.ProductDetails{}, fmt.Errorf("find product by alias: %w", err)
 	}
 
-	logger.InfoContext(ctx, "product found by alias", "title", title)
-	return title, nil
+	logger.InfoContext(ctx, "product found by alias", "product_id", product.ID, "title", product.Title)
+	return product, nil
 }
 
 // FindAllProductByAlias ищет название продукта по алиасу в группах актора и общей группе.
-func (s *ServiceProductAlias) FindAllProductByAlias(ctx context.Context, actor policy.Actor, alias string) (string, error) {
+func (s *ServiceProductAlias) FindAllProductByAlias(ctx context.Context, actor policy.Actor, alias string) (domain.ProductDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("alias", alias)
 	logger.InfoContext(ctx, "finding all product by alias")
 
-	if strings.TrimSpace(alias) == "" {
-		return "", domain.ErrEmptyName
-	}
-
 	// 1. Проверка прав
 	if !actor.HasRole(policy.RoleAdmin) {
-		return "", policy.ErrForbidden
+		return domain.ProductDetails{}, policy.ErrForbidden
+	}
+
+	if strings.TrimSpace(alias) == "" {
+		return domain.ProductDetails{}, domain.ErrEmptyName
 	}
 
 	// 2. Поиск продукта по алиасу
-	title, err := s.repo.FindAllProductByAlias(ctx, s.storage, alias)
+	product, err := s.repo.FindAllProductByAlias(ctx, s.storage, alias)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to find product by alias", "error", err)
-		return "", fmt.Errorf("find product by alias: %w", err)
+		return domain.ProductDetails{}, fmt.Errorf("find product by alias: %w", err)
 	}
 
-	logger.InfoContext(ctx, "product found by alias", "title", title)
-	return title, nil
+	logger.InfoContext(ctx, "product found by alias", "product_id", product.ID, "title", product.Title)
+	return product, nil
 }

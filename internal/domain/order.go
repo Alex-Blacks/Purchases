@@ -53,6 +53,12 @@ type OrderItemUpdate struct {
 	Quantity *int
 }
 
+type OrderItemFindDetails struct {
+	StoreID  int
+	Store    string
+	Quantity int
+}
+
 type OrderWithItemDetails struct {
 	Order OrderDetails
 	Items []OrderItemDetails
@@ -70,9 +76,10 @@ type OrderRepository interface {
 }
 
 type OrderItemRepository interface {
-	GetItemByOrderAndProduct(ctx context.Context, q Querier, orderID, productID int) (OrderItemDetails, error)
 	AddItem(ctx context.Context, q Querier, orderID, productID, UnitID, quantity, groupID int) (OrderItemDetails, error)
+	GetItemByOrderAndProduct(ctx context.Context, q Querier, orderID, productID int) (OrderItemDetails, error)
+	UpdateItem(ctx context.Context, q Querier, orderID, productID int, updateItem OrderItemUpdate) (OrderItemDetails, error)
 	DeleteItemByOrderAndProduct(ctx context.Context, q Querier, orderID, productID int) error
 	DeleteAllItems(ctx context.Context, q Querier, orderID int) error
-	UpdateItem(ctx context.Context, q Querier, orderID, productID int, updateItem OrderItemUpdate) (OrderItemDetails, error)
+	FindProductInOrders(ctx context.Context, q Querier, productID int, groupID int) ([]OrderItemFindDetails, error)
 }

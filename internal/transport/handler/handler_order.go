@@ -13,18 +13,18 @@ import (
 )
 
 type ServiceOrderInterface interface {
-	CreateOrder(ctx context.Context, actor policy.Actor, storeID int) (domain.OrderWithItemDetails, error)
-	GetOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error)
-	DeleteOrder(ctx context.Context, actor policy.Actor, orderID int) error
-	ListOrders(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error)
+	Create(ctx context.Context, actor policy.Actor, storeID int, groupID *int) (domain.OrderCreateDetails, error)
+	GetByID(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error)
+	DeleteByID(ctx context.Context, actor policy.Actor, orderID int) error
+	List(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error)
+	ListAll(ctx context.Context, actor policy.Actor) ([]domain.OrderDetails, error)
 
-	AddItem(ctx context.Context, actor policy.Actor, orderID int, productID int, UnitID int, quantity int) (domain.OrderItemDetails, error)
-	AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemDetails) error
-	UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemDetails) error
-	UpdateItem(ctx context.Context, actor policy.Actor, orderID int, productID int, UnitID int, quantity int) (domain.OrderItemDetails, error)
+	AddItem(ctx context.Context, actor policy.Actor, orderID int, productID int, unitID int, quantity int, groupID *int) (domain.OrderItemDetails, error)
+	AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemCreate, groupID *int) error
+	UpdateItem(ctx context.Context, actor policy.Actor, orderID int, productID int, updateOrder domain.OrderItemUpdate) (domain.OrderItemDetails, error)
+	UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemCreate, groupID *int) error
 	DeleteItem(ctx context.Context, actor policy.Actor, orderID int, productID int) error
-
-	GetAccessibleOrder(ctx context.Context, actor policy.Actor, orderID int) (domain.OrderWithItemDetails, error)
+	FindProductInOrders(ctx context.Context, actor policy.Actor, productID int, groupID *int) ([]domain.OrderItemFindDetails, error)
 }
 
 type OrderHandler struct {

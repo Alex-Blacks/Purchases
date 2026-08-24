@@ -10,6 +10,7 @@ import (
 	"log/slog"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 )
 
 func ParsePositiveIntParam(r *http.Request, name string) (int, error) {
@@ -24,7 +25,7 @@ func ParsePositiveIntParam(r *http.Request, name string) (int, error) {
 	return val, nil
 }
 
-func DecodeJSON(w http.ResponseWriter, r *http.Request, logger *slog.Logger, dest any) error {
+func DecodeJSON(w http.ResponseWriter, r *http.Request, logger *slog.Logger, validate *validator.Validate, dest any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	defer r.Body.Close()
 
@@ -32,13 +33,18 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, logger *slog.Logger, des
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(dest); err != nil {
-		logger.Warn("decode failed", "error", err)
+		logger.WarnContext(r.Context(), "decode failed", "error", err)
 		return fmt.Errorf("invalid json")
 	}
 
 	if dec.More() {
-		logger.Warn("multiple json objects")
+		logger.WarnContext(r.Context(), "multiple json objects")
 		return fmt.Errorf("body must contain single json object")
+	}
+
+	if err := validate.Struct(dest); err != nil {
+		logger.WarnContext(r.Context(), err.Error())
+		return err
 	}
 	return nil
 }

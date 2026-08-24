@@ -2,24 +2,29 @@ package dto
 
 import "github.com/Alex-Blacks/Purchases/internal/domain"
 
+// UnitRequest используется для создания единицы измерения.
 type UnitRequest struct {
 	Name      string `json:"name" validate:"required,min=1,max=50"`
 	ShortName string `json:"shortName" validate:"required,min=1,max=50"`
+	GroupID   *int   `json:"groupId,omitempty" validate:"gt=0"` // опционально, для админов
 }
 
+// UnitUpdateRequest используется для обновления единицы измерения.
 type UnitUpdateRequest struct {
 	Name      *string `json:"name,omitempty" validate:"min=1,max=50"`
 	ShortName *string `json:"shortName,omitempty" validate:"min=1,max=50"`
 }
 
+// UnitResponse возвращает информацию о единице измерения.
 type UnitResponse struct {
 	ID        int    `json:"id"`
 	Name      string `json:"name"`
 	ShortName string `json:"shortName"`
 	GroupID   int    `json:"groupId"`
-	Group     string `json:"group"`
+	Group     string `json:"group"` // название группы
 }
 
+// ToUnitResponse преобразует domain.UnitDetails в UnitResponse.
 func ToUnitResponse(unit domain.UnitDetails) UnitResponse {
 	return UnitResponse{
 		ID:        unit.ID,
@@ -30,6 +35,7 @@ func ToUnitResponse(unit domain.UnitDetails) UnitResponse {
 	}
 }
 
+// ToUnitUpdateRequest преобразует dto.UnitUpdateRequest в domain.UnitUpdate.
 func ToUnitUpdateRequest(up UnitUpdateRequest) domain.UnitUpdate {
 	return domain.UnitUpdate{
 		Name:      up.Name,
@@ -37,6 +43,7 @@ func ToUnitUpdateRequest(up UnitUpdateRequest) domain.UnitUpdate {
 	}
 }
 
+// ToListUnitResponse преобразует слайс domain.UnitDetails в слайс UnitResponse.
 func ToListUnitResponse(units []domain.UnitDetails) []UnitResponse {
 	resp := make([]UnitResponse, len(units))
 

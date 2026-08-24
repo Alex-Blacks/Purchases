@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
@@ -14,14 +16,14 @@ import (
 )
 
 type AuthService struct {
-	svc           *ServiceUser
+	userSvc       *ServiceUser
 	secret        string
 	tokenLifetime time.Duration
 }
 
-func NewAuthService(svc *ServiceUser, secret string, lifetime time.Duration) *AuthService {
+func NewAuthService(userSvc *ServiceUser, secret string, lifetime time.Duration) *AuthService {
 	return &AuthService{
-		svc:           svc,
+		userSvc:       userSvc,
 		secret:        secret,
 		tokenLifetime: lifetime,
 	}
@@ -35,8 +37,15 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	ctx = logging.WithContext(ctx, logger)
 	logger.InfoContext(ctx, "user login attempt")
 
+	if strings.TrimSpace(email) == "" || strings.TrimSpace(password) == "" {
+		return "", 0, domain.ErrEmptyName
+	}
+
+	if _, err := mail.ParseAddress(email); err != nil {
+		return "", 0, domain.ErrInvalidInput
+	}
 	// 1. Получение пользователя по email
-	user, err := s.svc.GetUserByEmail(ctx, email)
+	user, err := s.userSvc.GetByEmail(ctx, email)
 	if err != nil {
 		if domain.IsNotFound(err) {
 			logger.WarnContext(ctx, "login attempt with non-existent email")
@@ -50,13 +59,13 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	ctx = logging.WithContext(ctx, logger)
 
 	// 2. Проверка статуса пользователя
-	if user.Status != "active" {
+	if user.Status != domain.UserStatusActive {
 		logger.WarnContext(ctx, "login attempt by blocked user")
 		return "", 0, domain.ErrInvalidCredentials
 	}
 
 	// 3. Проверка пароля
-	if err := s.svc.CheckPassword(user, password); err != nil {
+	if err := s.userSvc.checkPassword(user, password); err != nil {
 		logger.WarnContext(ctx, "failed password attempt")
 		return "", 0, domain.ErrInvalidCredentials
 	}
@@ -86,34 +95,25 @@ func (s *AuthService) Register(ctx context.Context, name, email, password string
 	ctx = logging.WithContext(ctx, logger)
 	logger.InfoContext(ctx, "user registration attempt")
 
-	// 1. Проверка, существует ли пользователь с таким email
-	user, err := s.svc.GetUserByEmail(ctx, email)
-	if err == nil {
-		// Если пользователь заблокирован — возвращаем соответствующую ошибку
-		if user.Status != "active" {
-			logger.WarnContext(ctx, "attempt to register a blocked user", "user_id", user.ID)
-			return "", 0, domain.ErrStatusBlocked
-		}
-		// Иначе — email уже занят
-		logger.WarnContext(ctx, "registration attempt with existing email")
-		return "", 0, domain.ErrEmailConflict
-	}
-	if !domain.IsNotFound(err) {
-		logger.ErrorContext(ctx, "database error during user existence check", "error", err)
-		return "", 0, fmt.Errorf("check user existence: %w", err)
+	if strings.TrimSpace(name) == "" || strings.TrimSpace(email) == "" || strings.TrimSpace(password) == "" {
+		return "", 0, domain.ErrEmptyName
 	}
 
-	// 2. Создание пользователя
-	user, err = s.svc.CreateUser(ctx, name, password, email, string(policy.RoleUser), "active")
+	if _, err := mail.ParseAddress(email); err != nil {
+		return "", 0, domain.ErrInvalidInput
+	}
+
+	// 1. Создание пользователя
+	user, err := s.userSvc.Create(ctx, name, password, email, string(policy.RoleUser), domain.UserStatusActive)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to create user", "error", err)
-		return "", 0, fmt.Errorf("create user: %w", err)
+		return "", 0, err
 	}
 
 	logger = logger.With("user_id", user.ID)
 	ctx = logging.WithContext(ctx, logger)
 
-	// 3. Генерация JWT-токена для автоматического входа после регистрации
+	// 2. Генерация JWT-токена для автоматического входа после регистрации
 	exp := time.Now().Add(s.tokenLifetime).Unix()
 	claims := jwt.MapClaims{
 		"sub":   user.ID,

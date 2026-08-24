@@ -15,12 +15,12 @@ import (
 )
 
 type ServiceStoreInterface interface {
-	CreateStore(ctx context.Context, actor policy.Actor, name string, groupID *int) (domain.StoreDetails, error)
-	GetStore(ctx context.Context, actor policy.Actor, storeID int) (domain.StoreDetails, error)
-	UpdateStore(ctx context.Context, actor policy.Actor, storeID int, updateStore domain.StoreUpdate) (domain.StoreDetails, error)
-	DeleteStore(ctx context.Context, actor policy.Actor, storeID int) error
-	ListStores(ctx context.Context, actor policy.Actor) ([]domain.StoreDetails, error)
-	ListAllStores(ctx context.Context, actor policy.Actor) ([]domain.StoreDetails, error)
+	Create(ctx context.Context, actor policy.Actor, params any, groupID *int) (domain.StoreDetails, error)
+	Get(ctx context.Context, actor policy.Actor, id int) (domain.StoreDetails, error)
+	Update(ctx context.Context, actor policy.Actor, id int, updates domain.StoreUpdate) (domain.StoreDetails, error)
+	Delete(ctx context.Context, actor policy.Actor, id int) error
+	List(ctx context.Context, actor policy.Actor) ([]domain.StoreDetails, error)
+	ListAll(ctx context.Context, actor policy.Actor) ([]domain.StoreDetails, error)
 }
 
 type StoreHandler struct {
@@ -53,27 +53,22 @@ func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// 2. Декодирование тела запроса
+	// 2. Декодирование и валидация тела запроса
 	var req dto.StoreRequest
-	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// 3. Валидация входных данных
-	if err := h.validate.Struct(req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// 4. Вызов сервиса для создания магазина
-	store, err := h.storeService.CreateStore(ctx, actor, req.Name, req.GroupID)
+	// 3. Вызов сервиса для создания магазина
+	params := domain.StoreCreate{Name: req.Name}
+	store, err := h.storeService.Create(ctx, actor, params, req.GroupID)
 	if err != nil {
-		helpers.WriteDomainError(w, logger, err, map[string]any{"name": req.Name, "groupID": req.GroupID})
+		helpers.WriteDomainError(w, logger, err, map[string]any{"params": params, "groupID": req.GroupID})
 		return
 	}
 
-	// 5. Формирование и отправка ответа
+	// 4. Формирование и отправка ответа
 	helpers.WriteJSON(w, logger, http.StatusCreated, dto.ToStoreResponse(store))
 }
 
@@ -110,7 +105,7 @@ func (h StoreHandler) GetStoreHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Вызов сервиса для получения магазина
-	store, err := h.storeService.GetStore(ctx, actor, storeID)
+	store, err := h.storeService.Get(ctx, actor, storeID)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"storeId": storeID})
 		return
@@ -153,27 +148,21 @@ func (h StoreHandler) UpdateStoreHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// 3. Декодирование тела запроса
+	// 3. Декодирование и валидация тела запроса
 	var req dto.StoreUpdateRequest
-	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// 4. Валидация нового имени (если передано)
-	if err := h.validate.Struct(req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// 5. Вызов сервиса для обновления
-	store, err := h.storeService.UpdateStore(ctx, actor, storeID, dto.ToStoreUpdateRequest(req))
+	// 4. Вызов сервиса для обновления
+	store, err := h.storeService.Update(ctx, actor, storeID, dto.ToStoreUpdateRequest(req))
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"storeId": storeID})
 		return
 	}
 
-	// 6. Формирование и отправка ответа
+	// 5. Формирование и отправка ответа
 	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToStoreResponse(store))
 }
 
@@ -210,7 +199,7 @@ func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 3. Вызов сервиса для удаления
-	if err := h.storeService.DeleteStore(ctx, actor, storeID); err != nil {
+	if err := h.storeService.Delete(ctx, actor, storeID); err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"storeId": storeID})
 		return
 	}
@@ -242,7 +231,7 @@ func (h StoreHandler) ListStoresHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// 2. Вызов сервиса для получения списка
-	list, err := h.storeService.ListStores(ctx, actor)
+	list, err := h.storeService.List(ctx, actor)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
@@ -275,7 +264,7 @@ func (h StoreHandler) ListAllStoresHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	// 2. Вызов сервиса для получения списка всех магазинов
-	list, err := h.storeService.ListAllStores(ctx, actor)
+	list, err := h.storeService.ListAll(ctx, actor)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
