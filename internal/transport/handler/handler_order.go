@@ -10,6 +10,7 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/policy"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
+	"github.com/go-playground/validator/v10"
 )
 
 type ServiceOrderInterface interface {
@@ -29,55 +30,57 @@ type ServiceOrderInterface interface {
 
 type OrderHandler struct {
 	orderService ServiceOrderInterface
+	validate     *validator.Validate
 }
 
-// CreateOrderHandler godoc
+// CreateOrderHandler обрабатывает создание нового заказа.
 //
 // @Security BearerAuth
 // @Summary Create order
-// @Description Create order
+// @Description Create a new order (user's group or specified group for admin)
 // @Tags orders
 // @Accept json
 // @Produce json
 // @Param request body dto.OrderRequest true "order payload"
-// @Success 201 {object} dto.OrderWithItemDetailsResponse
+// @Success 201 {object} dto.OrderDetailsResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders [post]
 func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
-
-	actor, ok := actorctx.ActorFromContext(r.Context())
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
+	// 2. Декодирование и валидация тела запроса
 	var req dto.OrderRequest
-
-	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	order, err := h.orderService.CreateOrder(r.Context(), actor, req.StoreID)
+	// 3. Вызов сервиса для создания заказа
+	order, err := h.orderService.Create(ctx, actor, req.StoreID, req.GroupID)
 	if err != nil {
-		helpers.WriteDomainError(w, logger, err, req)
+		helpers.WriteDomainError(w, logger, err, map[string]any{"storeId": req.StoreID, "groupId": req.GroupID})
 		return
 	}
 
-	resp := dto.ToResponseOrder(order)
-
-	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
+	// 4. Формирование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusCreated, dto.ToOrderResponse(order))
 }
 
-// GetOrderHandler godoc
+// GetOrderHandler возвращает заказ по ID.
 //
 // @Security BearerAuth
 // @Summary Get order
-// @Description Get order
+// @Description Get order by ID
 // @Tags orders
 // @Produce json
 // @Param id path int true "order ID"
@@ -89,35 +92,38 @@ func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request)
 // @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{id} [get]
 func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
-
-	actor, ok := actorctx.ActorFromContext(r.Context())
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+
+	// 2. Извлечение и парсинг ID из пути
 	orderID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	order, err := h.orderService.GetOrder(r.Context(), actor, orderID)
+	// 3. Вызов сервиса для получения заказа
+	order, err := h.orderService.GetByID(ctx, actor, orderID)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"orderId": orderID})
 		return
 	}
 
-	resp := dto.ToResponseOrder(order)
-
-	helpers.WriteJSON(w, logger, http.StatusOK, resp)
+	// 4. Формирование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToOrderWithItemResponse(order))
 }
 
-// DeleteOrderHandler godoc
+// DeleteOrderHandler удаляет заказ по ID.
 //
 // @Security BearerAuth
 // @Summary Delete order
-// @Description Delete order
+// @Description Delete order by ID
 // @Tags orders
 // @Produce json
 // @Param id path int true "order ID"
@@ -129,32 +135,37 @@ func (h OrderHandler) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{id} [delete]
 func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
-
-	actor, ok := actorctx.ActorFromContext(r.Context())
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+
+	// 2. Парсинг ID
 	orderID, err := helpers.ParsePositiveIntParam(r, "id")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := h.orderService.DeleteOrder(r.Context(), actor, orderID); err != nil {
+	// 3. Вызов сервиса для удаления
+	if err := h.orderService.DeleteByID(ctx, actor, orderID); err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"orderId": orderID})
 		return
 	}
 
+	// 4. Успешное удаление без контента
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListOrdersHandler godoc
+// ListOrdersHandler возвращает список заказов, доступных пользователю (из его группы).
 //
 // @Security BearerAuth
-// @Summary List orders
-// @Description List orders
+// @Summary List user's orders
+// @Description Get list of orders belonging to user's group
 // @Tags orders
 // @Produce json
 // @Success 200 {array} dto.OrderDetailsResponse
@@ -164,25 +175,61 @@ func (h OrderHandler) DeleteOrderHandler(w http.ResponseWriter, r *http.Request)
 // @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders [get]
 func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
-
-	actor, ok := actorctx.ActorFromContext(r.Context())
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	orders, err := h.orderService.ListOrders(r.Context(), actor)
+	// 2. Вызов сервиса для получения списка
+	orders, err := h.orderService.List(ctx, actor)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
 	}
 
-	resp := dto.ToOrderListResponse(orders)
-	helpers.WriteJSON(w, logger, http.StatusOK, resp)
+	// 3. Преобразование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToOrderListResponse(orders))
 }
 
-// AddItemHandler godoc
+// ListAllOrdersHandler возвращает список всех заказов (только для администраторов).
+//
+// @Security BearerAuth
+// @Summary List all orders (admin only)
+// @Description Get list of all orders (requires admin role)
+// @Tags orders
+// @Produce json
+// @Success 200 {array} dto.OrderDetailsResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
+// @Router /private/orders/all [get]
+func (h OrderHandler) ListAllOrdersHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	// 2. Вызов сервиса для получения списка
+	orders, err := h.orderService.ListAll(ctx, actor)
+	if err != nil {
+		helpers.WriteDomainError(w, logger, err, nil)
+		return
+	}
+
+	// 3. Преобразование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToOrderListResponse(orders))
+}
+
+// AddItemHandler обрабатывает добавление элемента в заказ.
 //
 // @Security BearerAuth
 // @Summary Add order item
@@ -199,51 +246,43 @@ func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) 
 // @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{orderId}/items [post]
 func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
-
-	actor, ok := actorctx.ActorFromContext(r.Context())
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
+	// 2. Извлечение и парсинг ID из пути
 	orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	// 3. Декодирование и валидация тела запроса
 	var req dto.ItemRequest
-
-	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := helpers.ValidatePositiveInt("productId", req.ProductID); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-	if err := helpers.ValidatePositiveInt("quantity", req.Quantity); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	item, err := h.orderService.AddItem(r.Context(), actor, orderID, req.ProductID, req.UnitID, req.Quantity)
+	// 4. Вызов сервиса для добавления элемента
+	item, err := h.orderService.AddItem(ctx, actor, orderID, req.ProductID, req.UnitID, req.Quantity, req.GroupID)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{
-			"orderId": orderID,
-			"request": req,
+			"orderId":  orderID,
+			"request":  req,
+			"quantity": req.Quantity,
+			"groupId":  req.GroupID,
 		})
 		return
 	}
-	resp := dto.ItemDetailsResponse{
-		ID:       item.ID,
-		Title:    item.Title,
-		Quantity: item.Quantity,
-	}
 
-	helpers.WriteJSON(w, logger, http.StatusCreated, resp)
+	// 4. Формирование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusCreated, dto.ToItemResponse(item))
 }
 
 // AddListItemsHandler godoc
@@ -263,37 +302,32 @@ func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{orderId}/list_items [post]
 func (h OrderHandler) AddListItemsHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
-
-	actor, ok := actorctx.ActorFromContext(r.Context())
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
+	// 2. Извлечение и парсинг ID из пути
 	orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	// 3. Декодирование и валидация тела запроса
 	var req dto.ListItemsRequest
-
-	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	items := dto.ToItemsRequest(req)
+	items := dto.ToItemListRequest(req)
 
-	for _, item := range items {
-		if item.Quantity <= 0 || item.ProductID <= 0 {
-			helpers.WriteError(w, logger, http.StatusBadRequest, "invalid input")
-			return
-		}
-	}
-
-	if err := h.orderService.AddListItems(r.Context(), actor, orderID, items); err != nil {
+	if err := h.orderService.AddListItems(ctx, actor, orderID, items, req.GroupID); err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{
 			"orderId": orderID,
 			"request": req,
@@ -303,6 +337,11 @@ func (h OrderHandler) AddListItemsHandler(w http.ResponseWriter, r *http.Request
 
 	w.WriteHeader(http.StatusCreated)
 }
+
+// 	UpdateItem(ctx context.Context, actor policy.Actor, orderID int, productID int, updateOrder domain.OrderItemUpdate) (domain.OrderItemDetails, error)
+// 	UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemCreate, groupID *int) error
+// 	DeleteItem(ctx context.Context, actor policy.Actor, orderID int, productID int) error
+// 	FindProductInOrders(ctx context.Context, actor policy.Actor, productID int, groupID *int) ([]domain.OrderItemFindDetails, error)
 
 // UpdateListItemsHandler godoc
 //
