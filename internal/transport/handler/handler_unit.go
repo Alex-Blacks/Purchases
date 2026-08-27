@@ -16,7 +16,7 @@ import (
 type ServiceUnitInterface interface {
 	Create(ctx context.Context, actor policy.Actor, params any, groupID *int) (domain.UnitDetails, error)
 	Get(ctx context.Context, actor policy.Actor, id int) (domain.UnitDetails, error)
-	Update(ctx context.Context, actor policy.Actor, id int, updates domain.UnitUpdate) (domain.UnitDetails, error)
+	Update(ctx context.Context, actor policy.Actor, id int, updates any) (domain.UnitDetails, error)
 	Delete(ctx context.Context, actor policy.Actor, id int) error
 	List(ctx context.Context, actor policy.Actor) ([]domain.UnitDetails, error)
 	ListAll(ctx context.Context, actor policy.Actor) ([]domain.UnitDetails, error)
@@ -55,7 +55,7 @@ func (h *UnitHandler) CreateUnitHandler(w http.ResponseWriter, r *http.Request) 
 	// 2. Декодирование и валидация тела запроса
 	var req dto.UnitRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -150,7 +150,7 @@ func (h *UnitHandler) UpdateUnitHandler(w http.ResponseWriter, r *http.Request) 
 	// 3. Декодирование и валидация тела запроса
 	var req dto.UnitUpdateRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 

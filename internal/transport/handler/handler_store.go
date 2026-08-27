@@ -17,7 +17,7 @@ import (
 type ServiceStoreInterface interface {
 	Create(ctx context.Context, actor policy.Actor, params any, groupID *int) (domain.StoreDetails, error)
 	Get(ctx context.Context, actor policy.Actor, id int) (domain.StoreDetails, error)
-	Update(ctx context.Context, actor policy.Actor, id int, updates domain.StoreUpdate) (domain.StoreDetails, error)
+	Update(ctx context.Context, actor policy.Actor, id int, updates any) (domain.StoreDetails, error)
 	Delete(ctx context.Context, actor policy.Actor, id int) error
 	List(ctx context.Context, actor policy.Actor) ([]domain.StoreDetails, error)
 	ListAll(ctx context.Context, actor policy.Actor) ([]domain.StoreDetails, error)
@@ -56,7 +56,7 @@ func (h StoreHandler) CreateStoreHandler(w http.ResponseWriter, r *http.Request)
 	// 2. Декодирование и валидация тела запроса
 	var req dto.StoreRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -151,7 +151,7 @@ func (h StoreHandler) UpdateStoreHandler(w http.ResponseWriter, r *http.Request)
 	// 3. Декодирование и валидация тела запроса
 	var req dto.StoreUpdateRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 

@@ -4,17 +4,20 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
+	"github.com/go-playground/validator/v10"
 )
 
 type ServiceAuthInterface interface {
-	Login(ctx context.Context, email, password string) (string, int64, error)
-	Register(ctx context.Context, name, email, password string) (string, int64, error)
+	Login(ctx context.Context, email, password string) (domain.Login, error)
+	Register(ctx context.Context, name, email, password string) (domain.Login, error)
 }
 type AuthHandler struct {
 	authService ServiceAuthInterface
+	validate    *validator.Validate
 }
 
 // LoginHandler godoc
@@ -33,27 +36,26 @@ type AuthHandler struct {
 // @Failure 503 {object} dto.ErrorResponse
 // @Router /login [post]
 func (h AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
 
+	// 2. Декодирование и валидация тела запроса
 	var req dto.LoginRequest
-
-	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
-	if err := req.Validate(); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	token, exp, err := h.authService.Login(r.Context(), req.Email, req.Password)
+	// 3. Вызов сервиса авторизации
+	result, err := h.authService.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"email": req.Email})
 		return
 	}
-	resp := dto.LoginResponse{Token: token, Exp: exp}
-	helpers.WriteJSON(w, logger, http.StatusOK, resp)
+
+	// 4. Формирование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToLoginResponse(result))
 }
 
 // RegisterHandler godoc
@@ -71,26 +73,24 @@ func (h AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /register [post]
 func (h AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
 
+	// 2. Декодирование и валидация тела запроса
 	var req dto.RegisterRequest
-
-	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
-	if err := req.Validate(); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	token, exp, err := h.authService.Register(r.Context(), req.Name, req.Email, req.Password)
+	// 3. Вызов сервиса регистрации
+	result, err := h.authService.Register(ctx, req.Name, req.Email, req.Password)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"name": req.Name, "email": req.Email})
 		return
 	}
 
-	resp := dto.RegisterResponse{Token: token, Exp: exp}
-	helpers.WriteJSON(w, logger, http.StatusOK, resp)
+	// 4. Формирование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToRegisterResponse(result))
 }

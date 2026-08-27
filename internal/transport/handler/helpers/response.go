@@ -8,6 +8,7 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
 )
 
+// WriteJSON отправляет JSON ответ клиенту
 func WriteJSON(w http.ResponseWriter, logger *slog.Logger, status int, resp any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -16,6 +17,7 @@ func WriteJSON(w http.ResponseWriter, logger *slog.Logger, status int, resp any)
 	}
 }
 
+// WriteError логирует на уровне Warn – подходит для ожидаемых ошибок (валидация, конфликт, доступ).
 func WriteError(w http.ResponseWriter, logger *slog.Logger, status int, msg string) {
 	logger.Warn("request failed",
 		"status", status,
@@ -23,10 +25,12 @@ func WriteError(w http.ResponseWriter, logger *slog.Logger, status int, msg stri
 	)
 	WriteJSON(w, logger, status, dto.ErrorResponse{Error: msg})
 }
+
+// WriteInternalError логирует на уровне Error с полным стеком (если он есть) – для непредвиденных ситуаций.
 func WriteInternalError(w http.ResponseWriter, logger *slog.Logger, err error, req any) {
 	logger.Error("request failed",
 		"error", err,
 		"request", req,
 	)
-	WriteJSON(w, logger, http.StatusInternalServerError, dto.ErrorResponse{Error: "internal server error"})
+	WriteJSON(w, logger, http.StatusInternalServerError, dto.ErrorResponse{Error: "внутренняя ошибка сервера"})
 }

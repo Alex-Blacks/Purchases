@@ -61,7 +61,7 @@ func (h OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request)
 	// 2. Декодирование и валидация тела запроса
 	var req dto.OrderRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -265,7 +265,7 @@ func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 	// 3. Декодирование и валидация тела запроса
 	var req dto.ItemRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -300,7 +300,7 @@ func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/orders/{orderId}/list_items [post]
+// @Router /private/orders/{orderId}/list [post]
 func (h OrderHandler) AddListItemsHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
@@ -321,7 +321,7 @@ func (h OrderHandler) AddListItemsHandler(w http.ResponseWriter, r *http.Request
 	// 3. Декодирование и валидация тела запроса
 	var req dto.ListItemsRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -382,7 +382,7 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 	// 3. Декодирование и валидация тела запроса
 	var req dto.ItemUpdateRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -417,7 +417,7 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/orders/{orderId}/list_items [put]
+// @Router /private/orders/{orderId}/list [put]
 func (h OrderHandler) UpdateListItemsHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
@@ -438,7 +438,7 @@ func (h OrderHandler) UpdateListItemsHandler(w http.ResponseWriter, r *http.Requ
 	// 3. Декодирование и валидация тела запроса
 	var req dto.ListItemsRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -508,6 +508,21 @@ func (h OrderHandler) DeleteItemHandler(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// FindProductInOrdersHandler выводит магазины с искомым продуктом
+//
+// @Security BearerAuth
+// @Summary Find product in orders
+// @Description Find product in orders
+// @Tags orders
+// @Produce json
+// @Param productId query string true "productId"
+// @Success 200 {array} dto.OrderItemFindResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
+// @Router /private/orders/by-productId [get]
 func (h OrderHandler) FindProductInOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()

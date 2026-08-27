@@ -51,7 +51,7 @@ func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	// 2. Декодирование и валидация тела запроса
 	var req dto.UserRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -151,7 +151,7 @@ func (h UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	// 3. Декодирование и валидация тела запроса
 	var req dto.UserUpdateRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 

@@ -17,7 +17,7 @@ import (
 type ServiceProductInterface interface {
 	Create(ctx context.Context, actor policy.Actor, params any, groupID *int) (domain.ProductDetails, error)
 	Get(ctx context.Context, actor policy.Actor, id int) (domain.ProductDetails, error)
-	Update(ctx context.Context, actor policy.Actor, id int, updates domain.ProductUpdate) (domain.ProductDetails, error)
+	Update(ctx context.Context, actor policy.Actor, id int, updates any) (domain.ProductDetails, error)
 	Delete(ctx context.Context, actor policy.Actor, id int) error
 	List(ctx context.Context, actor policy.Actor) ([]domain.ProductDetails, error)
 	ListAll(ctx context.Context, actor policy.Actor) ([]domain.ProductDetails, error)
@@ -55,7 +55,7 @@ func (h ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Requ
 	// 2. Декодирование и валидация тела запроса
 	var req dto.ProductRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -150,7 +150,7 @@ func (h ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Requ
 	// 3. Декодирование и валидация тела запроса
 	var req dto.ProductUpdateRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -328,7 +328,7 @@ func (h ProductAliasHandler) CreateProductAliasHandler(w http.ResponseWriter, r 
 	// 3. Декодирование и валидация тела запроса
 	var req dto.ProductAliasRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -422,7 +422,7 @@ func (h ProductAliasHandler) UpdateProductAliasHandler(w http.ResponseWriter, r 
 	// 3. Декодирование и валидация тела запроса
 	var req dto.ProductAliasUpdateRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, req)
 		return
 	}
 
@@ -572,7 +572,7 @@ func (h ProductAliasHandler) ListProductAliasesHandler(w http.ResponseWriter, r 
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/products/{productId}/aliases [get]
+// @Router /private/products/{productId}/aliases/all [get]
 func (h ProductAliasHandler) ListAllProductAliasesHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()

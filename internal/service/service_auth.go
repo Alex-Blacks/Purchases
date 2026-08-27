@@ -31,28 +31,28 @@ func NewAuthService(userSvc *ServiceUser, secret string, lifetime time.Duration)
 
 // Login аутентифицирует пользователя по email и паролю.
 // При успехе возвращает JWT-токен и время его истечения (Unix timestamp).
-func (s *AuthService) Login(ctx context.Context, email, password string) (string, int64, error) {
+func (s *AuthService) Login(ctx context.Context, email, password string) (domain.Login, error) {
 	// Логируем только хеш email для безопасности
 	logger := logging.LoggerFromContext(ctx).With("email_hash", fmt.Sprintf("%x", sha256.Sum256([]byte(email))))
 	ctx = logging.WithContext(ctx, logger)
 	logger.InfoContext(ctx, "user login attempt")
 
 	if strings.TrimSpace(email) == "" || strings.TrimSpace(password) == "" {
-		return "", 0, domain.ErrEmptyName
+		return domain.Login{}, domain.ErrEmptyName
 	}
 
 	if _, err := mail.ParseAddress(email); err != nil {
-		return "", 0, domain.ErrInvalidInput
+		return domain.Login{}, domain.ErrInvalidInput
 	}
 	// 1. Получение пользователя по email
 	user, err := s.userSvc.GetByEmail(ctx, email)
 	if err != nil {
 		if domain.IsNotFound(err) {
 			logger.WarnContext(ctx, "login attempt with non-existent email")
-			return "", 0, domain.ErrInvalidCredentials
+			return domain.Login{}, domain.ErrInvalidCredentials
 		}
 		logger.ErrorContext(ctx, "database error while fetching user", "error", err)
-		return "", 0, fmt.Errorf("get user by email: %w", err)
+		return domain.Login{}, fmt.Errorf("get user by email: %w", err)
 	}
 
 	logger = logger.With("user_id", user.ID)
@@ -61,13 +61,13 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	// 2. Проверка статуса пользователя
 	if user.Status != domain.UserStatusActive {
 		logger.WarnContext(ctx, "login attempt by blocked user")
-		return "", 0, domain.ErrInvalidCredentials
+		return domain.Login{}, domain.ErrInvalidCredentials
 	}
 
 	// 3. Проверка пароля
 	if err := s.userSvc.checkPassword(user, password); err != nil {
 		logger.WarnContext(ctx, "failed password attempt")
-		return "", 0, domain.ErrInvalidCredentials
+		return domain.Login{}, domain.ErrInvalidCredentials
 	}
 
 	// 4. Генерация JWT-токена
@@ -82,32 +82,33 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	signedToken, err := token.SignedString([]byte(s.secret))
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to sign token", "error", err)
-		return "", 0, fmt.Errorf("sign token: %w", err)
+		return domain.Login{}, fmt.Errorf("sign token: %w", err)
 	}
+	result := domain.Login{Token: signedToken, Exp: exp}
 
 	logger.InfoContext(ctx, "user logged in successfully")
-	return signedToken, exp, nil
+	return result, nil
 }
 
 // Register создаёт нового пользователя и возвращает JWT-токен для автоматического входа.
-func (s *AuthService) Register(ctx context.Context, name, email, password string) (string, int64, error) {
+func (s *AuthService) Register(ctx context.Context, name, email, password string) (domain.Login, error) {
 	logger := logging.LoggerFromContext(ctx).With("email_hash", fmt.Sprintf("%x", sha256.Sum256([]byte(email))))
 	ctx = logging.WithContext(ctx, logger)
 	logger.InfoContext(ctx, "user registration attempt")
 
 	if strings.TrimSpace(name) == "" || strings.TrimSpace(email) == "" || strings.TrimSpace(password) == "" {
-		return "", 0, domain.ErrEmptyName
+		return domain.Login{}, domain.ErrEmptyName
 	}
 
 	if _, err := mail.ParseAddress(email); err != nil {
-		return "", 0, domain.ErrInvalidInput
+		return domain.Login{}, domain.ErrInvalidInput
 	}
 
 	// 1. Создание пользователя
 	user, err := s.userSvc.Create(ctx, name, password, email, string(policy.RoleUser), domain.UserStatusActive)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to create user", "error", err)
-		return "", 0, err
+		return domain.Login{}, err
 	}
 
 	logger = logger.With("user_id", user.ID)
@@ -125,9 +126,10 @@ func (s *AuthService) Register(ctx context.Context, name, email, password string
 	signedToken, err := token.SignedString([]byte(s.secret))
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to sign token", "error", err)
-		return "", 0, fmt.Errorf("sign token: %w", err)
+		return domain.Login{}, fmt.Errorf("sign token: %w", err)
 	}
+	result := domain.Login{Token: signedToken, Exp: exp}
 
 	logger.InfoContext(ctx, "new user registered successfully")
-	return signedToken, exp, nil
+	return result, nil
 }

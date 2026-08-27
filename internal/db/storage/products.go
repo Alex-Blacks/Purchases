@@ -386,7 +386,7 @@ func (a *ProductAliasRepo) FindProductByAlias(ctx context.Context, q domain.Quer
 	return product, nil
 }
 
-func (a *ProductAliasRepo) FindAdminProductByAlias(ctx context.Context, q domain.Querier, alias string) (domain.ProductDetails, error) {
+func (a *ProductAliasRepo) FindAllProductByAlias(ctx context.Context, q domain.Querier, alias string) (domain.ProductDetails, error) {
 	var product domain.ProductDetails
 	if err := q.QueryRow(ctx, `
 		SELECT p.id, p.title, p.group_id, g.name

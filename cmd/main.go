@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os/signal"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/wneessen/go-mail"
 )
 
 // @title           Purchases API
@@ -31,6 +31,7 @@ import (
 // @name Authorization
 // @description Введите токен в формате "Bearer <token>"
 func main() {
+	logger := logging.NewLogger()
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
 		syscall.SIGINT,
@@ -43,17 +44,29 @@ func main() {
 	cfg := config.Load()
 	timeout, err := strconv.Atoi(cfg.Timeout)
 	if err != nil {
-		log.Fatalf("incorected .env file")
+		logger.Error("incorected .env file")
 	}
-	logger := logging.NewLogger()
 
 	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("db connection error: %v", err)
+		logger.Error("db connection error", "error", err)
 	}
 	defer pool.Close()
 
 	st := storage.NewStorage(pool)
+
+	// Создаём smtp клиент
+	smtpClient, err := mail.NewClient(cfg.SMTPHost,
+		mail.WithPort(cfg.SMTPPort),
+		mail.WithSMTPAuth(mail.SMTPAuthPlain),
+		mail.WithUsername(cfg.SMTPUserName),
+		mail.WithPassword(cfg.SMTPPassword),
+	)
+	if err != nil {
+		logger.Error("Failed to create SMTP client", "error", err)
+	}
+
+	defer smtpClient.Close()
 
 	// repositories
 	userRepo := storage.NewUserRepo()
@@ -62,18 +75,24 @@ func main() {
 	storeRepo := storage.NewStoreRepo()
 	unitRepo := storage.NewUnitRepo()
 	productRepo := storage.NewProductRepo()
+	productAliasRepo := storage.NewProductAliasRepo()
+	groupRepo := storage.NewGroupRepo()
+	inviteRepo := storage.NewInviteRepo()
 
 	// services
-	userSvc := service.NewServiceUser(st, userRepo)
+	userSvc := service.NewServiceUser(st, userRepo, groupRepo)
 	orderSvc := service.NewServiceOrderItem(st, orderRepo, orderItemRepo)
 	storeSvc := service.NewServiceStore(st, storeRepo)
 	unitSvc := service.NewServiceUnit(st, unitRepo)
 	productSvc := service.NewServiceProduct(st, productRepo)
+	productAliasSvc := service.NewServiceProductAlias(st, productAliasRepo)
+	groupSvc := service.NewServiceGroup(st, groupRepo)
+	inviteSvc := service.NewServiceInvite(st, inviteRepo, groupRepo, userRepo, smtpClient, cfg.SMTPFrom)
 
 	authSvc := service.NewAuthService(userSvc, cfg.JWTSecret, cfg.TokenLifetime)
 
 	// handlers
-	handlers := handler.NewHandlers(userSvc, storeSvc, unitSvc, productSvc, orderSvc, authSvc)
+	handlers := handler.NewHandlers(userSvc, storeSvc, unitSvc, productSvc, productAliasSvc, orderSvc, groupSvc, inviteSvc, authSvc)
 
 	// routers
 	publicRouter := handler.PublicRouter(handlers, time.Second*time.Duration(timeout), logger)
@@ -89,16 +108,16 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("server started on %s", server.Addr)
+		logger.Info("server started", "Addr", server.Addr)
 		if err := server.ListenAndServe(); err != nil {
-			log.Printf("server error: %v", err)
+			logger.Info("server error", "error", err)
 			stop()
 		}
 	}()
 
 	<-ctx.Done()
 
-	log.Println("shutdown signal received")
+	logger.Info("shutdown signal received")
 	shutdownCtx, cancel := context.WithTimeout(
 		context.Background(),
 		5*time.Second,
@@ -106,9 +125,9 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Printf("error shutdown")
+		logger.Info("error shutdown")
 	}
 
-	log.Println("server stopped")
+	logger.Info("server stopped")
 
 }

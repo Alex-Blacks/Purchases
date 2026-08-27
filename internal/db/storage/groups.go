@@ -43,7 +43,7 @@ func (g *GroupRepo) Create(ctx context.Context, q domain.Querier, name string, a
 	return group, nil
 }
 
-func (g *GroupRepo) GetById(ctx context.Context, q domain.Querier, groupID int) (domain.GroupDetails, error) {
+func (g *GroupRepo) GetByID(ctx context.Context, q domain.Querier, groupID int) (domain.GroupDetails, error) {
 	var group domain.GroupDetails
 	if err := q.QueryRow(ctx, `
 		SELECT g.id, g.name, g.admin_user_id, COALESCE(u.name, '')
@@ -59,15 +59,15 @@ func (g *GroupRepo) GetById(ctx context.Context, q domain.Querier, groupID int) 
 	return group, nil
 }
 
-func (g *GroupRepo) CheckGroupAdmin(ctx context.Context, q domain.Querier, groupID int, adminUserID int) (bool, error) {
+func (g *GroupRepo) CheckGroupAdmin(ctx context.Context, q domain.Querier, groupID int, adminUserID int) bool {
 	var id int
 	if err := q.QueryRow(ctx, `SELECT 1 FROM groups WHERE id = $1 AND admin_user_id = $2`, groupID, adminUserID).Scan(&id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return false, nil
+			return false
 		}
-		return false, fmt.Errorf("check group: %w", err)
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (g *GroupRepo) UpdateByID(ctx context.Context, q domain.Querier, groupID int, updateGroup domain.GroupUpdate) (domain.GroupDetails, error) {

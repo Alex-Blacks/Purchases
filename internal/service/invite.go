@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
-	"net/mail"
+	mailNet "net/mail"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/policy"
 	"github.com/google/uuid"
+	"github.com/wneessen/go-mail"
 )
 
 type ServiceInvite struct {
@@ -19,14 +21,18 @@ type ServiceInvite struct {
 	inviteRepo domain.InviteRepository
 	groupRepo  domain.GroupRepository
 	userRepo   domain.UserRepository
+	client     *mail.Client
+	fromMail   string
 }
 
-func NewServiceInvite(st domain.Storage, inviteRepo domain.InviteRepository, groupRepo domain.GroupRepository, userRepo domain.UserRepository) *ServiceInvite {
+func NewServiceInvite(st domain.Storage, inviteRepo domain.InviteRepository, groupRepo domain.GroupRepository, userRepo domain.UserRepository, client *mail.Client, fromMail string) *ServiceInvite {
 	return &ServiceInvite{
 		BaseService: &BaseService{storage: st},
 		inviteRepo:  inviteRepo,
 		groupRepo:   groupRepo,
 		userRepo:    userRepo,
+		client:      client,
+		fromMail:    fromMail,
 	}
 }
 
@@ -78,13 +84,13 @@ func (s *ServiceInvite) getValidPendingInvite(ctx context.Context, q domain.Quer
 
 // Create создаёт приглашение для пользователя с email inviteeEmail в группу actor.GroupID.
 func (s *ServiceInvite) Create(ctx context.Context, actor policy.Actor, inviteeEmail string) (domain.InviteDetails, error) {
-	logger := logging.LoggerFromContext(ctx).With("invitee_email", inviteeEmail)
+	logger := logging.LoggerFromContext(ctx).With("invitee_email", fmt.Sprintf("%x", sha256.Sum256([]byte(inviteeEmail))))
 	logger.InfoContext(ctx, "creating new invite")
 
 	if strings.TrimSpace(inviteeEmail) == "" {
 		return domain.InviteDetails{}, domain.ErrEmptyName
 	}
-	if _, err := mail.ParseAddress(inviteeEmail); err != nil {
+	if _, err := mailNet.ParseAddress(inviteeEmail); err != nil {
 		return domain.InviteDetails{}, domain.ErrInvalidInput
 	}
 	var result domain.InviteDetails
@@ -166,6 +172,12 @@ func (s *ServiceInvite) Create(ctx context.Context, actor policy.Actor, inviteeE
 
 	}); err != nil {
 		return domain.InviteDetails{}, err
+	}
+
+	// 7. Отправка письма
+	if err := sendMail(ctx, logger, s.client, s.fromMail, inviteeEmail, result.Group); err != nil {
+		logger.Error("failed to send mail invite", "error", err)
+		return domain.InviteDetails{}, fmt.Errorf("send mail invite: %w", err)
 	}
 
 	logger.InfoContext(ctx, "invite created successfully", "invite_id", result.ID)
@@ -273,7 +285,7 @@ func (s *ServiceInvite) DeleteByID(ctx context.Context, actor policy.Actor, invi
 
 	return s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав: только администратор группы может удалять приглашения
-		if !s.groupRepo.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID) {
+		if !s.groupRepo.CheckGroupAdmin(ctx, q, actor.GroupID, actor.UserID) {
 			logger.WarnContext(ctx, "user is not group admin")
 			return policy.ErrForbidden
 		}

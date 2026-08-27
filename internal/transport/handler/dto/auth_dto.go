@@ -1,20 +1,16 @@
 package dto
 
-import (
-	"fmt"
-	"net/mail"
-	"strings"
-)
+import "github.com/Alex-Blacks/Purchases/internal/domain"
 
 type LoginRequest struct {
-	Email    string `json:"email" validate:"required"`
-	Password string `json:"password" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8,max=50"`
 }
 
 type RegisterRequest struct {
-	Name     string `json:"name" validate:"required"`
-	Email    string `json:"email" validate:"required"`
-	Password string `json:"password" validate:"required"`
+	Name     string `json:"name" validate:"required,min=1,max=50"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8,max=50"`
 }
 
 type LoginResponse struct {
@@ -27,36 +23,16 @@ type RegisterResponse struct {
 	Exp   int64  `json:"exp"`
 }
 
-func (l *LoginRequest) Validate() error {
-	if _, err := mail.ParseAddress(l.Email); err != nil {
-		return fmt.Errorf("invalid email format")
+func ToLoginResponse(data domain.Login) LoginResponse {
+	return LoginResponse{
+		Token: data.Token,
+		Exp:   data.Exp,
 	}
-	password := strings.TrimSpace(l.Password)
-	if password == "" {
-		return fmt.Errorf("password must not be empty")
-	}
-	if len(password) < 8 {
-		return fmt.Errorf("password must be more than 8 characters long")
-	}
-
-	return nil
 }
 
-func (r *RegisterRequest) Validate() error {
-	if _, err := mail.ParseAddress(r.Email); err != nil {
-		return fmt.Errorf("invalid email format")
+func ToRegisterResponse(data domain.Login) RegisterResponse {
+	return RegisterResponse{
+		Token: data.Token,
+		Exp:   data.Exp,
 	}
-	name := strings.TrimSpace(r.Name)
-	if name == "" {
-		return fmt.Errorf("name must not be empty")
-	}
-	password := strings.TrimSpace(r.Password)
-	if password == "" {
-		return fmt.Errorf("password must not be empty")
-	}
-	if len(password) < 8 {
-		return fmt.Errorf("password must be more than 8 characters long")
-	}
-
-	return nil
 }

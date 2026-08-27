@@ -1,11 +1,12 @@
 package middleware
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"runtime/debug"
 
 	"github.com/Alex-Blacks/Purchases/internal/logging"
+	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
 )
 
 func RecoveryMiddleware(next http.Handler) http.Handler {
@@ -19,11 +20,7 @@ func RecoveryMiddleware(next http.Handler) http.Handler {
 					"stack", debug.Stack(),
 				)
 
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				if err := json.NewEncoder(w).Encode(map[string]string{"Error": "internal server error"}); err != nil {
-					logger.Error("failed to encode recovery response", "error", err)
-				}
+				helpers.WriteInternalError(w, logger, fmt.Errorf("panic: %v", rec), nil)
 			}
 		}()
 
