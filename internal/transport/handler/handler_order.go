@@ -285,7 +285,7 @@ func (h OrderHandler) AddItemHandler(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, logger, http.StatusCreated, dto.ToItemResponse(item))
 }
 
-// AddListItemsHandler godoc
+// AddListItemsHandler обрабатывает добавление слайса из элементов в заказ.
 //
 // @Security BearerAuth
 // @Summary Add order list items
@@ -325,8 +325,8 @@ func (h OrderHandler) AddListItemsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// 4. Вызов сервиса для добавления
 	items := dto.ToItemListRequest(req)
-
 	if err := h.orderService.AddListItems(ctx, actor, orderID, items, req.GroupID); err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{
 			"orderId": orderID,
@@ -335,75 +335,11 @@ func (h OrderHandler) AddListItemsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// 4. Отправка ответа
 	w.WriteHeader(http.StatusCreated)
 }
 
-// 	UpdateItem(ctx context.Context, actor policy.Actor, orderID int, productID int, updateOrder domain.OrderItemUpdate) (domain.OrderItemDetails, error)
-// 	UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemCreate, groupID *int) error
-// 	DeleteItem(ctx context.Context, actor policy.Actor, orderID int, productID int) error
-// 	FindProductInOrders(ctx context.Context, actor policy.Actor, productID int, groupID *int) ([]domain.OrderItemFindDetails, error)
-
-// UpdateListItemsHandler godoc
-//
-// @Security BearerAuth
-// @Summary Update order list items
-// @Description Update order list items
-// @Tags orders
-// @Accept json
-// @Produce json
-// @Param orderId path int true "order ID"
-// @Param request body dto.ListItemsRequest true "item payload"
-// @Success 200 "OK"
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 401 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Failure 503 {object} dto.ErrorResponse
-// @Router /private/orders/{orderId}/list_items [put]
-func (h OrderHandler) UpdateListItemsHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
-
-	actor, ok := actorctx.ActorFromContext(r.Context())
-	if !ok {
-		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
-	if err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	var req dto.ListItemsRequest
-
-	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	items := dto.ToItemsRequest(req)
-
-	for _, item := range items {
-		if item.Quantity <= 0 || item.ProductID <= 0 {
-			helpers.WriteError(w, logger, http.StatusBadRequest, "invalid input")
-			return
-		}
-	}
-
-	err = h.orderService.UpdateListItems(r.Context(), actor, orderID, items)
-	if err != nil {
-		helpers.WriteDomainError(w, logger, err, map[string]any{
-			"orderId": orderID,
-			"request": req,
-		})
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-// UpdateItemHandler godoc
+// UpdateItemHandler обрабатывает обновление элементов в заказе.
 //
 // @Security BearerAuth
 // @Summary Update order item
@@ -422,14 +358,16 @@ func (h OrderHandler) UpdateListItemsHandler(w http.ResponseWriter, r *http.Requ
 // @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{orderId}/items/{productId} [patch]
 func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
-
-	actor, ok := actorctx.ActorFromContext(r.Context())
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
+	// 2. Извлечение и парсинг ID из пути
 	orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
@@ -441,19 +379,15 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// 3. Декодирование и валидация тела запроса
 	var req dto.ItemUpdateRequest
-
-	if err := helpers.DecodeJSON(w, r, logger, &req); err != nil {
+	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := helpers.ValidatePositiveInt("quantity", req.Quantity); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	item, err := h.orderService.UpdateItem(r.Context(), actor, orderID, productID, req.UnitID, req.Quantity)
+	// 4. Вызов сервиса для обновления
+	item, err := h.orderService.UpdateItem(ctx, actor, orderID, productID, dto.ToItemUpdateRequest(req))
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{
 			"orderId":   orderID,
@@ -463,16 +397,67 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	resp := dto.ItemDetailsResponse{
-		ID:       item.ID,
-		Title:    item.Title,
-		Quantity: item.Quantity,
-	}
-
-	helpers.WriteJSON(w, logger, http.StatusOK, resp)
+	// 4. Формирование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToItemResponse(item))
 }
 
-// DeleteItemHandler godoc
+// UpdateListItemsHandler обрабатывает обновление слайса элементов в заказе.
+//
+// @Security BearerAuth
+// @Summary Update order list items
+// @Description Update order list items
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param orderId path int true "order ID"
+// @Param request body dto.ListItemsRequest true "item payload"
+// @Success 200 "OK"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Failure 503 {object} dto.ErrorResponse
+// @Router /private/orders/{orderId}/list_items [put]
+func (h OrderHandler) UpdateListItemsHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	// 2. Извлечение и парсинг ID из пути
+	orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
+	if err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 3. Декодирование и валидация тела запроса
+	var req dto.ListItemsRequest
+	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 4. Вызов сервиса для обновления
+	items := dto.ToItemListRequest(req)
+	err = h.orderService.UpdateListItems(ctx, actor, orderID, items, req.GroupID)
+	if err != nil {
+		helpers.WriteDomainError(w, logger, err, map[string]any{
+			"orderId": orderID,
+			"request": req,
+		})
+		return
+	}
+
+	// 4. Отправка ответа
+	w.WriteHeader(http.StatusOK)
+}
+
+// DeleteItemHandler обрабатывает удаление элементов в заказе.
 //
 // @Security BearerAuth
 // @Summary Delete order item
@@ -489,14 +474,16 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 // @Failure 503 {object} dto.ErrorResponse
 // @Router /private/orders/{orderId}/items/{productId} [delete]
 func (h OrderHandler) DeleteItemHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logging.LoggerFromContext(r.Context())
-
-	actor, ok := actorctx.ActorFromContext(r.Context())
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
 	if !ok {
 		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
+	// 2. Извлечение и парсинг ID из пути
 	orderID, err := helpers.ParsePositiveIntParam(r, "orderId")
 	if err != nil {
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
@@ -507,7 +494,9 @@ func (h OrderHandler) DeleteItemHandler(w http.ResponseWriter, r *http.Request) 
 		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := h.orderService.DeleteItem(r.Context(), actor, orderID, productID); err != nil {
+
+	// 3. Вызов сервиса для удаления
+	if err := h.orderService.DeleteItem(ctx, actor, orderID, productID); err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{
 			"orderId":   orderID,
 			"productId": productID,
@@ -515,5 +504,41 @@ func (h OrderHandler) DeleteItemHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// 4. Успешное удаление без контента
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h OrderHandler) FindProductInOrdersHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	// 2. Парсинг данных из запроса
+	productID, err := helpers.ParsePositiveIntParam(r, "productId")
+	if err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		return
+	}
+	groupID, err := helpers.ParseOptionalIntParam(r, "groupId")
+	if err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 3. Вызов сервиса для поиска товара в заказах
+	stores, err := h.orderService.FindProductInOrders(ctx, actor, productID, groupID)
+	if err != nil {
+		helpers.WriteDomainError(w, logger, err, map[string]any{
+			"productId": productID,
+		})
+		return
+	}
+
+	// 4. Формирование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToOrderItemFindResponse(stores))
 }

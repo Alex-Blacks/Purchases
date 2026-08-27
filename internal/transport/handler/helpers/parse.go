@@ -25,6 +25,21 @@ func ParsePositiveIntParam(r *http.Request, name string) (int, error) {
 	return val, nil
 }
 
+func ParseOptionalIntParam(r *http.Request, key string) (*int, error) {
+	val := r.URL.Query().Get(key)
+	if val == "" {
+		return nil, nil
+	}
+	i, err := strconv.Atoi(val)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s: %w", key, err)
+	}
+	if i < 1 {
+		return nil, fmt.Errorf("%s must be positive", key)
+	}
+	return &i, nil
+}
+
 func DecodeJSON(w http.ResponseWriter, r *http.Request, logger *slog.Logger, validate *validator.Validate, dest any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	defer r.Body.Close()
