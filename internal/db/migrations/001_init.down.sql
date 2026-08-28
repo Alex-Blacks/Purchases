@@ -1,3 +1,5 @@
+alter table groups drop constraint if exists fk_groups_admin_user;
+
 drop table if exists purchases cascade;
 drop table if exists purchase_items;
 drop table if exists orders cascade;
@@ -11,6 +13,6 @@ drop table if exists users;
 drop table if exists groups;
 
 drop extension if exists citext;
-drop type is exists invate_status;
+drop type if exists invite_status;
 drop type if exists user_status;
 drop type if exists user_role;

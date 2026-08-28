@@ -7,8 +7,8 @@ create extension if not exists citext;
 create table groups(
     id integer generated always as identity primary key,
     name varchar(50) not null,
-    admin_user_id integer default null references users(id) on delete restrict
-)
+    admin_user_id integer default null
+);
 
 create table users(
     id integer generated always as identity primary key,
@@ -22,6 +22,8 @@ create table users(
     updated_at timestamptz not null default now()
 );
 
+alter table groups add constraint fk_groups_admin_user foreign key (admin_user_id) references users(id) on delete restrict;
+
 create table invites(
     id integer generated always as identity primary key,
     group_id integer not null references groups(id) on delete cascade, 
@@ -31,7 +33,7 @@ create table invites(
     token text not null unique, 
     created_at timestamptz not null default now(), 
     expires_at timestamptz not null
-)
+);
 
 create table units(
     id integer generated always as identity primary key,

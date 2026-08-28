@@ -1,4 +1,4 @@
-create index idx_groups_admin_user on groups(admin_user);
+create index idx_groups_admin_user on groups(admin_user_id);
 
 create index idx_users_email on users(email);
 create index idx_users_group on users(group_id);
