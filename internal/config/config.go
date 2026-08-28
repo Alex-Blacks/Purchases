@@ -31,10 +31,10 @@ func Load() Config {
 		TokenLifetime: time.Duration(lifetime) * time.Minute,
 		DatabaseURL:   os.Getenv("DATABASE_URL"),
 		Timeout:       os.Getenv("TIMEOUT"),
-		SMTPHost:      os.Getenv("SMTPHOST"),
+		SMTPHost:      os.Getenv("SMTP_HOST"),
 		SMTPPort:      smtpPort,
-		SMTPUserName:  os.Getenv("SMTPUSERNAME"),
-		SMTPPassword:  os.Getenv("SMTPPASSWORD"),
-		SMTPFrom:      os.Getenv("SMTPFROM"),
+		SMTPUserName:  os.Getenv("SMTP_USERNAME"),
+		SMTPPassword:  os.Getenv("SMTP_PASSWORD"),
+		SMTPFrom:      os.Getenv("SMTP_FROM"),
 	}
 }
