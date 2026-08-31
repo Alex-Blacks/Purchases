@@ -68,12 +68,12 @@ func (p *ProductRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, 
 	if !ok {
 		return domain.ProductDetails{}, fmt.Errorf("invalid params type: expected ProductUpdate, got %T", updates)
 	}
-	var product domain.ProductDetails
+
 	args := []any{id}
 	setParts := []string{}
 	argPos := 2
 
-	if (productUpdate.Title != nil) && (strings.TrimSpace(*productUpdate.Title) != "") {
+	if productUpdate.Title != nil {
 		setParts = append(setParts, fmt.Sprintf("title = $%d", argPos))
 		args = append(args, *productUpdate.Title)
 		argPos++
@@ -84,6 +84,7 @@ func (p *ProductRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, 
 		return domain.ProductDetails{}, domain.ErrNoFieldsToUpdate
 	}
 
+	var product domain.ProductDetails
 	if err := q.QueryRow(ctx, `
 		UPDATE products p
 		SET `+set+`
@@ -123,13 +124,19 @@ func (p *ProductRepo) DeleteByID(ctx context.Context, q domain.Querier, id int) 
 	return nil
 }
 
-func (p *ProductRepo) List(ctx context.Context, q domain.Querier, groupID []int) ([]domain.ProductDetails, error) {
-	rows, err := q.Query(ctx, `
+func (p *ProductRepo) List(ctx context.Context, q domain.Querier, filter domain.ProductListFilter) ([]domain.ProductDetails, error) {
+	query := `
 		SELECT p.id, p.title, p.group_id, g.name
 		FROM products p
-		JOIN groups g ON p.group_id = g.id
-		WHERE p.group_id = ANY($1::int[])
-	`)
+		JOIN groups g ON p.group_id = g.id`
+
+	whereClause, whereArgs, whereArgPos := buildProductWhere(filter)
+	query += whereClause
+
+	query += fmt.Sprintf("ORDER BY s.id LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
+	args := append(whereArgs, filter.Limit, filter.Offset)
+
+	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query products: %w", err)
 	}
@@ -151,31 +158,18 @@ func (p *ProductRepo) List(ctx context.Context, q domain.Querier, groupID []int)
 	return products, nil
 }
 
-func (p *ProductRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.ProductDetails, error) {
-	rows, err := q.Query(ctx, `
-		SELECT p.id, p.title, p.group_id, g.name
-		FROM products p
-		JOIN groups g ON p.group_id = g.id
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("query products: %w", err)
-	}
-	defer rows.Close()
+func (p *ProductRepo) Count(ctx context.Context, q domain.Querier, filter domain.ProductListFilter) (int, error) {
+	query := "SELECT COUNT(*) FROM products p"
 
-	var products []domain.ProductDetails
-	for rows.Next() {
-		var product domain.ProductDetails
-		if err := rows.Scan(&product.ID, &product.Title, &product.GroupID, &product.Group); err != nil {
-			return nil, fmt.Errorf("scan product: %w", err)
-		}
-		products = append(products, product)
+	whereClause, args, _ := buildProductWhere(filter)
+	query += whereClause
+
+	var count int
+	if err := q.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("query count products: %w", err)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iteration failed: %w", err)
-	}
-
-	return products, nil
+	return count, nil
 }
 
 type ProductAliasRepo struct{}
@@ -230,12 +224,11 @@ func (a *ProductAliasRepo) GetByID(ctx context.Context, q domain.Querier, aliasI
 }
 
 func (a *ProductAliasRepo) UpdateByID(ctx context.Context, q domain.Querier, aliasID int, updateAlias domain.ProductAliasUpdate) (domain.ProductAliasDetails, error) {
-	var alias domain.ProductAliasDetails
 	args := []any{aliasID}
 	setParts := []string{}
 	argPos := 2
 
-	if updateAlias.Alias != nil && strings.TrimSpace(*updateAlias.Alias) != "" {
+	if updateAlias.Alias != nil {
 		setParts = append(setParts, fmt.Sprintf("alias = $%d", argPos))
 		args = append(args, *updateAlias.Alias)
 		argPos++
@@ -246,6 +239,7 @@ func (a *ProductAliasRepo) UpdateByID(ctx context.Context, q domain.Querier, ali
 		return domain.ProductAliasDetails{}, domain.ErrNoFieldsToUpdate
 	}
 
+	var alias domain.ProductAliasDetails
 	if err := q.QueryRow(ctx, `
 		UPDATE product_aliases pa
 		SET `+set+`

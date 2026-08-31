@@ -68,17 +68,17 @@ func (u *UnitRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, upd
 	if !ok {
 		return domain.UnitDetails{}, fmt.Errorf("invalid updates type: expected UnitUpdate, got %T", updates)
 	}
-	var unit domain.UnitDetails
+
 	args := []any{id}
 	setParts := []string{}
 	argPos := 2
 
-	if (unitUpdate.Name != nil) && (strings.TrimSpace(*unitUpdate.Name) != "") {
+	if unitUpdate.Name != nil {
 		setParts = append(setParts, fmt.Sprintf("name = $%d", argPos))
 		args = append(args, *unitUpdate.Name)
 		argPos++
 	}
-	if (unitUpdate.ShortName != nil) && (strings.TrimSpace(*unitUpdate.ShortName) != "") {
+	if unitUpdate.ShortName != nil {
 		setParts = append(setParts, fmt.Sprintf("short_name = $%d", argPos))
 		args = append(args, *unitUpdate.ShortName)
 		argPos++
@@ -89,6 +89,7 @@ func (u *UnitRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, upd
 		return domain.UnitDetails{}, domain.ErrNoFieldsToUpdate
 	}
 
+	var unit domain.UnitDetails
 	if err := q.QueryRow(ctx, `
 		UPDATE units u
 		SET `+set+`
@@ -128,15 +129,21 @@ func (u *UnitRepo) DeleteByID(ctx context.Context, q domain.Querier, id int) err
 	return nil
 }
 
-func (u *UnitRepo) List(ctx context.Context, q domain.Querier, groupID []int) ([]domain.UnitDetails, error) {
-	rows, err := q.Query(ctx, `
+func (u *UnitRepo) List(ctx context.Context, q domain.Querier, filter domain.UnitListFilter) ([]domain.UnitDetails, error) {
+	query := `
 		SELECT u.id, u.name, u.short_name, u.group_id, g.name 
 		FROM units u
-		JOIN groups g ON u.group_id = g.id
-		WHERE u.group_id = ANY($1::int[])
-	`, groupID)
+		JOIN groups g ON u.group_id = g.id`
+
+	whereClause, whereArgs, whereArgPos := buildUnitWhere(filter)
+	query += whereClause
+
+	query += fmt.Sprintf("ORDER BY u.id LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
+	args := append(whereArgs, filter.Limit, filter.Offset)
+
+	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
-		return []domain.UnitDetails{}, fmt.Errorf("query units: %w", err)
+		return nil, fmt.Errorf("query units: %w", err)
 	}
 	defer rows.Close()
 
@@ -144,41 +151,28 @@ func (u *UnitRepo) List(ctx context.Context, q domain.Querier, groupID []int) ([
 	for rows.Next() {
 		var unit domain.UnitDetails
 		if err := rows.Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
-			return []domain.UnitDetails{}, fmt.Errorf("scan unit: %w", err)
+			return nil, fmt.Errorf("scan unit: %w", err)
 		}
 
 		units = append(units, unit)
 	}
 	if err := rows.Err(); err != nil {
-		return []domain.UnitDetails{}, fmt.Errorf("iteration failed: %w", err)
+		return nil, fmt.Errorf("iteration failed: %w", err)
 	}
 
 	return units, nil
 }
 
-func (u *UnitRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.UnitDetails, error) {
-	rows, err := q.Query(ctx, `
-		SELECT u.id, u.name, u.short_name, u.group_id, g.name 
-		FROM units u
-		JOIN groups g ON u.group_id = g.id
-	`)
-	if err != nil {
-		return []domain.UnitDetails{}, fmt.Errorf("query units: %w", err)
-	}
-	defer rows.Close()
+func (u *UnitRepo) Count(ctx context.Context, q domain.Querier, filter domain.UnitListFilter) (int, error) {
+	query := "SELECT COUNT(*) FROM units u"
 
-	var units []domain.UnitDetails
-	for rows.Next() {
-		var unit domain.UnitDetails
-		if err := rows.Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
-			return []domain.UnitDetails{}, fmt.Errorf("scan unit: %w", err)
-		}
+	whereClause, args, _ := buildUnitWhere(filter)
+	query += whereClause
 
-		units = append(units, unit)
-	}
-	if err := rows.Err(); err != nil {
-		return []domain.UnitDetails{}, fmt.Errorf("iteration failed: %w", err)
+	var count int
+	if err := q.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("query count units: %w", err)
 	}
 
-	return units, nil
+	return count, nil
 }

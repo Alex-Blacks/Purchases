@@ -35,14 +35,14 @@ type ChangeHistoryDetails struct {
 }
 
 type HistoryListFilter struct {
-	GroupIDs   []int          `json:"group_ids"`
-	EntityType *HistoryEntity `json:"entity_type,omitempty"`
-	EntityID   *int           `json:"entity_id,omitempty"`
-	Action     *HistoryAction `json:"action,omitempty"`
-	From       *time.Time     `json:"from,omitempty"`
-	To         *time.Time     `json:"to,omitempty"`
-	Limit      int            `json:"limit"`
-	Offset     int            `json:"offset"`
+	GroupIDs   []int
+	EntityType *HistoryEntity
+	EntityID   *int
+	Action     *HistoryAction
+	From       *time.Time
+	To         *time.Time
+	Limit      int
+	Offset     int
 }
 
 type ChangeHistoryRepository interface {

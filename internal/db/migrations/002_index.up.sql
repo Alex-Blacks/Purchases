@@ -2,6 +2,8 @@ create index idx_groups_admin_user on groups(admin_user_id);
 
 create index idx_users_email on users(email);
 create index idx_users_group on users(group_id);
+create index idx_users_created_at on users(created_at);
+create index idx_users_updated_at on users(updated_at);
 
 create index idx_invites_group on invites(group_id);
 create index idx_invites_status on invites(status);

@@ -17,6 +17,13 @@ type StoreDetails struct {
 	Group   string
 }
 
+type StoreListFilter struct {
+	GroupIDs []int
+	Name     *string
+	Limit    int
+	Offset   int
+}
+
 func (s StoreDetails) GetGroupID() int { return s.GroupID }
 func (s StoreDetails) GetID() int      { return s.ID }
 
@@ -25,6 +32,6 @@ type StoreRepository interface {
 	GetByID(ctx context.Context, q Querier, id int) (StoreDetails, error)
 	UpdateByID(ctx context.Context, q Querier, id int, updates any) (StoreDetails, error)
 	DeleteByID(ctx context.Context, q Querier, id int) error
-	List(ctx context.Context, q Querier, groupIDs []int) ([]StoreDetails, error)
-	ListAll(ctx context.Context, q Querier) ([]StoreDetails, error)
+	List(ctx context.Context, q Querier, filter StoreListFilter) ([]StoreDetails, error)
+	Count(ctx context.Context, q Querier, filter StoreListFilter) (int, error)
 }

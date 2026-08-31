@@ -69,12 +69,12 @@ func (s *StoreRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, up
 	if !ok {
 		return domain.StoreDetails{}, fmt.Errorf("invalid updates type: expected StoreUpdate, got %T", updates)
 	}
-	var store domain.StoreDetails
+
 	args := []any{id}
 	setParts := []string{}
 	argPos := 2
 
-	if (storeUpdate.Name != nil) && (strings.TrimSpace(*storeUpdate.Name) != "") {
+	if storeUpdate.Name != nil {
 		setParts = append(setParts, fmt.Sprintf("name = $%d", argPos))
 		args = append(args, *storeUpdate.Name)
 		argPos++
@@ -85,6 +85,7 @@ func (s *StoreRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, up
 		return domain.StoreDetails{}, domain.ErrNoFieldsToUpdate
 	}
 
+	var store domain.StoreDetails
 	if err := q.QueryRow(ctx, `
 		UPDATE stores s
 		SET `+set+`
@@ -125,15 +126,21 @@ func (s *StoreRepo) DeleteByID(ctx context.Context, q domain.Querier, id int) er
 	return nil
 }
 
-func (s *StoreRepo) List(ctx context.Context, q domain.Querier, groupID []int) ([]domain.StoreDetails, error) {
-	rows, err := q.Query(ctx, `
+func (s *StoreRepo) List(ctx context.Context, q domain.Querier, filter domain.StoreListFilter) ([]domain.StoreDetails, error) {
+	query := `
 		SELECT s.id, s.name, s.group_id, g.name 
 		FROM stores s
-		JOIN groups g ON s.group_id = g.id
-		WHERE s.group_id = ANY($1::int[])
-	`, groupID)
+		JOIN groups g ON s.group_id = g.id`
+
+	whereClause, whereArgs, whereArgPos := buildStoreWhere(filter)
+	query += whereClause
+
+	query += fmt.Sprintf("ORDER BY s.id LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
+	args := append(whereArgs, filter.Limit, filter.Offset)
+
+	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
-		return []domain.StoreDetails{}, fmt.Errorf("query stores: %w", err)
+		return nil, fmt.Errorf("query stores: %w", err)
 	}
 	defer rows.Close()
 
@@ -142,44 +149,29 @@ func (s *StoreRepo) List(ctx context.Context, q domain.Querier, groupID []int) (
 		var store domain.StoreDetails
 
 		if err := rows.Scan(&store.ID, &store.Name, &store.GroupID, &store.Group); err != nil {
-			return []domain.StoreDetails{}, fmt.Errorf("scan store: %w", err)
+			return nil, fmt.Errorf("scan store: %w", err)
 		}
 
 		stores = append(stores, store)
 	}
 
 	if err = rows.Err(); err != nil {
-		return []domain.StoreDetails{}, fmt.Errorf("iteration failed: %w", rows.Err())
+		return nil, fmt.Errorf("iteration failed: %w", err)
 	}
 
 	return stores, nil
 }
 
-func (s *StoreRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.StoreDetails, error) {
-	rows, err := q.Query(ctx, `
-		SELECT s.id, s.name, s.group_id, g.name 
-		FROM stores s
-		JOIN groups g ON s.group_id = g.id
-	`)
-	if err != nil {
-		return []domain.StoreDetails{}, fmt.Errorf("query stores: %w", err)
-	}
-	defer rows.Close()
+func (s *StoreRepo) Count(ctx context.Context, q domain.Querier, filter domain.StoreListFilter) (int, error) {
+	query := "SELECT COUNT(*) FROM stores s"
 
-	var stores []domain.StoreDetails
-	for rows.Next() {
-		var store domain.StoreDetails
+	whereClause, args, _ := buildStoreWhere(filter)
+	query += whereClause
 
-		if err := rows.Scan(&store.ID, &store.Name, &store.GroupID, &store.Group); err != nil {
-			return []domain.StoreDetails{}, fmt.Errorf("scan store: %w", err)
-		}
-
-		stores = append(stores, store)
+	var count int
+	if err := q.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("query count stores: %w", err)
 	}
 
-	if err = rows.Err(); err != nil {
-		return []domain.StoreDetails{}, fmt.Errorf("iteration failed: %w", rows.Err())
-	}
-
-	return stores, nil
+	return count, nil
 }

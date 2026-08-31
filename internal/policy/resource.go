@@ -8,7 +8,7 @@ type ResourceGroup interface {
 
 // Разрешает админу, и участникам группы, просматривать материалы группы
 func CanGroupAccessForReading(actor Actor, resource ResourceGroup) error {
-	if actor.HasRole(RoleAdmin) {
+	if actor.HasRole(domain.RoleAdmin) {
 		return nil
 	}
 	if resource.GetGroupID() == CommonGroupID {
@@ -22,7 +22,7 @@ func CanGroupAccessForReading(actor Actor, resource ResourceGroup) error {
 
 // Разрешает админу, и участникам группы, изменять материалы группы
 func CanGroupAccessForModify(actor Actor, resource ResourceGroup) error {
-	if actor.HasRole(RoleAdmin) {
+	if actor.HasRole(domain.RoleAdmin) {
 		return nil
 	}
 	if actor.GroupID == resource.GetGroupID() {
@@ -33,7 +33,7 @@ func CanGroupAccessForModify(actor Actor, resource ResourceGroup) error {
 
 // Разрешает просматривать пользователя админу, и самому пользователю или семье
 func CanReadUser(actor Actor, target domain.UserDetails) error {
-	if actor.HasRole(RoleAdmin) {
+	if actor.HasRole(domain.RoleAdmin) {
 		return nil
 	}
 	if actor.UserID == target.ID || actor.GroupID == target.GroupID {
@@ -44,7 +44,7 @@ func CanReadUser(actor Actor, target domain.UserDetails) error {
 
 // Разрешает изменять пользователя админу, и самому пользователю
 func CanUpdateUser(actor Actor, target domain.UserDetails) error {
-	if actor.HasRole(RoleAdmin) {
+	if actor.HasRole(domain.RoleAdmin) {
 		return nil
 	}
 	if actor.UserID == target.ID {
@@ -55,7 +55,7 @@ func CanUpdateUser(actor Actor, target domain.UserDetails) error {
 
 // Разрешает удалять пользователя админу, пользователю разрешено удалять себя, если он не админ группы
 func CanDeleteUser(actor Actor, target domain.UserDetails, isGroupAdmin bool) error {
-	if actor.HasRole(RoleAdmin) {
+	if actor.HasRole(domain.RoleAdmin) {
 		return nil
 	}
 	if actor.UserID == target.ID && !isGroupAdmin {
@@ -66,7 +66,7 @@ func CanDeleteUser(actor Actor, target domain.UserDetails, isGroupAdmin bool) er
 
 // Проверяет разрешение делать действия с группой. Либо админу, либо пользователю из запрашиваемой группы
 func IsAccessReadGroup(actor Actor, targetGroupID int) bool {
-	if actor.HasRole(RoleAdmin) {
+	if actor.HasRole(domain.RoleAdmin) {
 		return true
 	}
 	return actor.GroupID == targetGroupID
@@ -74,7 +74,7 @@ func IsAccessReadGroup(actor Actor, targetGroupID int) bool {
 
 // Проверяет разрешение делать действия с группой. Либо админу, либо админу группы
 func IsAccessWriteGroup(actor Actor, isGroupAdmin bool) bool {
-	if actor.HasRole(RoleAdmin) {
+	if actor.HasRole(domain.RoleAdmin) {
 		return true
 	}
 	return isGroupAdmin

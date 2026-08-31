@@ -17,7 +17,7 @@ func NewUserRepo() *UserRepo {
 	return &UserRepo{}
 }
 
-func (u *UserRepo) Create(ctx context.Context, q domain.Querier, name, passwordHash, email string, groupID int, role, status string) (domain.UserDetails, error) {
+func (u *UserRepo) Create(ctx context.Context, q domain.Querier, name, passwordHash, email string, groupID int, role domain.UserRole, status domain.UserStatus) (domain.UserDetails, error) {
 	var user domain.UserDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
@@ -79,32 +79,32 @@ func (u *UserRepo) UpdateByID(ctx context.Context, q domain.Querier, userID int,
 	args := []any{userID}
 	setParts := []string{}
 	argPos := 2
-	if updateUser.Name != nil && strings.TrimSpace(*updateUser.Name) != "" {
+	if updateUser.Name != nil {
 		setParts = append(setParts, fmt.Sprintf("name = $%d", argPos))
 		args = append(args, *updateUser.Name)
 		argPos++
 	}
-	if updateUser.Password != nil && strings.TrimSpace(*updateUser.Password) != "" {
+	if updateUser.Password != nil {
 		setParts = append(setParts, fmt.Sprintf("password_hash = $%d", argPos))
 		args = append(args, *updateUser.Password)
 		argPos++
 	}
-	if updateUser.Email != nil && strings.TrimSpace(*updateUser.Email) != "" {
+	if updateUser.Email != nil {
 		setParts = append(setParts, fmt.Sprintf("email = $%d", argPos))
 		args = append(args, *updateUser.Email)
 		argPos++
 	}
-	if updateUser.GroupID != nil && *updateUser.GroupID >= 1 {
+	if updateUser.GroupID != nil {
 		setParts = append(setParts, fmt.Sprintf("group_id = $%d", argPos))
 		args = append(args, *updateUser.GroupID)
 		argPos++
 	}
-	if updateUser.Role != nil && strings.TrimSpace(*updateUser.Role) != "" {
+	if updateUser.Role != nil {
 		setParts = append(setParts, fmt.Sprintf("role = $%d", argPos))
 		args = append(args, *updateUser.Role)
 		argPos++
 	}
-	if updateUser.Status != nil && strings.TrimSpace(*updateUser.Status) != "" {
+	if updateUser.Status != nil {
 		setParts = append(setParts, fmt.Sprintf("status = $%d", argPos))
 		args = append(args, *updateUser.Status)
 		argPos++
@@ -152,15 +152,22 @@ func (u *UserRepo) DeleteByID(ctx context.Context, q domain.Querier, userID int)
 	}
 	return nil
 }
-func (u *UserRepo) ListInGroup(ctx context.Context, q domain.Querier, groupID int) ([]domain.UserDetails, error) {
-	rows, err := q.Query(ctx, `
-		SELECT u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status 
+func (u *UserRepo) List(ctx context.Context, q domain.Querier, filter domain.UserListFilter) ([]domain.UserDetails, error) {
+	query := `
+		SELECT u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status, u.created_at, u.updated_at 
 		FROM users u
 		JOIN groups g ON u.group_id = g.id
-		WHERE u.group_id = $1
-	`, groupID)
+	`
+
+	whereClause, whereArgs, whereArgPos := buildUserWhere(filter)
+	query += whereClause
+
+	query += fmt.Sprintf(" ORDER BY u.created_at DESC LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
+	args := append(whereArgs, filter.Limit, filter.Offset)
+
+	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
-		return []domain.UserDetails{}, fmt.Errorf("query list users: %w", err)
+		return nil, fmt.Errorf("query list users: %w", err)
 	}
 	defer rows.Close()
 
@@ -168,43 +175,28 @@ func (u *UserRepo) ListInGroup(ctx context.Context, q domain.Querier, groupID in
 	for rows.Next() {
 		var user domain.UserDetails
 
-		if err := rows.Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.GroupID, &user.Group, &user.Role, &user.Status); err != nil {
-			return []domain.UserDetails{}, fmt.Errorf("scan list users: %w", err)
+		if err := rows.Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.GroupID, &user.Group, &user.Role, &user.Status, &user.CreatedAt, &user.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan list users: %w", err)
 		}
 
 		users = append(users, user)
 	}
 
 	if err := rows.Err(); err != nil {
-		return []domain.UserDetails{}, fmt.Errorf("iteration failed: %w", err)
+		return nil, fmt.Errorf("iteration failed: %w", err)
 	}
 	return users, nil
 }
 
-func (u *UserRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.UserDetails, error) {
-	rows, err := q.Query(ctx, `
-		SELECT u.id, u.name, u.password_hash, u.email, u.group_id, g.name, u.role, u.status 
-		FROM users u
-		JOIN groups g ON u.group_id = g.id
-	`)
-	if err != nil {
-		return []domain.UserDetails{}, fmt.Errorf("query list users: %w", err)
+func (u *UserRepo) Count(ctx context.Context, q domain.Querier, filter domain.UserListFilter) (int, error) {
+	query := "SELECT COUNT(*) FROM users u"
+
+	whereClause, args, _ := buildUserWhere(filter)
+	query += whereClause
+
+	var count int
+	if err := q.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("query count users: %w", err)
 	}
-	defer rows.Close()
-
-	var users []domain.UserDetails
-	for rows.Next() {
-		var user domain.UserDetails
-
-		if err := rows.Scan(&user.ID, &user.Name, &user.PasswordHash, &user.Email, &user.GroupID, &user.Group, &user.Role, &user.Status); err != nil {
-			return []domain.UserDetails{}, fmt.Errorf("scan list users: %w", err)
-		}
-
-		users = append(users, user)
-	}
-
-	if err := rows.Err(); err != nil {
-		return []domain.UserDetails{}, fmt.Errorf("iteration failed: %w", err)
-	}
-	return users, nil
+	return count, nil
 }

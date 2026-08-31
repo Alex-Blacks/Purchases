@@ -17,6 +17,13 @@ type ProductDetails struct {
 	Group   string
 }
 
+type ProductListFilter struct {
+	GroupIDs []int
+	Title    *string
+	Limit    int
+	Offset   int
+}
+
 // -------------------------------------------------
 // -------------------------------------------------
 
@@ -33,6 +40,14 @@ type ProductAliasDetails struct {
 	Group     string
 }
 
+type ProductAliasListFilter struct {
+	GroupIDs  []int
+	ProductID int
+	Alias     *string
+	Limit     int
+	Offset    int
+}
+
 func (p ProductDetails) GetGroupID() int { return p.GroupID }
 func (p ProductDetails) GetID() int      { return p.ID }
 
@@ -44,8 +59,8 @@ type ProductRepository interface {
 	GetByID(ctx context.Context, q Querier, id int) (ProductDetails, error)
 	UpdateByID(ctx context.Context, q Querier, id int, updates any) (ProductDetails, error)
 	DeleteByID(ctx context.Context, q Querier, id int) error
-	List(ctx context.Context, q Querier, groupID []int) ([]ProductDetails, error)
-	ListAll(ctx context.Context, q Querier) ([]ProductDetails, error)
+	List(ctx context.Context, q Querier, filter ProductListFilter) ([]ProductDetails, error)
+	Count(ctx context.Context, q Querier, filter ProductListFilter) (int, error)
 }
 
 type ProductAliasRepository interface {
@@ -53,8 +68,9 @@ type ProductAliasRepository interface {
 	GetByID(ctx context.Context, q Querier, aliasID int) (ProductAliasDetails, error)
 	UpdateByID(ctx context.Context, q Querier, aliasID int, updateAlias ProductAliasUpdate) (ProductAliasDetails, error)
 	DeleteByID(ctx context.Context, q Querier, aliasID int) error
-	List(ctx context.Context, q Querier, productID int, groupID []int) ([]ProductAliasDetails, error)
-	ListAll(ctx context.Context, q Querier, productID int) ([]ProductAliasDetails, error)
+	List(ctx context.Context, q Querier, filter ProductAliasListFilter) ([]ProductAliasDetails, error)
+	Count(ctx context.Context, q Querier, filter ProductListFilter) (int, error)
+
 	DeleteAllProductAliases(ctx context.Context, q Querier, productID int) error
 	FindProductByAlias(ctx context.Context, q Querier, alias string, groupID []int) (ProductDetails, error)
 	FindAllProductByAlias(ctx context.Context, q Querier, alias string) (ProductDetails, error)

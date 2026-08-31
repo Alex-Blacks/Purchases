@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
@@ -31,22 +30,12 @@ func (c *ChangeHistoryRepo) List(ctx context.Context, q domain.Querier, filter d
 		JOIN groups g ON h.group_id = g.id
 		JOIN users u ON h.user_id = u.id
 	`
-	args := []any{}
-	setParts := []string{}
-	argPos := 1
 
-	if len(filter.GroupIDs) > 0 {
-		setParts = append(setParts, fmt.Sprintf("WHERE h.group_id = ANY($%d::int[])", argPos))
-		args = append(args, filter.GroupIDs)
-		argPos++
-	}
+	whereClause, whereArgs, whereArgPos := buildHistoryWhere(filter)
+	query += whereClause
 
-	if len(setParts) > 0 {
-		query += " WHERE " + strings.Join(setParts, " AND ")
-	}
-
-	query += fmt.Sprintf("ORDER BY h.created_at DESC LIMIT $%d OFFSET $%d", argPos, argPos+1)
-	args = append(args, filter.Limit, filter.Offset)
+	query += fmt.Sprintf(" ORDER BY h.created_at DESC LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
+	args := append(whereArgs, filter.Limit, filter.Offset)
 
 	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
@@ -72,21 +61,14 @@ func (c *ChangeHistoryRepo) List(ctx context.Context, q domain.Querier, filter d
 
 func (c *ChangeHistoryRepo) Count(ctx context.Context, q domain.Querier, filter domain.HistoryListFilter) (int, error) {
 	query := "SELECT COUNT(*) FROM change_history h"
-	args := []any{}
-	setParts := []string{}
-	argPos := 1
 
-	if len(filter.GroupIDs) > 0 {
-		setParts = append(setParts, fmt.Sprintf("WHERE h.group_id = ANY($%d::int[])", argPos))
-		args = append(args, filter.GroupIDs)
-		argPos++
-	}
+	whereClause, args, _ := buildHistoryWhere(filter)
 
-	if len(setParts) > 0 {
-		query += " WHERE " + strings.Join(setParts, " AND ")
-	}
+	query += whereClause
 
 	var count int
-	err := q.QueryRow(ctx, query, args...).Scan(&count)
-	return count, err
+	if err := q.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("query count histories: %w", err)
+	}
+	return count, nil
 }
