@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 )
 
@@ -28,12 +29,24 @@ type ChangeHistoryDetails struct {
 	EntityType HistoryEntity
 	EntityID   int
 	Action     HistoryAction
-	OldData    any
-	NewData    any
+	OldData    json.RawMessage
+	NewData    json.RawMessage
 	CreatedAt  time.Time
 }
 
+type HistoryListFilter struct {
+	GroupIDs   []int          `json:"group_ids"`
+	EntityType *HistoryEntity `json:"entity_type,omitempty"`
+	EntityID   *int           `json:"entity_id,omitempty"`
+	Action     *HistoryAction `json:"action,omitempty"`
+	From       *time.Time     `json:"from,omitempty"`
+	To         *time.Time     `json:"to,omitempty"`
+	Limit      int            `json:"limit"`
+	Offset     int            `json:"offset"`
+}
+
 type ChangeHistoryRepository interface {
-	Insert(ctx context.Context, q Querier, groupID, userID int, entityType HistoryEntity, entityID int, action HistoryAction, newData any) error
-	List(ctx context.Context, q Querier, groupID int) ([]ChangeHistoryDetails, error)
+	Insert(ctx context.Context, q Querier, groupID int, userID int, entityType HistoryEntity, entityID int, action HistoryAction, oldData json.RawMessage, newData json.RawMessage) error
+	List(ctx context.Context, q Querier, filter HistoryListFilter) ([]ChangeHistoryDetails, error)
+	Count(ctx context.Context, q Querier, filter HistoryListFilter) (int, error)
 }
