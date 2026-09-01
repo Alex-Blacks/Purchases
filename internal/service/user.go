@@ -41,15 +41,15 @@ func (s *ServiceUser) generatePassword(password string) (string, error) {
 }
 
 // Create регистрирует нового пользователя с личной группой. Доступно без авторизации.
-func (s *ServiceUser) Create(ctx context.Context, name, password, email, role, status string) (domain.UserDetails, error) {
+func (s *ServiceUser) Create(ctx context.Context, name, password, email string, role domain.UserRole, status domain.UserStatus) (domain.UserDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("email_hash", fmt.Sprintf("%x", sha256.Sum256([]byte(email))), "name", name)
 	logger.InfoContext(ctx, "registering new user")
 
-	if strings.TrimSpace(name) == "" || strings.TrimSpace(password) == "" || strings.TrimSpace(email) == "" || strings.TrimSpace(role) == "" || strings.TrimSpace(status) == "" {
+	if strings.TrimSpace(name) == "" || strings.TrimSpace(password) == "" || strings.TrimSpace(email) == "" || role == "" || status == "" {
 		return domain.UserDetails{}, domain.ErrEmptyName
 	}
 
-	if role != string(policy.RoleUser) && role != string(policy.RoleAdmin) {
+	if role != domain.RoleUser && role != domain.RoleAdmin {
 		return domain.UserDetails{}, domain.ErrInvalidInput
 	}
 
@@ -168,15 +168,15 @@ func (s *ServiceUser) UpdateByID(ctx context.Context, actor policy.Actor, userID
 	}
 
 	// 2. Только администратор может менять GroupID, Role, Status
-	if updateUser.GroupID != nil && !actor.HasRole(policy.RoleAdmin) {
+	if updateUser.GroupID != nil && !actor.HasRole(domain.RoleAdmin) {
 		logger.WarnContext(ctx, "attempt to change group without admin role")
 		return domain.UserDetails{}, policy.ErrForbidden
 	}
-	if updateUser.Role != nil && !actor.HasRole(policy.RoleAdmin) {
+	if updateUser.Role != nil && !actor.HasRole(domain.RoleAdmin) {
 		logger.WarnContext(ctx, "attempt to change role without admin role")
 		return domain.UserDetails{}, policy.ErrForbidden
 	}
-	if updateUser.Status != nil && !actor.HasRole(policy.RoleAdmin) {
+	if updateUser.Status != nil && !actor.HasRole(domain.RoleAdmin) {
 		logger.WarnContext(ctx, "attempt to change status without admin role")
 		return domain.UserDetails{}, policy.ErrForbidden
 	}
@@ -185,11 +185,11 @@ func (s *ServiceUser) UpdateByID(ctx context.Context, actor policy.Actor, userID
 		return domain.UserDetails{}, domain.ErrInvalidInput
 	}
 
-	if updateUser.Role != nil && strings.TrimSpace(*updateUser.Role) == "" {
+	if updateUser.Role != nil && *updateUser.Role == "" {
 		return domain.UserDetails{}, domain.ErrEmptyName
 	}
 
-	if updateUser.Status != nil && strings.TrimSpace(*updateUser.Status) == "" {
+	if updateUser.Status != nil && *updateUser.Status == "" {
 		return domain.UserDetails{}, domain.ErrEmptyName
 	}
 
@@ -270,7 +270,10 @@ func (s *ServiceUser) DeleteByID(ctx context.Context, actor policy.Actor, userID
 		}
 
 		// 2. Проверка, является ли пользователь администратором своей группы (для политики удаления)
-		isGroupAdmin := s.groupRepo.CheckGroupAdmin(ctx, q, actor.GroupID, actor.UserID)
+		isGroupAdmin, err := s.groupRepo.CheckGroupAdmin(ctx, q, actor.GroupID, actor.UserID)
+		if err != nil {
+			return err
+		}
 		if err := policy.CanDeleteUser(actor, user, isGroupAdmin); err != nil {
 			logger.WarnContext(ctx, "user not allowed to delete this user")
 			return policy.ErrForbidden
@@ -290,39 +293,47 @@ func (s *ServiceUser) DeleteByID(ctx context.Context, actor policy.Actor, userID
 	return nil
 }
 
-// List возвращает список пользователей в группе актора.
-func (s *ServiceUser) List(ctx context.Context, actor policy.Actor) ([]domain.UserDetails, error) {
+// List возвращает список пользователей с фильтрацией.
+func (s *ServiceUser) List(ctx context.Context, actor policy.Actor, filter domain.UserListFilter) ([]domain.UserDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("group_id", actor.GroupID)
 	logger.InfoContext(ctx, "listing users in group")
 
+	if err := validateFilterUser(filter); err != nil {
+		return nil, err
+	}
+
+	if !actor.HasRole(domain.RoleAdmin) {
+		filter.GroupIDs = []int{actor.GroupID}
+	}
+
 	// 1. Получение списка пользователей группы из БД (без транзакции)
-	users, err := s.userRepo.ListInGroup(ctx, s.storage, actor.GroupID)
+	users, err := s.userRepo.List(ctx, s.storage, filter)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to list users in group", "error", err)
-		return []domain.UserDetails{}, fmt.Errorf("list users: %w", err)
+		return nil, fmt.Errorf("list users: %w", err)
 	}
 
 	logger.InfoContext(ctx, "users in group listed successfully", "count", len(users))
 	return users, nil
 }
 
-// ListAll возвращает список всех пользователей. Доступно только администраторам.
-func (s *ServiceUser) ListAll(ctx context.Context, actor policy.Actor) ([]domain.UserDetails, error) {
+// Count возвращает количество всех пользователей. Доступно только администраторам.
+func (s *ServiceUser) Count(ctx context.Context, actor policy.Actor, filter domain.UserListFilter) (int, error) {
 	// 1. Проверка прав
-	if !actor.HasRole(policy.RoleAdmin) {
-		return []domain.UserDetails{}, policy.ErrForbidden
+	if !actor.HasRole(domain.RoleAdmin) {
+		return 0, policy.ErrForbidden
 	}
 
 	logger := logging.LoggerFromContext(ctx)
-	logger.InfoContext(ctx, "listing users")
+	logger.InfoContext(ctx, "counting users")
 
-	// 2. Получение списка пользователей из БД (без транзакции)
-	users, err := s.userRepo.ListAll(ctx, s.storage)
+	// 2. Получение количества пользователей из БД (без транзакции)
+	count, err := s.userRepo.Count(ctx, s.storage, filter)
 	if err != nil {
-		logger.ErrorContext(ctx, "failed to list users", "error", err)
-		return []domain.UserDetails{}, fmt.Errorf("list users: %w", err)
+		logger.ErrorContext(ctx, "failed to count users", "error", err)
+		return 0, fmt.Errorf("count users: %w", err)
 	}
 
-	logger.InfoContext(ctx, "users listed successfully", "count", len(users))
-	return users, nil
+	logger.InfoContext(ctx, "users counted successfully", "count", count)
+	return count, nil
 }

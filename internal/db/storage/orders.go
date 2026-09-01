@@ -118,19 +118,24 @@ func (r *OrderRepo) DeleteByID(ctx context.Context, q domain.Querier, orderID in
 	return nil
 }
 
-func (r *OrderRepo) List(ctx context.Context, q domain.Querier, userID int, groupID int) ([]domain.OrderDetails, error) {
-	rows, err := q.Query(ctx, `
+func (r *OrderRepo) List(ctx context.Context, q domain.Querier, filter domain.OrderListFilter) ([]domain.OrderDetails, error) {
+	query := `
 		SELECT 
 			o.id, o.user_id, u.name, o.store_id, s.name, o.group_id, g.name, o.created_at, o.updated_at, 
-			COUNT(oi.id) AS items_quantity
+			(SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS items_quantity
 		FROM orders o
 		JOIN stores s ON o.store_id = s.id
 		JOIN users u ON o.user_id = u.id
 		JOIN groups g ON o.group_id = g.id
-		LEFT JOIN order_items oi ON oi.order_id = o.id
-		WHERE o.user_id = $1 OR o.group_id = $2
-		GROUP BY o.id, o.user_id, u.name, o.store_id, s.name, o.group_id, g.name, o.created_at, o.updated_at
-	`, userID, groupID)
+		LEFT JOIN order_items oi ON oi.order_id = o.id`
+
+	whereClause, whereArgs, whereArgPos := buildOrderWhere(filter)
+	query += whereClause
+
+	query += fmt.Sprintf("ORDER BY o.created_at DESC LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
+	args := append(whereArgs, filter.Limit, filter.Offset)
+
+	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query order: %w", err)
 	}
@@ -152,37 +157,18 @@ func (r *OrderRepo) List(ctx context.Context, q domain.Querier, userID int, grou
 	return lists, nil
 }
 
-func (r *OrderRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.OrderDetails, error) {
-	rows, err := q.Query(ctx, `
-		SELECT 
-			o.id, o.user_id, u.name, o.store_id, s.name, o.group_id, g.name, o.created_at, o.updated_at, 
-			COUNT(oi.id) AS items_quantity
-		FROM orders o
-		JOIN stores s ON o.store_id = s.id
-		JOIN users u ON o.user_id = u.id
-		JOIN groups g ON o.group_id = g.id
-		LEFT JOIN order_items oi ON oi.order_id = o.id
-		GROUP BY o.id, o.user_id, u.name, o.store_id, s.name, o.group_id, g.name, o.created_at, o.updated_at
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("query order: %w", err)
-	}
-	defer rows.Close()
+func (r *OrderRepo) Count(ctx context.Context, q domain.Querier, filter domain.OrderListFilter) (int, error) {
+	query := "SELECT COUNT(*) FROM orders o"
 
-	var lists []domain.OrderDetails
-	for rows.Next() {
-		var list domain.OrderDetails
-		if err := rows.Scan(&list.ID, &list.UserID, &list.User, &list.StoreID, &list.Store, &list.GroupID, &list.Group, &list.CreatedAt, &list.UpdatedAt, &list.ItemsCount); err != nil {
-			return nil, fmt.Errorf("scan orders: %w", err)
-		}
+	whereClause, args, _ := buildOrderWhere(filter)
+	query += whereClause
 
-		lists = append(lists, list)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iteration failed: %w", err)
+	var count int
+	if err := q.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("query count order: %w", err)
 	}
 
-	return lists, nil
+	return count, nil
 }
 
 func (r *OrderItemRepo) GetItemByOrderAndProduct(ctx context.Context, q domain.Querier, orderID, productID int) (domain.OrderItemDetails, error) {
@@ -248,28 +234,25 @@ func (r *OrderItemRepo) DeleteItemByOrderAndProduct(ctx context.Context, q domai
 }
 
 func (r *OrderItemRepo) DeleteAllItems(ctx context.Context, q domain.Querier, orderID int) error {
-	tag, err := q.Exec(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1`, orderID)
+	_, err := q.Exec(ctx, `DELETE FROM order_items WHERE order_items.order_id = $1`, orderID)
 	if err != nil {
 		return fmt.Errorf("deleted all items: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrNotFound
-	}
+
 	return nil
 }
 
 func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderID, productID int, updateItem domain.OrderItemUpdate) (domain.OrderItemDetails, error) {
-	var item domain.OrderItemDetails
 	args := []any{orderID, productID}
 	setParts := []string{}
 	argPos := 3
 
-	if updateItem.Quantity != nil && *updateItem.Quantity >= 1 {
+	if updateItem.Quantity != nil {
 		setParts = append(setParts, fmt.Sprintf("quantity = $%d", argPos))
 		args = append(args, *updateItem.Quantity)
 		argPos++
 	}
-	if updateItem.UnitID != nil && *updateItem.UnitID >= 1 {
+	if updateItem.UnitID != nil {
 		setParts = append(setParts, fmt.Sprintf("unit_id = $%d", argPos))
 		args = append(args, *updateItem.UnitID)
 		argPos++
@@ -280,6 +263,7 @@ func (r *OrderItemRepo) UpdateItem(ctx context.Context, q domain.Querier, orderI
 		return domain.OrderItemDetails{}, domain.ErrNoFieldsToUpdate
 	}
 
+	var item domain.OrderItemDetails
 	if err := q.QueryRow(ctx, `
 		UPDATE order_items oi
 		SET `+set+`
@@ -312,11 +296,11 @@ func (r *OrderItemRepo) FindProductInOrders(ctx context.Context, q domain.Querie
 		FROM order_items oi
 		JOIN orders o ON oi.order_id = o.id
 		JOIN stores s ON o.store_id = s.id
-		WHERE oi.product_id = $1 AND oi.group_id = ANY($2::int[])
+		WHERE oi.product_id = $1 AND oi.group_id = $2
 		GROUP BY o.store_id, s.name
 	`, productID, groupID)
 	if err != nil {
-		return []domain.OrderItemFindDetails{}, fmt.Errorf("get order items: %w", err)
+		return nil, fmt.Errorf("get order items: %w", err)
 	}
 	defer rows.Close()
 
@@ -324,14 +308,64 @@ func (r *OrderItemRepo) FindProductInOrders(ctx context.Context, q domain.Querie
 	for rows.Next() {
 		var item domain.OrderItemFindDetails
 		if err := rows.Scan(&item.StoreID, &item.Store, &item.Quantity); err != nil {
-			return []domain.OrderItemFindDetails{}, fmt.Errorf("scan rows order items: %w", err)
+			return nil, fmt.Errorf("scan rows order items: %w", err)
 		}
 
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return []domain.OrderItemFindDetails{}, fmt.Errorf("iteration failed: %w", err)
+		return nil, fmt.Errorf("iteration failed: %w", err)
 	}
 
 	return items, nil
+}
+
+func (r *OrderItemRepo) List(ctx context.Context, q domain.Querier, filter domain.OrderItemListFilter) ([]domain.OrderItemDetails, error) {
+	query := `
+		SELECT oi.id, oi.order_id, oi.product_id, p.title, oi.unit_id, u.short_name, oi.quantity, oi.group_id, g.name
+		FROM order_items oi
+		JOIN products p ON oi.product_id = p.id
+		JOIN units u ON oi.unit_id = u.id
+		JOIN groups g ON oi.group_id = g.id`
+
+	whereClause, whereArgs, whereArgPos := buildOrderItemWhere(filter)
+	query += whereClause
+
+	query += fmt.Sprintf("ORDER BY oi.id LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
+	args := append(whereArgs, filter.Limit, filter.Offset)
+
+	rows, err := q.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query order item: %w", err)
+	}
+	defer rows.Close()
+
+	var lists []domain.OrderItemDetails
+	for rows.Next() {
+		var item domain.OrderItemDetails
+		if err := rows.Scan(&item.ID, &item.OrderID, &item.ProductID, &item.Title, &item.UnitID, &item.Unit, &item.Quantity, &item.GroupID, &item.Group); err != nil {
+			return nil, fmt.Errorf("scan order items: %w", err)
+		}
+
+		lists = append(lists, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iteration failed: %w", err)
+	}
+
+	return lists, nil
+}
+
+func (r *OrderItemRepo) Count(ctx context.Context, q domain.Querier, filter domain.OrderItemListFilter) (int, error) {
+	query := "SELECT COUNT(*) FROM order_items oi"
+
+	whereClause, args, _ := buildOrderItemWhere(filter)
+	query += whereClause
+
+	var count int
+	if err := q.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("query count order item: %w", err)
+	}
+
+	return count, nil
 }

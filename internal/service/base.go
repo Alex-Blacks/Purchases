@@ -38,7 +38,7 @@ func (s *BaseService) withTx(ctx context.Context, fn func(q domain.Querier) erro
 
 // resolveGroupID определяет целевой groupID на основе роли и переданного значения
 func (b *BaseService) resolveGroupID(actor policy.Actor, groupID *int) (int, error) {
-	if actor.HasRole(policy.RoleAdmin) {
+	if actor.HasRole(domain.RoleAdmin) {
 		if groupID == nil || *groupID < 1 {
 			return 0, domain.ErrGroupIDRequired
 		}

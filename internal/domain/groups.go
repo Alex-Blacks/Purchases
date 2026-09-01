@@ -14,12 +14,20 @@ type GroupUpdate struct {
 	AdminUserID *int
 }
 
+type GroupListFilter struct {
+	Name        *string
+	AdminUserID *int
+	Limit       int
+	Offset      int
+}
+
 type GroupRepository interface {
 	Create(ctx context.Context, q Querier, name string, adminUserID *int) (GroupDetails, error)
 	GetByID(ctx context.Context, q Querier, groupID int) (GroupDetails, error)
-	CheckGroupAdmin(ctx context.Context, q Querier, groupID int, adminUserID int) bool
+	CheckGroupAdmin(ctx context.Context, q Querier, groupID int, adminUserID int) (bool, error)
 	UpdateByID(ctx context.Context, q Querier, groupID int, updateGroup GroupUpdate) (GroupDetails, error)
 	UpdateGroupAdmin(ctx context.Context, q Querier, groupID, adminUserID int) error
 	DeleteByID(ctx context.Context, q Querier, groupID int) error
-	ListAll(ctx context.Context, q Querier) ([]GroupDetails, error)
+	List(ctx context.Context, q Querier, filter GroupListFilter) ([]GroupDetails, error)
+	Count(ctx context.Context, q Querier, filter GroupListFilter) (int, error)
 }

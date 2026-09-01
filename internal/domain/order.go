@@ -30,6 +30,18 @@ type OrderCreateDetails struct {
 	UpdatedAt time.Time
 }
 
+type OrderListFilter struct {
+	GroupIDs    []int
+	UserID      *int
+	StoreID     *int
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	UpdatedFrom *time.Time
+	UpdatedTo   *time.Time
+	Limit       int
+	Offset      int
+}
+
 type OrderItemDetails struct {
 	ID        int
 	OrderID   int
@@ -64,6 +76,16 @@ type OrderWithItemDetails struct {
 	Items []OrderItemDetails
 }
 
+type OrderItemListFilter struct {
+	GroupIDs  []int
+	OrderID   int
+	ProductID *int
+	UnitID    *int
+	Quantity  *int
+	Limit     int
+	Offset    int
+}
+
 func (o OrderWithItemDetails) GetGroupID() int { return o.Order.GroupID }
 func (o OrderWithItemDetails) GetID() int      { return o.Order.ID }
 
@@ -71,8 +93,8 @@ type OrderRepository interface {
 	Create(ctx context.Context, q Querier, userID, storeID, groupID int) (OrderCreateDetails, error)
 	GetByID(ctx context.Context, q Querier, orderID int) (OrderWithItemDetails, error)
 	DeleteByID(ctx context.Context, q Querier, orderID int) error
-	List(ctx context.Context, q Querier, userID int, groupID int) ([]OrderDetails, error)
-	ListAll(ctx context.Context, q Querier) ([]OrderDetails, error)
+	List(ctx context.Context, q Querier, filter OrderListFilter) ([]OrderDetails, error)
+	Count(ctx context.Context, q Querier, filter OrderListFilter) (int, error)
 }
 
 type OrderItemRepository interface {
@@ -82,4 +104,6 @@ type OrderItemRepository interface {
 	DeleteItemByOrderAndProduct(ctx context.Context, q Querier, orderID, productID int) error
 	DeleteAllItems(ctx context.Context, q Querier, orderID int) error
 	FindProductInOrders(ctx context.Context, q Querier, productID int, groupID int) ([]OrderItemFindDetails, error)
+	List(ctx context.Context, q Querier, filter OrderItemListFilter) ([]OrderItemDetails, error)
+	Count(ctx context.Context, q Querier, filter OrderItemListFilter) (int, error)
 }

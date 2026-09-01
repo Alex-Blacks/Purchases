@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/wneessen/go-mail"
 )
 
@@ -55,4 +56,35 @@ func sendMail(ctx context.Context, logger *slog.Logger, client *mail.Client, fro
 	msg.AddAlternativeString(mail.TypeTextHTML, htmlBody)
 
 	return sendWithRetryAndRateLimit(ctx, logger, msg, client, 3, 1*time.Second)
+}
+
+func validateFilterUser(filter domain.UserListFilter) error {
+	if len(filter.GroupIDs) == 0 {
+		return domain.ErrInvalidGroupID
+	}
+	if filter.Role != nil && (*filter.Role != domain.RoleAdmin && *filter.Role != domain.RoleUser) {
+		return domain.ErrInvalidInput
+	}
+	if filter.Status != nil && (*filter.Status != domain.UserStatusActive && *filter.Status != domain.UserStatusBlocked) {
+		return domain.ErrInvalidInput
+	}
+	if filter.CreatedFrom != nil && filter.CreatedFrom.After(*filter.CreatedTo) {
+		return domain.ErrInvalidInput
+	}
+	if filter.CreatedTo != nil && filter.CreatedTo.Before(*filter.CreatedFrom) {
+		return domain.ErrInvalidInput
+	}
+	if filter.UpdatedFrom != nil && filter.UpdatedFrom.After(*filter.UpdatedTo) {
+		return domain.ErrInvalidInput
+	}
+	if filter.UpdatedTo != nil && filter.UpdatedTo.Before(*filter.UpdatedFrom) {
+		return domain.ErrInvalidInput
+	}
+	if filter.Limit == 0 {
+		return domain.ErrInvalidInput
+	}
+	if filter.Offset < 0 {
+		return domain.ErrInvalidInput
+	}
+	return nil
 }

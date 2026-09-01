@@ -63,7 +63,7 @@ func (i *InviteRepo) GetByID(ctx context.Context, q domain.Querier, inviteID int
 		FROM invites i
 		JOIN groups g ON i.group_id = g.id
 		JOIN users u ON i.inviter_user_id = u.id
-		WHERE i.id = $1 AND
+		WHERE i.id = $1
 	`, inviteID).Scan(
 		&invite.ID,
 		&invite.GroupID,
@@ -146,16 +146,15 @@ func (i *InviteRepo) GetByEmail(ctx context.Context, q domain.Querier, groupID i
 }
 
 func (i *InviteRepo) UpdateByID(ctx context.Context, q domain.Querier, inviteID int, groupID int, updateInvite domain.InviteUpdate) (domain.InviteDetails, error) {
-	var invite domain.InviteDetails
 	args := []any{inviteID, groupID}
 	setPath := []string{}
 	argPos := 3
-	if updateInvite.Status != nil && *updateInvite.Status != "" {
+	if updateInvite.Status != nil {
 		setPath = append(setPath, fmt.Sprintf("status = $%d", argPos))
 		args = append(args, *updateInvite.Status)
 		argPos++
 	}
-	if updateInvite.Token != nil && strings.TrimSpace(*updateInvite.Token) != "" {
+	if updateInvite.Token != nil {
 		setPath = append(setPath, fmt.Sprintf("token = $%d", argPos))
 		args = append(args, *updateInvite.Token)
 		argPos++
@@ -165,6 +164,8 @@ func (i *InviteRepo) UpdateByID(ctx context.Context, q domain.Querier, inviteID 
 	if strings.TrimSpace(set) == "" {
 		return domain.InviteDetails{}, domain.ErrNoFieldsToUpdate
 	}
+
+	var invite domain.InviteDetails
 	if err := q.QueryRow(ctx, `
 		UPDATE invites i
 		SET `+set+`
@@ -218,65 +219,54 @@ func (i *InviteRepo) DeleteByID(ctx context.Context, q domain.Querier, inviteID 
 	return nil
 }
 
-func (i *InviteRepo) List(ctx context.Context, q domain.Querier, groupID int) ([]domain.InviteDetails, error) {
-	row, err := q.Query(ctx, `
+func (i *InviteRepo) List(ctx context.Context, q domain.Querier, filter domain.InviteListFilter) ([]domain.InviteDetails, error) {
+	query := `
 		SELECT i.id, i.group_id, g.name, i.inviter_user_id, u.name, i.invitee_email, i.status, i.token, i.created_at, i.expires_at
 		FROM invites i
 		JOIN groups g ON i.group_id = g.id
-		JOIN users u ON i.inviter_user_id = u.id
-		WHERE i.group_id = $1
-		ORDER BY created_at DESC
-	`, groupID)
+		JOIN users u ON i.inviter_user_id = u.id`
+
+	whereClause, whereArgs, whereArgPos := buildInviteWhere(filter)
+	query += whereClause
+
+	query += fmt.Sprintf("ORDER BY i.created_at DESC LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
+	args := append(whereArgs, filter.Limit, filter.Offset)
+
+	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
-		return []domain.InviteDetails{}, fmt.Errorf("query invites: %w", err)
+		return nil, fmt.Errorf("query invites: %w", err)
 	}
+	defer rows.Close()
 
 	var invites []domain.InviteDetails
-	for row.Next() {
+	for rows.Next() {
 		var invite domain.InviteDetails
-		if err := row.Scan(
+		if err := rows.Scan(
 			&invite.ID, &invite.GroupID, &invite.Group, &invite.InviterUserID, &invite.InviterUser, &invite.InviteeEmail, &invite.Status, &invite.Token, &invite.CreatedAt, &invite.ExpiresAt,
 		); err != nil {
-			return []domain.InviteDetails{}, fmt.Errorf("scan invite: %w", err)
+			return nil, fmt.Errorf("scan invite: %w", err)
 		}
 
 		invites = append(invites, invite)
 	}
 
-	if err := row.Err(); err != nil {
-		return []domain.InviteDetails{}, fmt.Errorf("iteration failed: %w", err)
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iteration failed: %w", err)
 	}
 
 	return invites, nil
 }
 
-func (i *InviteRepo) ListAll(ctx context.Context, q domain.Querier) ([]domain.InviteDetails, error) {
-	row, err := q.Query(ctx, `
-		SELECT i.id, i.group_id, g.name, i.inviter_user_id, u.name, i.invitee_email, i.status, i.token, i.created_at, i.expires_at
-		FROM invites i
-		JOIN groups g ON i.group_id = g.id
-		JOIN users u ON i.inviter_user_id = u.id
-		ORDER BY created_at DESC
-	`)
-	if err != nil {
-		return []domain.InviteDetails{}, fmt.Errorf("query invites: %w", err)
+func (i *InviteRepo) Count(ctx context.Context, q domain.Querier, filter domain.InviteListFilter) (int, error) {
+	query := "SELECT COUNT(*) FROM invites i"
+
+	whereClause, args, _ := buildInviteWhere(filter)
+	query += whereClause
+
+	var count int
+	if err := q.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("query count invite: %w", err)
 	}
 
-	var invites []domain.InviteDetails
-	for row.Next() {
-		var invite domain.InviteDetails
-		if err := row.Scan(
-			&invite.ID, &invite.GroupID, &invite.Group, &invite.InviterUserID, &invite.InviterUser, &invite.InviteeEmail, &invite.Status, &invite.Token, &invite.CreatedAt, &invite.ExpiresAt,
-		); err != nil {
-			return []domain.InviteDetails{}, fmt.Errorf("scan invite: %w", err)
-		}
-
-		invites = append(invites, invite)
-	}
-
-	if err := row.Err(); err != nil {
-		return []domain.InviteDetails{}, fmt.Errorf("iteration failed: %w", err)
-	}
-
-	return invites, nil
+	return count, nil
 }

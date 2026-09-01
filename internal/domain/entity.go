@@ -13,6 +13,6 @@ type GenericRepository[T GroupedEntity] interface {
 	GetByID(ctx context.Context, q Querier, id int) (T, error)
 	UpdateByID(ctx context.Context, q Querier, id int, updates any) (T, error)
 	DeleteByID(ctx context.Context, q Querier, id int) error
-	List(ctx context.Context, q Querier, groupIDs []int) ([]T, error)
-	ListAll(ctx context.Context, q Querier) ([]T, error)
+	List(ctx context.Context, q Querier, filter any) ([]T, error)
+	Count(ctx context.Context, q Querier, filter any) (int, error)
 }

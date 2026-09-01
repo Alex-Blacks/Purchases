@@ -133,7 +133,7 @@ func (p *ProductRepo) List(ctx context.Context, q domain.Querier, filter domain.
 	whereClause, whereArgs, whereArgPos := buildProductWhere(filter)
 	query += whereClause
 
-	query += fmt.Sprintf("ORDER BY s.id LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
+	query += fmt.Sprintf("ORDER BY p.id LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
 	args := append(whereArgs, filter.Limit, filter.Offset)
 
 	rows, err := q.Query(ctx, query, args...)
@@ -280,14 +280,20 @@ func (a *ProductAliasRepo) DeleteByID(ctx context.Context, q domain.Querier, ali
 	return nil
 }
 
-func (a *ProductAliasRepo) List(ctx context.Context, q domain.Querier, productID int, groupID []int) ([]domain.ProductAliasDetails, error) {
-	rows, err := q.Query(ctx, `
-		SELECT pa.id, p.title, pa.alias, pa.group_id, g.name
+func (a *ProductAliasRepo) List(ctx context.Context, q domain.Querier, filter domain.ProductAliasListFilter) ([]domain.ProductAliasDetails, error) {
+	query := `
+		SELECT pa.id, pa.product_id, p.title, pa.alias, pa.group_id, g.name
 		FROM product_aliases pa
 		JOIN products p ON pa.product_id = p.id
-		JOIN groups g ON pa.group_id = g.id
-		WHERE pa.product_id = $1 AND pa.group_id = ANY($2::int[])
-	`, productID, groupID)
+		JOIN groups g ON pa.group_id = g.id`
+
+	whereClause, whereArgs, whereArgPos := buildProductAliasWhere(filter)
+	query += whereClause
+
+	query += fmt.Sprintf("ORDER BY pa.id LIMIT $%d OFFSET $%d", whereArgPos, whereArgPos+1)
+	args := append(whereArgs, filter.Limit, filter.Offset)
+
+	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query product aliases: %w", err)
 	}
@@ -310,38 +316,22 @@ func (a *ProductAliasRepo) List(ctx context.Context, q domain.Querier, productID
 	return aliases, nil
 }
 
-func (a *ProductAliasRepo) ListAll(ctx context.Context, q domain.Querier, productID int) ([]domain.ProductAliasDetails, error) {
-	rows, err := q.Query(ctx, `
-		SELECT pa.id, p.title, pa.alias, pa.group_id, g.name
-		FROM product_aliases pa
-		JOIN products p ON pa.product_id = p.id
-		JOIN groups g ON pa.group_id = g.id
-		WHERE pa.product_id = $1
-	`, productID)
-	if err != nil {
-		return nil, fmt.Errorf("query product aliases: %w", err)
-	}
-	defer rows.Close()
+func (a *ProductAliasRepo) Count(ctx context.Context, q domain.Querier, filter domain.ProductAliasListFilter) (int, error) {
+	query := "SELECT COUNT(*) FROM product_aliases pa"
 
-	var aliases []domain.ProductAliasDetails
-	for rows.Next() {
-		var alias domain.ProductAliasDetails
-		if err := rows.Scan(&alias.ID, &alias.ProductID, &alias.Product, &alias.Alias, &alias.GroupID, &alias.Group); err != nil {
-			return nil, fmt.Errorf("product aliases: %w", err)
-		}
+	whereClause, args, _ := buildProductAliasWhere(filter)
+	query += whereClause
 
-		aliases = append(aliases, alias)
+	var count int
+	if err := q.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("query count product aliases: %w", err)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iteration failed: %w", err)
-	}
-
-	return aliases, nil
+	return count, nil
 }
 
 func (a *ProductAliasRepo) DeleteAllProductAliases(ctx context.Context, q domain.Querier, productID int) error {
-	tag, err := q.Exec(ctx, `DELETE FROM product_aliases WHERE product_id = $1`, productID)
+	_, err := q.Exec(ctx, `DELETE FROM product_aliases WHERE product_id = $1`, productID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -353,10 +343,6 @@ func (a *ProductAliasRepo) DeleteAllProductAliases(ctx context.Context, q domain
 			}
 		}
 		return fmt.Errorf("delete product alias: %w", err)
-	}
-
-	if tag.RowsAffected() == 0 {
-		return domain.ErrNotFound
 	}
 
 	return nil

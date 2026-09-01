@@ -69,7 +69,7 @@ type ProductAliasRepository interface {
 	UpdateByID(ctx context.Context, q Querier, aliasID int, updateAlias ProductAliasUpdate) (ProductAliasDetails, error)
 	DeleteByID(ctx context.Context, q Querier, aliasID int) error
 	List(ctx context.Context, q Querier, filter ProductAliasListFilter) ([]ProductAliasDetails, error)
-	Count(ctx context.Context, q Querier, filter ProductListFilter) (int, error)
+	Count(ctx context.Context, q Querier, filter ProductAliasListFilter) (int, error)
 
 	DeleteAllProductAliases(ctx context.Context, q Querier, productID int) error
 	FindProductByAlias(ctx context.Context, q Querier, alias string, groupID []int) (ProductDetails, error)

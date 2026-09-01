@@ -133,13 +133,13 @@ func (s *GenericService[T, R]) Delete(ctx context.Context, actor policy.Actor, i
 	return nil
 }
 
-// Lists возвращает список сущностей, доступных в группе актора и общей группе.
-func (s *GenericService[T, R]) List(ctx context.Context, actor policy.Actor) ([]T, error) {
+// Lists возвращает список сущностей, с фильтрацией.
+func (s *GenericService[T, R]) List(ctx context.Context, actor policy.Actor, filter any) ([]T, error) {
 	logger := logging.LoggerFromContext(ctx).With("group_id", actor.GroupID)
-	logger.InfoContext(ctx, "listing s for group and common", "group_id", actor.GroupID, "common_group_id", policy.CommonGroupID)
+	logger.InfoContext(ctx, "listing s for group and common", "group_id", actor.GroupID, "common_group_id", policy.CommonGroupID, "filter", filter)
 
-	// Получение списка сущностей из БД (без транзакции)
-	entities, err := s.repo.List(ctx, s.storage, []int{actor.GroupID, policy.CommonGroupID})
+	// Получение списка сущностей из БД (без транзакции) с фильтрацией
+	entities, err := s.repo.List(ctx, s.storage, filter)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to list entities", "error", err)
 		var zero []T
@@ -150,24 +150,18 @@ func (s *GenericService[T, R]) List(ctx context.Context, actor policy.Actor) ([]
 	return entities, nil
 }
 
-// Lists возвращает список всех сущностей. Доступно только администраторам.
-func (s *GenericService[T, R]) ListAll(ctx context.Context, actor policy.Actor) ([]T, error) {
-	var zero []T
-	// 1. Проверка прав
-	if !actor.HasRole(policy.RoleAdmin) {
-		return zero, policy.ErrForbidden
-	}
-
+// Count возвращает количество сущностей.
+func (s *GenericService[T, R]) Count(ctx context.Context, actor policy.Actor, filter any) (int, error) {
 	logger := logging.LoggerFromContext(ctx)
 	logger.InfoContext(ctx, "listing entities")
 
-	// 2. Получение списка сущностей из БД (без транзакции)
-	entities, err := s.repo.ListAll(ctx, s.storage)
+	// 1. Получение количества сущностей из БД (без транзакции)
+	count, err := s.repo.Count(ctx, s.storage, filter)
 	if err != nil {
-		logger.ErrorContext(ctx, "failed to list entities", "error", err)
-		return zero, fmt.Errorf("list entities: %w", err)
+		logger.ErrorContext(ctx, "failed to count entities", "error", err)
+		return 0, fmt.Errorf("count entities: %w", err)
 	}
 
-	logger.InfoContext(ctx, "entities listed successfully", "count", len(entities))
-	return entities, nil
+	logger.InfoContext(ctx, "entities counted successfully", "count", count)
+	return count, nil
 }
