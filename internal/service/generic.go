@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
@@ -11,17 +12,19 @@ import (
 
 // GenericService предоставляет общие CRUDL-операции для любой сущности T,
 // используя репозиторий R, который реализует GenericRepository[T].
-type GenericService[T domain.GroupedEntity, R domain.GenericRepository[T]] struct {
+type GenericService[T domain.GroupedEntity, C any, U any, F any, R domain.GenericRepository[T, C, U, F]] struct {
 	*BaseService
-	repo R
+	repo       R
+	history    domain.ChangeHistoryRepository
+	entityType domain.HistoryEntity
 }
 
-func (s *GenericService[T, R]) getEntity(ctx context.Context, q domain.Querier, id int) (domain.GroupedEntity, error) {
+func (s *GenericService[T, C, U, F, R]) getEntity(ctx context.Context, q domain.Querier, id int) (domain.GroupedEntity, error) {
 	return s.repo.GetByID(ctx, q, id)
 }
 
 // Create создаёт новую сущность в указанной группе или группе актора.
-func (s *GenericService[T, R]) Create(ctx context.Context, actor policy.Actor, params any, groupID *int) (T, error) {
+func (s *GenericService[T, C, U, F, R]) Create(ctx context.Context, actor policy.Actor, params C, groupID *int) (T, error) {
 	var zero T
 	logger := logging.LoggerFromContext(ctx).With("create_entity", params)
 	logger.InfoContext(ctx, "creating new entity")
@@ -38,17 +41,24 @@ func (s *GenericService[T, R]) Create(ctx context.Context, actor policy.Actor, p
 			logger.ErrorContext(ctx, "failed to create entity", "error", err)
 			return fmt.Errorf("create entity: %w", err)
 		}
+
+		// Запись истории создания
+		newData, _ := json.Marshal(entity)
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, s.entityType, entity.GetID(), domain.HistoryActionCreate, nil, newData); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
+		}
 		return nil
 	}); err != nil {
 		return zero, err
 	}
 
-	logger.InfoContext(ctx, "entity created successfully")
+	logger.InfoContext(ctx, "entity created successfully", "entity_id", entity.GetID())
 	return entity, nil
 }
 
 // Get возвращает сущность по ID с проверкой прав на чтение
-func (s *GenericService[T, R]) Get(ctx context.Context, actor policy.Actor, id int) (T, error) {
+func (s *GenericService[T, C, U, F, R]) Get(ctx context.Context, actor policy.Actor, id int) (T, error) {
 	var zero T
 	logger := logging.LoggerFromContext(ctx).With("entity_id", id)
 	logger.InfoContext(ctx, "getting entity by id")
@@ -74,7 +84,7 @@ func (s *GenericService[T, R]) Get(ctx context.Context, actor policy.Actor, id i
 }
 
 // Update обновляет сущность с проверкой прав на изменение.
-func (s *GenericService[T, R]) Update(ctx context.Context, actor policy.Actor, id int, updates any) (T, error) {
+func (s *GenericService[T, C, U, F, R]) Update(ctx context.Context, actor policy.Actor, id int, updates U) (T, error) {
 	var zero T
 	logger := logging.LoggerFromContext(ctx).With("entity_id", id, "update_entity", updates)
 	logger.InfoContext(ctx, "updating entity")
@@ -90,11 +100,26 @@ func (s *GenericService[T, R]) Update(ctx context.Context, actor policy.Actor, i
 			return fmt.Errorf("access write entity: %w", err)
 		}
 
-		// 2. Обновление сущности в БД
+		// 2. Получение старой версии для истории
+		oldEntity, err := s.repo.GetByID(ctx, q, id)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to get entity for history", "error", err)
+			return fmt.Errorf("get entity for history: %w", err)
+		}
+		oldData, _ := json.Marshal(oldEntity)
+
+		// 3. Обновление сущности в БД
 		entity, err = s.repo.UpdateByID(ctx, q, id, updates)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to update entity", "error", err)
 			return fmt.Errorf("update entity: %w", err)
+		}
+
+		// 4. Запись истории изменения
+		newData, _ := json.Marshal(entity)
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, s.entityType, entity.GetID(), domain.HistoryActionUpdate, oldData, newData); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -106,7 +131,7 @@ func (s *GenericService[T, R]) Update(ctx context.Context, actor policy.Actor, i
 }
 
 // Delete удаляет сущность с проверкой прав на изменение.
-func (s *GenericService[T, R]) Delete(ctx context.Context, actor policy.Actor, id int) error {
+func (s *GenericService[T, C, U, F, R]) Delete(ctx context.Context, actor policy.Actor, id int) error {
 	logger := logging.LoggerFromContext(ctx).With("entity_id", id)
 	logger.InfoContext(ctx, "deleting ")
 
@@ -119,10 +144,24 @@ func (s *GenericService[T, R]) Delete(ctx context.Context, actor policy.Actor, i
 			return fmt.Errorf("access write entity: %w", err)
 		}
 
-		// 2. Удаление сущности в БД
+		// 2. Получение удаляемой сущности для истории
+		oldEntity, err := s.repo.GetByID(ctx, q, id)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to get entity for history", "error", err)
+			return fmt.Errorf("get entity for history: %w", err)
+		}
+		oldData, _ := json.Marshal(oldEntity)
+
+		// 3. Удаление сущности в БД
 		if err := s.repo.DeleteByID(ctx, q, id); err != nil {
 			logger.ErrorContext(ctx, "failed to delete entity", "error", err)
 			return fmt.Errorf("delete entity: %w", err)
+		}
+
+		// 4. Запись истории удаления
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, s.entityType, id, domain.HistoryActionDelete, oldData, nil); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -134,9 +173,9 @@ func (s *GenericService[T, R]) Delete(ctx context.Context, actor policy.Actor, i
 }
 
 // Lists возвращает список сущностей, с фильтрацией.
-func (s *GenericService[T, R]) List(ctx context.Context, actor policy.Actor, filter any) ([]T, error) {
+func (s *GenericService[T, C, U, F, R]) List(ctx context.Context, actor policy.Actor, filter F) ([]T, error) {
 	logger := logging.LoggerFromContext(ctx).With("group_id", actor.GroupID)
-	logger.InfoContext(ctx, "listing s for group and common", "group_id", actor.GroupID, "common_group_id", policy.CommonGroupID, "filter", filter)
+	logger.InfoContext(ctx, "listing with filtration", "group_id", actor.GroupID, "filter", filter)
 
 	// Получение списка сущностей из БД (без транзакции) с фильтрацией
 	entities, err := s.repo.List(ctx, s.storage, filter)
@@ -151,7 +190,7 @@ func (s *GenericService[T, R]) List(ctx context.Context, actor policy.Actor, fil
 }
 
 // Count возвращает количество сущностей.
-func (s *GenericService[T, R]) Count(ctx context.Context, actor policy.Actor, filter any) (int, error) {
+func (s *GenericService[T, C, U, F, R]) Count(ctx context.Context, actor policy.Actor, filter F) (int, error) {
 	logger := logging.LoggerFromContext(ctx)
 	logger.InfoContext(ctx, "listing entities")
 

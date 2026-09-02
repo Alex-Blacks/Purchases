@@ -32,9 +32,9 @@ func (u UnitDetails) GetGroupID() int { return u.GroupID }
 func (u UnitDetails) GetID() int      { return u.ID }
 
 type UnitRepository interface {
-	Create(ctx context.Context, q Querier, params any, groupID int) (UnitDetails, error)
+	Create(ctx context.Context, q Querier, params UnitCreate, groupID int) (UnitDetails, error)
 	GetByID(ctx context.Context, q Querier, id int) (UnitDetails, error)
-	UpdateByID(ctx context.Context, q Querier, id int, updates any) (UnitDetails, error)
+	UpdateByID(ctx context.Context, q Querier, id int, updates UnitUpdate) (UnitDetails, error)
 	DeleteByID(ctx context.Context, q Querier, id int) error
 	List(ctx context.Context, q Querier, filter UnitListFilter) ([]UnitDetails, error)
 	Count(ctx context.Context, q Querier, filter UnitListFilter) (int, error)

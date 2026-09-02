@@ -28,7 +28,7 @@ func (s *ServiceGroup) CreateGroup(ctx context.Context, actor policy.Actor, name
 	logger.InfoContext(ctx, "creating new group")
 
 	// 1. Проверка прав: только администратор может создавать группы
-	if !actor.HasRole(policy.RoleAdmin) {
+	if !actor.HasRole(domain.RoleAdmin) {
 		logger.WarnContext(ctx, "user is not admin")
 		return domain.GroupDetails{}, policy.ErrForbidden
 	}
@@ -103,7 +103,10 @@ func (s *ServiceGroup) UpdateByID(ctx context.Context, actor policy.Actor, group
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		var err error
 		// 1. Проверка прав на запись
-		isGroupAdmin := s.repo.CheckGroupAdmin(ctx, q, groupID, actor.UserID)
+		isGroupAdmin, err := s.repo.CheckGroupAdmin(ctx, q, groupID, actor.UserID)
+		if err != nil {
+			return err
+		}
 		if !policy.IsAccessWriteGroup(actor, isGroupAdmin) {
 			logger.WarnContext(ctx, "write access denied")
 			return policy.ErrForbidden
@@ -134,7 +137,10 @@ func (s *ServiceGroup) DeleteByID(ctx context.Context, actor policy.Actor, group
 	}
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав на запись
-		isGroupAdmin := s.repo.CheckGroupAdmin(ctx, q, groupID, actor.UserID)
+		isGroupAdmin, err := s.repo.CheckGroupAdmin(ctx, q, groupID, actor.UserID)
+		if err != nil {
+			return err
+		}
 		if !policy.IsAccessWriteGroup(actor, isGroupAdmin) {
 			logger.WarnContext(ctx, "write access denied")
 			return policy.ErrForbidden
@@ -147,31 +153,61 @@ func (s *ServiceGroup) DeleteByID(ctx context.Context, actor policy.Actor, group
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("delete group: %w", err)
+		return err
 	}
 
 	logger.InfoContext(ctx, "group deleted successfully")
 	return nil
 }
 
-// ListAll возвращает список всех групп. Доступно только для администраторов.
-func (s *ServiceGroup) ListAll(ctx context.Context, actor policy.Actor) ([]domain.GroupDetails, error) {
+// List возвращает список всех групп. Доступно только для администраторов.
+func (s *ServiceGroup) List(ctx context.Context, actor policy.Actor, filter domain.GroupListFilter) ([]domain.GroupDetails, error) {
 	logger := logging.LoggerFromContext(ctx)
 	logger.InfoContext(ctx, "listing groups")
 
 	// 1. Проверка прав
-	if !actor.HasRole(policy.RoleAdmin) {
+	if !actor.HasRole(domain.RoleAdmin) {
 		logger.WarnContext(ctx, "user is not admin")
-		return []domain.GroupDetails{}, policy.ErrForbidden
+		return nil, policy.ErrForbidden
+	}
+
+	if err := validateGroupFilter(filter); err != nil {
+		return nil, err
 	}
 
 	// 2. Получение списка групп из БД (без транзакции, только чтение)
-	groups, err := s.repo.ListAll(ctx, s.storage)
+	groups, err := s.repo.List(ctx, s.storage, filter)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to list groups", "error", err)
-		return []domain.GroupDetails{}, fmt.Errorf("list groups: %w", err)
+		return nil, fmt.Errorf("list groups: %w", err)
 	}
 
 	logger.InfoContext(ctx, "groups listed successfully", "count", len(groups))
 	return groups, nil
+}
+
+// Count возвращает количество всех групп. Доступно только для администраторов.
+func (s *ServiceGroup) Count(ctx context.Context, actor policy.Actor, filter domain.GroupListFilter) (int, error) {
+	logger := logging.LoggerFromContext(ctx)
+	logger.InfoContext(ctx, "counting groups")
+
+	// 1. Проверка прав
+	if !actor.HasRole(domain.RoleAdmin) {
+		logger.WarnContext(ctx, "user is not admin")
+		return 0, policy.ErrForbidden
+	}
+
+	if err := validateGroupFilter(filter); err != nil {
+		return 0, err
+	}
+
+	// 2. Получение списка групп из БД (без транзакции, только чтение)
+	count, err := s.repo.Count(ctx, s.storage, filter)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to count groups", "error", err)
+		return 0, fmt.Errorf("list groups: %w", err)
+	}
+
+	logger.InfoContext(ctx, "groups counted successfully", "count", count)
+	return count, nil
 }

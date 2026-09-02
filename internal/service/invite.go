@@ -96,7 +96,11 @@ func (s *ServiceInvite) Create(ctx context.Context, actor policy.Actor, inviteeE
 	var result domain.InviteDetails
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав: только администратор группы может приглашать
-		if !s.groupRepo.CheckGroupAdmin(ctx, q, actor.GroupID, actor.UserID) {
+		ok, err := s.groupRepo.CheckGroupAdmin(ctx, q, actor.GroupID, actor.UserID)
+		if err != nil {
+			return err
+		}
+		if !ok {
 			logger.WarnContext(ctx, "user is not group admin")
 			return policy.ErrForbidden
 		}
@@ -259,7 +263,11 @@ func (s *ServiceInvite) GetByID(ctx context.Context, actor policy.Actor, inviteI
 	}
 
 	// 1. Проверка прав: только администратор группы может смотреть приглашения
-	if !s.groupRepo.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID) {
+	ok, err := s.groupRepo.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID)
+	if err != nil {
+		return domain.InviteDetails{}, err
+	}
+	if !ok {
 		logger.WarnContext(ctx, "user is not group admin")
 		return domain.InviteDetails{}, policy.ErrForbidden
 	}
@@ -285,13 +293,17 @@ func (s *ServiceInvite) DeleteByID(ctx context.Context, actor policy.Actor, invi
 
 	return s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав: только администратор группы может удалять приглашения
-		if !s.groupRepo.CheckGroupAdmin(ctx, q, actor.GroupID, actor.UserID) {
+		ok, err := s.groupRepo.CheckGroupAdmin(ctx, q, actor.GroupID, actor.UserID)
+		if err != nil {
+			return err
+		}
+		if !ok {
 			logger.WarnContext(ctx, "user is not group admin")
 			return policy.ErrForbidden
 		}
 
 		// 1. Удаляем приглашения
-		err := s.inviteRepo.DeleteByID(ctx, q, inviteID, actor.GroupID)
+		err = s.inviteRepo.DeleteByID(ctx, q, inviteID, actor.GroupID)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to delete invite", "error", err)
 			return fmt.Errorf("delete invite: %w", err)
@@ -303,44 +315,51 @@ func (s *ServiceInvite) DeleteByID(ctx context.Context, actor policy.Actor, invi
 }
 
 // List возвращает список приглашений группы. Доступно только администратору группы.
-func (s *ServiceInvite) List(ctx context.Context, actor policy.Actor) ([]domain.InviteDetails, error) {
+func (s *ServiceInvite) List(ctx context.Context, actor policy.Actor, filter domain.InviteListFilter) ([]domain.InviteDetails, error) {
 	logger := logging.LoggerFromContext(ctx)
 	logger.InfoContext(ctx, "listing invites")
 
 	// 1. Проверка прав: только администратор группы может смотреть список приглашений
-	if !s.groupRepo.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID) {
+	ok, err := s.groupRepo.CheckGroupAdmin(ctx, s.storage, actor.GroupID, actor.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		logger.WarnContext(ctx, "user is not group admin")
-		return []domain.InviteDetails{}, policy.ErrForbidden
+		return nil, policy.ErrForbidden
+	}
+
+	if err := prepareInviteFilter(actor, &filter); err != nil {
+		return nil, err
 	}
 
 	// 2. Получение списка приглашений
-	result, err := s.inviteRepo.List(ctx, s.storage, actor.GroupID)
+	result, err := s.inviteRepo.List(ctx, s.storage, filter)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to list invites", "error", err)
-		return []domain.InviteDetails{}, fmt.Errorf("list invites: %w", err)
+		return nil, fmt.Errorf("list invites: %w", err)
 	}
 
 	logger.InfoContext(ctx, "invites list successfully", "count", len(result))
 	return result, nil
 }
 
-func (s *ServiceInvite) ListAll(ctx context.Context, actor policy.Actor) ([]domain.InviteDetails, error) {
+// Count возвращает количество приглашений в группы.
+func (s *ServiceInvite) Count(ctx context.Context, actor policy.Actor, filter domain.InviteListFilter) (int, error) {
 	logger := logging.LoggerFromContext(ctx)
-	logger.InfoContext(ctx, "listing invites")
+	logger.InfoContext(ctx, "counting invites")
 
-	// 1. Проверка прав: только администратор может создавать группы
-	if !actor.HasRole(policy.RoleAdmin) {
-		logger.WarnContext(ctx, "user is not admin")
-		return []domain.InviteDetails{}, policy.ErrForbidden
+	if err := prepareInviteFilter(actor, &filter); err != nil {
+		return 0, err
 	}
 
 	// 2. Получение списка приглашений
-	result, err := s.inviteRepo.ListAll(ctx, s.storage)
+	count, err := s.inviteRepo.Count(ctx, s.storage, filter)
 	if err != nil {
-		logger.ErrorContext(ctx, "failed to list invites", "error", err)
-		return []domain.InviteDetails{}, fmt.Errorf("list invites: %w", err)
+		logger.ErrorContext(ctx, "failed to count invites", "error", err)
+		return 0, fmt.Errorf("count invites: %w", err)
 	}
 
-	logger.InfoContext(ctx, "invites list successfully", "count", len(result))
-	return result, nil
+	logger.InfoContext(ctx, "invites count successfully", "count", count)
+	return count, nil
 }

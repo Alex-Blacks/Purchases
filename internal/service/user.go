@@ -298,12 +298,8 @@ func (s *ServiceUser) List(ctx context.Context, actor policy.Actor, filter domai
 	logger := logging.LoggerFromContext(ctx).With("group_id", actor.GroupID)
 	logger.InfoContext(ctx, "listing users in group")
 
-	if err := validateFilterUser(filter); err != nil {
+	if err := prepareUserFilter(actor, &filter); err != nil {
 		return nil, err
-	}
-
-	if !actor.HasRole(domain.RoleAdmin) {
-		filter.GroupIDs = []int{actor.GroupID}
 	}
 
 	// 1. Получение списка пользователей группы из БД (без транзакции)
@@ -319,15 +315,13 @@ func (s *ServiceUser) List(ctx context.Context, actor policy.Actor, filter domai
 
 // Count возвращает количество всех пользователей. Доступно только администраторам.
 func (s *ServiceUser) Count(ctx context.Context, actor policy.Actor, filter domain.UserListFilter) (int, error) {
-	// 1. Проверка прав
-	if !actor.HasRole(domain.RoleAdmin) {
-		return 0, policy.ErrForbidden
-	}
-
 	logger := logging.LoggerFromContext(ctx)
 	logger.InfoContext(ctx, "counting users")
 
-	// 2. Получение количества пользователей из БД (без транзакции)
+	if err := prepareUserFilter(actor, &filter); err != nil {
+		return 0, err
+	}
+	// 1. Получение количества пользователей из БД (без транзакции)
 	count, err := s.userRepo.Count(ctx, s.storage, filter)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to count users", "error", err)

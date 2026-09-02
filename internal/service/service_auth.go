@@ -10,7 +10,6 @@ import (
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
-	"github.com/Alex-Blacks/Purchases/internal/policy"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -105,7 +104,7 @@ func (s *AuthService) Register(ctx context.Context, name, email, password string
 	}
 
 	// 1. Создание пользователя
-	user, err := s.userSvc.Create(ctx, name, password, email, string(policy.RoleUser), domain.UserStatusActive)
+	user, err := s.userSvc.Create(ctx, name, password, email, domain.RoleUser, domain.UserStatusActive)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to create user", "error", err)
 		return domain.Login{}, err

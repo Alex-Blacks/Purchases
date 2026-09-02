@@ -17,11 +17,7 @@ func NewStoreRepo() *StoreRepo {
 	return &StoreRepo{}
 }
 
-func (s *StoreRepo) Create(ctx context.Context, q domain.Querier, params any, groupID int) (domain.StoreDetails, error) {
-	storeCreate, ok := params.(domain.StoreCreate)
-	if !ok {
-		return domain.StoreDetails{}, fmt.Errorf("invalid params type: expected StoreCreate, got %T", params)
-	}
+func (s *StoreRepo) Create(ctx context.Context, q domain.Querier, params domain.StoreCreate, groupID int) (domain.StoreDetails, error) {
 	var store domain.StoreDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
@@ -32,7 +28,7 @@ func (s *StoreRepo) Create(ctx context.Context, q domain.Querier, params any, gr
 		SELECT i.id, i.name, i.group_id, g.name
 		FROM inserted i
 		JOIN groups g ON i.group_id = g.id
-	`, storeCreate.Name, groupID).Scan(&store.ID, &store.Name, &store.GroupID, &store.Group); err != nil {
+	`, params.Name, groupID).Scan(&store.ID, &store.Name, &store.GroupID, &store.Group); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			switch pgErr.Code {
@@ -64,19 +60,14 @@ func (s *StoreRepo) GetByID(ctx context.Context, q domain.Querier, id int) (doma
 	return store, nil
 }
 
-func (s *StoreRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, updates any) (domain.StoreDetails, error) {
-	storeUpdate, ok := updates.(domain.StoreUpdate)
-	if !ok {
-		return domain.StoreDetails{}, fmt.Errorf("invalid updates type: expected StoreUpdate, got %T", updates)
-	}
-
+func (s *StoreRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, updates domain.StoreUpdate) (domain.StoreDetails, error) {
 	args := []any{id}
 	setParts := []string{}
 	argPos := 2
 
-	if storeUpdate.Name != nil {
+	if updates.Name != nil {
 		setParts = append(setParts, fmt.Sprintf("name = $%d", argPos))
-		args = append(args, *storeUpdate.Name)
+		args = append(args, *updates.Name)
 		argPos++
 	}
 

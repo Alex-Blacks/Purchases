@@ -11,16 +11,63 @@ import (
 )
 
 type ServiceProduct struct {
-	*GenericService[domain.ProductDetails, domain.ProductRepository]
+	*GenericService[
+		domain.ProductDetails,
+		domain.ProductCreate,
+		domain.ProductUpdate,
+		domain.ProductListFilter,
+		domain.ProductRepository]
 }
 
-func NewServiceProduct(st domain.Storage, repo domain.ProductRepository) *ServiceProduct {
+func NewServiceProduct(st domain.Storage, repo domain.ProductRepository, history domain.ChangeHistoryRepository) *ServiceProduct {
 	return &ServiceProduct{
-		GenericService: &GenericService[domain.ProductDetails, domain.ProductRepository]{
+		GenericService: &GenericService[domain.ProductDetails, domain.ProductCreate, domain.ProductUpdate, domain.ProductListFilter, domain.ProductRepository]{
 			BaseService: &BaseService{storage: st},
 			repo:        repo,
+			history:     history,
+			entityType:  domain.HistoryEntityProduct,
 		},
 	}
+}
+
+// Create создаёт новый продукт в указанной группе или группе актора.
+func (s *ServiceProduct) Create(ctx context.Context, actor policy.Actor, params domain.ProductCreate, groupID *int) (domain.ProductDetails, error) {
+	// 1. Валидация
+	if strings.TrimSpace(params.Title) == "" {
+		return domain.ProductDetails{}, domain.ErrEmptyName
+	}
+
+	return s.GenericService.Create(ctx, actor, params, groupID)
+}
+
+// Update обновляет продукт.
+func (s *ServiceProduct) Update(ctx context.Context, actor policy.Actor, id int, updates domain.ProductUpdate) (domain.ProductDetails, error) {
+	// 1. Валидация
+	if updates.Title != nil && strings.TrimSpace(*updates.Title) == "" {
+		return domain.ProductDetails{}, domain.ErrEmptyName
+	}
+
+	return s.GenericService.Update(ctx, actor, id, updates)
+}
+
+// List возвращает список продуктов, с фильтрацией.
+func (s *ServiceProduct) List(ctx context.Context, actor policy.Actor, filter domain.ProductListFilter) ([]domain.ProductDetails, error) {
+	// 1. Валидация фильтра
+	if err := prepareProductFilter(actor, &filter); err != nil {
+		return nil, err
+	}
+
+	return s.GenericService.List(ctx, actor, filter)
+}
+
+// Count возвращает количество продуктов, с фильтрацией.
+func (s *ServiceProduct) Count(ctx context.Context, actor policy.Actor, filter domain.ProductListFilter) (int, error) {
+	// 1. Валидация фильтра
+	if err := prepareProductFilter(actor, &filter); err != nil {
+		return 0, err
+	}
+
+	return s.GenericService.Count(ctx, actor, filter)
 }
 
 // ---------------------------------------------------------------------------------
@@ -29,18 +76,20 @@ func NewServiceProduct(st domain.Storage, repo domain.ProductRepository) *Servic
 
 type ServiceProductAlias struct {
 	*BaseService
-	repo domain.ProductAliasRepository
+	repo        domain.ProductAliasRepository
+	productRepo domain.ProductRepository
 }
 
-func NewServiceProductAlias(st domain.Storage, repo domain.ProductAliasRepository) *ServiceProductAlias {
+func NewServiceProductAlias(st domain.Storage, repo domain.ProductAliasRepository, productRepo domain.ProductRepository) *ServiceProductAlias {
 	return &ServiceProductAlias{
 		BaseService: &BaseService{storage: st},
 		repo:        repo,
+		productRepo: productRepo,
 	}
 }
 
-func (s *ServiceProductAlias) getEntity(ctx context.Context, q domain.Querier, id int) (domain.GroupedEntity, error) {
-	return s.repo.GetByID(ctx, q, id)
+func (s *ServiceProductAlias) getProductEntity(ctx context.Context, q domain.Querier, id int) (domain.GroupedEntity, error) {
+	return s.productRepo.GetByID(ctx, q, id)
 }
 
 // Create создаёт алиас для продукта с проверкой прав на изменение продукта.
@@ -64,7 +113,7 @@ func (s *ServiceProductAlias) Create(ctx context.Context, actor policy.Actor, pr
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		var err error
 		// 1. Проверка прав на запись к продукту
-		if err := s.accessWrite(ctx, q, actor, productID, s.getEntity); err != nil {
+		if err := s.accessWrite(ctx, q, actor, productID, s.getProductEntity); err != nil {
 			return fmt.Errorf("access write product: %w", err)
 		}
 
@@ -91,13 +140,17 @@ func (s *ServiceProductAlias) GetByID(ctx context.Context, actor policy.Actor, a
 	if aliasID < 1 {
 		return domain.ProductAliasDetails{}, domain.ErrInvalidInput
 	}
-	alias, err := s.accessRead(ctx, s.storage, actor, aliasID, s.getEntity)
+	alias, err := s.accessRead(ctx, s.storage, actor, aliasID, s.getProductEntity)
 	if err != nil {
 		return domain.ProductAliasDetails{}, fmt.Errorf("access read product alias: %w", err)
 	}
 
+	result, ok := alias.(domain.ProductAliasDetails)
+	if !ok {
+		return domain.ProductAliasDetails{}, fmt.Errorf("unexpected entity type")
+	}
 	logger.InfoContext(ctx, "product alias retrieved successfully")
-	return alias.(domain.ProductAliasDetails), nil
+	return result, nil
 }
 
 // UpdateByID обновляет алиас с проверкой прав на изменение алиаса.
@@ -117,7 +170,7 @@ func (s *ServiceProductAlias) UpdateByID(ctx context.Context, actor policy.Actor
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		var err error
 		// 1. Проверка прав на запись к алиасу
-		if err := s.accessWrite(ctx, q, actor, aliasID, s.getEntity); err != nil {
+		if err := s.accessWrite(ctx, q, actor, aliasID, s.getProductEntity); err != nil {
 			return fmt.Errorf("access write product alias: %w", err)
 		}
 
@@ -147,7 +200,7 @@ func (s *ServiceProductAlias) DeleteByID(ctx context.Context, actor policy.Actor
 
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав на запись к алиасу
-		if err := s.accessWrite(ctx, q, actor, aliasID, s.getEntity); err != nil {
+		if err := s.accessWrite(ctx, q, actor, aliasID, s.getProductEntity); err != nil {
 			return fmt.Errorf("access write product alias: %w", err)
 		}
 
@@ -166,53 +219,39 @@ func (s *ServiceProductAlias) DeleteByID(ctx context.Context, actor policy.Actor
 }
 
 // List возвращает список алиасов продукта с проверкой прав на чтение продукта.
-func (s *ServiceProductAlias) List(ctx context.Context, actor policy.Actor, productID int) ([]domain.ProductAliasDetails, error) {
-	logger := logging.LoggerFromContext(ctx).With("product_id", productID)
+func (s *ServiceProductAlias) List(ctx context.Context, actor policy.Actor, filter domain.ProductAliasListFilter) ([]domain.ProductAliasDetails, error) {
+	logger := logging.LoggerFromContext(ctx).With("product_id", filter.ProductID, "filter", filter)
 	logger.InfoContext(ctx, "listing product aliases for product")
 
-	if productID < 1 {
-		return []domain.ProductAliasDetails{}, domain.ErrInvalidInput
-	}
-
-	// 1. Проверка прав на чтение продукта (через accessRead)
-	if _, err := s.accessRead(ctx, s.storage, actor, productID, s.getEntity); err != nil {
-		return []domain.ProductAliasDetails{}, fmt.Errorf("access read product: %w", err)
+	if err := prepareProductAliasFilter(actor, &filter); err != nil {
+		return nil, err
 	}
 
 	// 2. Получение списка алиасов из БД
-	aliases, err := s.repo.List(ctx, s.storage, productID, []int{actor.GroupID, policy.CommonGroupID})
+	aliases, err := s.repo.List(ctx, s.storage, filter)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to list product aliases", "error", err)
-		return []domain.ProductAliasDetails{}, fmt.Errorf("list product aliases: %w", err)
+		return nil, fmt.Errorf("list product aliases: %w", err)
 	}
 
 	logger.InfoContext(ctx, "product aliases listed successfully", "count", len(aliases))
 	return aliases, nil
 }
 
-// ListAll возвращает список алиасов продукта с проверкой прав на чтение продукта.
-func (s *ServiceProductAlias) ListAll(ctx context.Context, actor policy.Actor, productID int) ([]domain.ProductAliasDetails, error) {
-	logger := logging.LoggerFromContext(ctx).With("product_id", productID)
-	logger.InfoContext(ctx, "listing product aliases for product")
-
-	if productID < 1 {
-		return []domain.ProductAliasDetails{}, domain.ErrInvalidInput
-	}
-
-	// 1. Проверка прав
-	if !actor.HasRole(policy.RoleAdmin) {
-		return []domain.ProductAliasDetails{}, policy.ErrForbidden
-	}
+// Count возвращает количество алиасов продукта с проверкой прав на чтение продукта.
+func (s *ServiceProductAlias) Count(ctx context.Context, actor policy.Actor, filter domain.ProductAliasListFilter) (int, error) {
+	logger := logging.LoggerFromContext(ctx).With("product_id", filter.ProductID, "filter", filter)
+	logger.InfoContext(ctx, "counting product aliases for product")
 
 	// 2. Получение списка алиасов из БД
-	aliases, err := s.repo.ListAll(ctx, s.storage, productID)
+	count, err := s.repo.Count(ctx, s.storage, filter)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to list product aliases", "error", err)
-		return []domain.ProductAliasDetails{}, fmt.Errorf("list product aliases: %w", err)
+		return 0, fmt.Errorf("list product aliases: %w", err)
 	}
 
-	logger.InfoContext(ctx, "product aliases listed successfully", "count", len(aliases))
-	return aliases, nil
+	logger.InfoContext(ctx, "product aliases listed successfully", "count", count)
+	return count, nil
 }
 
 // DeleteAllProductAliases удаляет все алиасы продукта с проверкой прав на изменение продукта.
@@ -226,7 +265,7 @@ func (s *ServiceProductAlias) DeleteAllProductAliases(ctx context.Context, actor
 
 	if err := s.withTx(ctx, func(q domain.Querier) error {
 		// 1. Проверка прав на запись к продукту
-		if err := s.accessWrite(ctx, q, actor, productID, s.getEntity); err != nil {
+		if err := s.accessWrite(ctx, q, actor, productID, s.getProductEntity); err != nil {
 			return fmt.Errorf("access write product: %w", err)
 		}
 
@@ -270,7 +309,7 @@ func (s *ServiceProductAlias) FindAllProductByAlias(ctx context.Context, actor p
 	logger.InfoContext(ctx, "finding all product by alias")
 
 	// 1. Проверка прав
-	if !actor.HasRole(policy.RoleAdmin) {
+	if !actor.HasRole(domain.RoleAdmin) {
 		return domain.ProductDetails{}, policy.ErrForbidden
 	}
 

@@ -17,11 +17,7 @@ func NewUnitRepo() *UnitRepo {
 	return &UnitRepo{}
 }
 
-func (u *UnitRepo) Create(ctx context.Context, q domain.Querier, params any, groupID int) (domain.UnitDetails, error) {
-	unitCreate, ok := params.(domain.UnitCreate)
-	if !ok {
-		return domain.UnitDetails{}, fmt.Errorf("invalid params type: expected UnitCreate, got %T", params)
-	}
+func (u *UnitRepo) Create(ctx context.Context, q domain.Querier, params domain.UnitCreate, groupID int) (domain.UnitDetails, error) {
 	var unit domain.UnitDetails
 	if err := q.QueryRow(ctx, `
 		WITH inserted AS (
@@ -32,7 +28,7 @@ func (u *UnitRepo) Create(ctx context.Context, q domain.Querier, params any, gro
 		SELECT i.id, i.name, i.short_name, i.group_id, g.name
 		FROM inserted i
 		JOIN groups g ON i.group_id = g.id
-	`, unitCreate.Name, unitCreate.ShortName, groupID).Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
+	`, params.Name, params.ShortName, groupID).Scan(&unit.ID, &unit.Name, &unit.ShortName, &unit.GroupID, &unit.Group); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			switch pgErr.Code {
@@ -63,24 +59,19 @@ func (u *UnitRepo) GetByID(ctx context.Context, q domain.Querier, id int) (domai
 	return unit, nil
 }
 
-func (u *UnitRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, updates any) (domain.UnitDetails, error) {
-	unitUpdate, ok := updates.(domain.UnitUpdate)
-	if !ok {
-		return domain.UnitDetails{}, fmt.Errorf("invalid updates type: expected UnitUpdate, got %T", updates)
-	}
-
+func (u *UnitRepo) UpdateByID(ctx context.Context, q domain.Querier, id int, updates domain.UnitUpdate) (domain.UnitDetails, error) {
 	args := []any{id}
 	setParts := []string{}
 	argPos := 2
 
-	if unitUpdate.Name != nil {
+	if updates.Name != nil {
 		setParts = append(setParts, fmt.Sprintf("name = $%d", argPos))
-		args = append(args, *unitUpdate.Name)
+		args = append(args, *updates.Name)
 		argPos++
 	}
-	if unitUpdate.ShortName != nil {
+	if updates.ShortName != nil {
 		setParts = append(setParts, fmt.Sprintf("short_name = $%d", argPos))
-		args = append(args, *unitUpdate.ShortName)
+		args = append(args, *updates.ShortName)
 		argPos++
 	}
 

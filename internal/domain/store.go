@@ -28,9 +28,9 @@ func (s StoreDetails) GetGroupID() int { return s.GroupID }
 func (s StoreDetails) GetID() int      { return s.ID }
 
 type StoreRepository interface {
-	Create(ctx context.Context, q Querier, params any, groupID int) (StoreDetails, error)
+	Create(ctx context.Context, q Querier, params StoreCreate, groupID int) (StoreDetails, error)
 	GetByID(ctx context.Context, q Querier, id int) (StoreDetails, error)
-	UpdateByID(ctx context.Context, q Querier, id int, updates any) (StoreDetails, error)
+	UpdateByID(ctx context.Context, q Querier, id int, updates StoreUpdate) (StoreDetails, error)
 	DeleteByID(ctx context.Context, q Querier, id int) error
 	List(ctx context.Context, q Querier, filter StoreListFilter) ([]StoreDetails, error)
 	Count(ctx context.Context, q Querier, filter StoreListFilter) (int, error)

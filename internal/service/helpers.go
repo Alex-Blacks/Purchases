@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
+	"github.com/Alex-Blacks/Purchases/internal/policy"
 	"github.com/wneessen/go-mail"
 )
 
@@ -58,33 +60,202 @@ func sendMail(ctx context.Context, logger *slog.Logger, client *mail.Client, fro
 	return sendWithRetryAndRateLimit(ctx, logger, msg, client, 3, 1*time.Second)
 }
 
-func validateFilterUser(filter domain.UserListFilter) error {
-	if len(filter.GroupIDs) == 0 {
-		return domain.ErrInvalidGroupID
+func contains(slice []int, val int) bool {
+	for _, v := range slice {
+		if v == val {
+			return true
+		}
 	}
+	return false
+}
+
+func prepareCommonFilter(actor policy.Actor, groupIDs []int, limit, offset int) ([]int, error) {
+	if limit <= 0 || offset < 0 {
+		return nil, domain.ErrInvalidInput
+	}
+	if !actor.HasRole(domain.RoleAdmin) {
+		allowed := []int{actor.GroupID, policy.CommonGroupID}
+		if len(groupIDs) == 0 {
+			return allowed, nil
+		}
+		for _, gid := range groupIDs {
+			if !contains(allowed, gid) {
+				return nil, policy.ErrForbidden
+			}
+		}
+		return groupIDs, nil
+	}
+	// Администратор: проверяем, что все ID > 0
+	for _, gid := range groupIDs {
+		if gid < 1 {
+			return nil, domain.ErrInvalidGroupID
+		}
+	}
+	return groupIDs, nil
+}
+
+// prepareUserFilter валидирует и подготавливает фильтр для User.
+// Модифицирует filter.GroupIDs в зависимости от роли актора.
+func prepareUserFilter(actor policy.Actor, filter *domain.UserListFilter) error {
+	// 1. Валидация фильтра (если передано)
 	if filter.Role != nil && (*filter.Role != domain.RoleAdmin && *filter.Role != domain.RoleUser) {
 		return domain.ErrInvalidInput
 	}
 	if filter.Status != nil && (*filter.Status != domain.UserStatusActive && *filter.Status != domain.UserStatusBlocked) {
 		return domain.ErrInvalidInput
 	}
-	if filter.CreatedFrom != nil && filter.CreatedFrom.After(*filter.CreatedTo) {
+	if filter.CreatedFrom != nil && filter.CreatedTo != nil && filter.CreatedFrom.After(*filter.CreatedTo) {
 		return domain.ErrInvalidInput
 	}
-	if filter.CreatedTo != nil && filter.CreatedTo.Before(*filter.CreatedFrom) {
+	if filter.CreatedTo != nil && filter.CreatedFrom != nil && filter.CreatedTo.Before(*filter.CreatedFrom) {
 		return domain.ErrInvalidInput
 	}
-	if filter.UpdatedFrom != nil && filter.UpdatedFrom.After(*filter.UpdatedTo) {
+	if filter.UpdatedFrom != nil && filter.UpdatedTo != nil && filter.UpdatedFrom.After(*filter.UpdatedTo) {
 		return domain.ErrInvalidInput
 	}
-	if filter.UpdatedTo != nil && filter.UpdatedTo.Before(*filter.UpdatedFrom) {
+	if filter.UpdatedTo != nil && filter.UpdatedFrom != nil && filter.UpdatedTo.Before(*filter.UpdatedFrom) {
 		return domain.ErrInvalidInput
 	}
-	if filter.Limit == 0 {
+	var err error
+	filter.GroupIDs, err = prepareCommonFilter(actor, filter.GroupIDs, filter.Limit, filter.Offset)
+	return err
+}
+
+// prepareUnitFilter валидирует и подготавливает фильтр для Unit.
+// Модифицирует filter.GroupIDs в зависимости от роли актора.
+func prepareUnitFilter(actor policy.Actor, filter *domain.UnitListFilter) error {
+	// 1. Валидация фильтра по имени (если передано)
+	if filter.Name != nil && strings.TrimSpace(*filter.Name) == "" {
+		return domain.ErrEmptyName
+	}
+	if filter.ShortName != nil && strings.TrimSpace(*filter.ShortName) == "" {
+		return domain.ErrEmptyName
+	}
+
+	var err error
+	filter.GroupIDs, err = prepareCommonFilter(actor, filter.GroupIDs, filter.Limit, filter.Offset)
+	return err
+}
+
+// prepareStoreFilter валидирует и подготавливает фильтр для Store.
+// Модифицирует filter.GroupIDs в зависимости от роли актора.
+func prepareStoreFilter(actor policy.Actor, filter *domain.StoreListFilter) error {
+	// 1. Валидация фильтра по имени (если передано)
+	if filter.Name != nil && strings.TrimSpace(*filter.Name) == "" {
+		return domain.ErrEmptyName
+	}
+
+	var err error
+	filter.GroupIDs, err = prepareCommonFilter(actor, filter.GroupIDs, filter.Limit, filter.Offset)
+	return err
+	return nil
+}
+
+// prepareProductFilter валидирует и подготавливает фильтр для Product.
+// Модифицирует filter.GroupIDs в зависимости от роли актора.
+func prepareProductFilter(actor policy.Actor, filter *domain.ProductListFilter) error {
+	// 1. Валидация фильтра по имени (если передано)
+	if filter.Title != nil && strings.TrimSpace(*filter.Title) == "" {
+		return domain.ErrEmptyName
+	}
+
+	var err error
+	filter.GroupIDs, err = prepareCommonFilter(actor, filter.GroupIDs, filter.Limit, filter.Offset)
+	return err
+}
+
+// prepareProductAliasFilter валидирует и подготавливает фильтр для ProductAlias.
+// Модифицирует filter.GroupIDs в зависимости от роли актора.
+func prepareProductAliasFilter(actor policy.Actor, filter *domain.ProductAliasListFilter) error {
+	// 1. Валидация фильтра (если передано)
+	if filter.Alias != nil && strings.TrimSpace(*filter.Alias) == "" {
+		return domain.ErrEmptyName
+	}
+
+	if filter.ProductID < 1 {
 		return domain.ErrInvalidInput
 	}
-	if filter.Offset < 0 {
+
+	var err error
+	filter.GroupIDs, err = prepareCommonFilter(actor, filter.GroupIDs, filter.Limit, filter.Offset)
+	return err
+}
+
+// prepareOrderFilter валидирует и подготавливает фильтр для Order.
+// Модифицирует filter.GroupIDs в зависимости от роли актора.
+func prepareOrderFilter(actor policy.Actor, filter *domain.OrderListFilter) error {
+	// 1. Валидация фильтра (если передано)
+	if filter.UserID != nil && *filter.UserID < 1 {
 		return domain.ErrInvalidInput
 	}
+	if filter.StoreID != nil && *filter.StoreID < 1 {
+		return domain.ErrInvalidInput
+	}
+	if filter.CreatedFrom != nil && filter.CreatedTo != nil && filter.CreatedFrom.After(*filter.CreatedTo) {
+		return domain.ErrInvalidInput
+	}
+	if filter.CreatedTo != nil && filter.CreatedFrom != nil && filter.CreatedTo.Before(*filter.CreatedFrom) {
+		return domain.ErrInvalidInput
+	}
+	if filter.UpdatedFrom != nil && filter.UpdatedTo != nil && filter.UpdatedFrom.After(*filter.UpdatedTo) {
+		return domain.ErrInvalidInput
+	}
+	if filter.UpdatedTo != nil && filter.UpdatedFrom != nil && filter.UpdatedTo.Before(*filter.UpdatedFrom) {
+		return domain.ErrInvalidInput
+	}
+
+	var err error
+	filter.GroupIDs, err = prepareCommonFilter(actor, filter.GroupIDs, filter.Limit, filter.Offset)
+	return err
+}
+
+// prepareInviteFilter валидирует и подготавливает фильтр для Invite.
+// Модифицирует filter.GroupIDs в зависимости от роли актора.
+func prepareInviteFilter(actor policy.Actor, filter *domain.InviteListFilter) error {
+	// 1. Валидация фильтра (если передано)
+	if filter.InviterUserID != nil && *filter.InviterUserID < 1 {
+		return domain.ErrInvalidInput
+	}
+	if filter.InviteeEmail != nil && strings.TrimSpace(*filter.InviteeEmail) == "" {
+		return domain.ErrInvalidInput
+	}
+	if filter.Status != nil && *filter.Status != domain.StatusAccepted && *filter.Status != domain.StatusPending && *filter.Status != domain.StatusRejected {
+		return domain.ErrInvalidInput
+	}
+	if filter.Token != nil && strings.TrimSpace(*filter.Token) == "" {
+		return domain.ErrInvalidInput
+	}
+	if filter.CreatedFrom != nil && filter.CreatedTo != nil && filter.CreatedFrom.After(*filter.CreatedTo) {
+		return domain.ErrInvalidInput
+	}
+	if filter.CreatedTo != nil && filter.CreatedFrom != nil && filter.CreatedTo.Before(*filter.CreatedFrom) {
+		return domain.ErrInvalidInput
+	}
+	if filter.ExpiresFrom != nil && filter.ExpiresTo != nil && filter.ExpiresFrom.After(*filter.ExpiresTo) {
+		return domain.ErrInvalidInput
+	}
+	if filter.ExpiresTo != nil && filter.ExpiresFrom != nil && filter.ExpiresTo.Before(*filter.ExpiresFrom) {
+		return domain.ErrInvalidInput
+	}
+
+	var err error
+	filter.GroupIDs, err = prepareCommonFilter(actor, filter.GroupIDs, filter.Limit, filter.Offset)
+	return err
+}
+
+// validateGroupFilter валидирует фильтр для Group.
+func validateGroupFilter(filter domain.GroupListFilter) error {
+	// 1. Валидация фильтра (если передано)
+	if filter.Name != nil && strings.TrimSpace(*filter.Name) == "" {
+		return domain.ErrInvalidInput
+	}
+	if filter.AdminUserID != nil && *filter.AdminUserID < 1 {
+		return domain.ErrInvalidInput
+	}
+
+	if filter.Limit <= 0 || filter.Offset < 0 {
+		return domain.ErrInvalidInput
+	}
+
 	return nil
 }

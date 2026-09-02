@@ -55,9 +55,9 @@ func (p ProductAliasDetails) GetGroupID() int { return p.GroupID }
 func (p ProductAliasDetails) GetID() int      { return p.ID }
 
 type ProductRepository interface {
-	Create(ctx context.Context, q Querier, params any, groupID int) (ProductDetails, error)
+	Create(ctx context.Context, q Querier, params ProductCreate, groupID int) (ProductDetails, error)
 	GetByID(ctx context.Context, q Querier, id int) (ProductDetails, error)
-	UpdateByID(ctx context.Context, q Querier, id int, updates any) (ProductDetails, error)
+	UpdateByID(ctx context.Context, q Querier, id int, updates ProductUpdate) (ProductDetails, error)
 	DeleteByID(ctx context.Context, q Querier, id int) error
 	List(ctx context.Context, q Querier, filter ProductListFilter) ([]ProductDetails, error)
 	Count(ctx context.Context, q Querier, filter ProductListFilter) (int, error)
