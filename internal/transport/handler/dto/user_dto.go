@@ -45,10 +45,6 @@ type UserFilterQuery struct {
 	Offset      int        `form:"offset" default:"0" validate:"min=0"`
 }
 
-type CountResponse struct {
-	Count int `json:"count"`
-}
-
 // ToUserResponse преобразует domain.UserDetails в UserResponse.
 func ToUserResponse(user domain.UserDetails) UserResponse {
 	return UserResponse{
@@ -72,7 +68,7 @@ func ToUserUpdateRequest(up UserUpdateRequest) domain.UserUpdate {
 }
 
 // ToUserFilterRequest преобразует dto.UserFilterRequest в domain.UserListFilter.
-func (q UserFilterQuery) ToUserFilterRequest() domain.UserListFilter {
+func (q UserFilterQuery) ToDomainFilter() domain.UserListFilter {
 	filter := domain.UserListFilter{
 		GroupIDs:    q.GroupIDs,
 		CreatedFrom: q.CreatedFrom,

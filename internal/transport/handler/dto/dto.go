@@ -6,6 +6,10 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+type CountResponse struct {
+	Count int `json:"count"`
+}
+
 type ErrorResponse struct {
 	Error   string            `json:"error"`
 	Details map[string]string `json:"details,omitempty"`

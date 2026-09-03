@@ -260,7 +260,8 @@ func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.UserFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, "invalid query parameters: "+err.Error())
+		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
 
@@ -270,7 +271,7 @@ func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Вызываем сервис
-	users, err := h.userService.List(ctx, actor, queryFilter.ToUserFilterRequest())
+	users, err := h.userService.List(ctx, actor, queryFilter.ToDomainFilter())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
@@ -283,8 +284,8 @@ func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 // CountUsersHandler возвращает количество всех пользователей.
 //
 // @Security BearerAuth
-// @Summary list users
-// @Description list users
+// @Summary Count users
+// @Description Count users
 // @Tags users
 // @Produce json
 // @Param group_ids[] query []int false "Group IDs"
@@ -325,7 +326,7 @@ func (h UserHandler) CountUsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Вызов сервиса для получения количества всех пользователей
-	count, err := h.userService.Count(ctx, actor, queryFilter.ToUserFilterRequest())
+	count, err := h.userService.Count(ctx, actor, queryFilter.ToDomainFilter())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return

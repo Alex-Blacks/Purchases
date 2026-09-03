@@ -1,6 +1,8 @@
 package dto
 
-import "github.com/Alex-Blacks/Purchases/internal/domain"
+import (
+	"github.com/Alex-Blacks/Purchases/internal/domain"
+)
 
 // UnitRequest используется для создания единицы измерения.
 type UnitRequest struct {
@@ -22,6 +24,26 @@ type UnitResponse struct {
 	ShortName string `json:"shortName"`
 	GroupID   int    `json:"groupId"`
 	Group     string `json:"group"` // название группы
+}
+
+// UnitFilterQuery – структура для биндинга query-параметров
+type UnitFilterQuery struct {
+	GroupIDs  []int   `form:"group_ids" validate:"dive,int,gt=0"`
+	Name      *string `form:"name,omitempty" validate:"min=1,max=50"`
+	ShortName *string `form:"short_name,omitempty" validate:"min=1,max=50"`
+	Limit     int     `form:"limit" default:"10" validate:"required,min=1,max=100"`
+	Offset    int     `form:"offset" default:"0" validate:"min=0"`
+}
+
+// ToUserFilterRequest преобразует dto.UserFilterRequest в domain.UserListFilter.
+func (q UnitFilterQuery) ToDomainFilter() domain.UnitListFilter {
+	return domain.UnitListFilter{
+		GroupIDs:  q.GroupIDs,
+		Name:      q.Name,
+		ShortName: q.ShortName,
+		Limit:     q.Limit,
+		Offset:    q.Offset,
+	}
 }
 
 // ToUnitResponse преобразует domain.UnitDetails в UnitResponse.
