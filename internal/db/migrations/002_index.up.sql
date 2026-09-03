@@ -1,25 +1,41 @@
+create index idx_groups_name on groups(name);
 create index idx_groups_admin_user on groups(admin_user_id);
 
 create index idx_users_email on users(email);
+create index idx_users_role on users(role);
+create index idx_users_status on users(status);
 create index idx_users_group on users(group_id);
+create index idx_users_group_created on users(group_id, created_at desc);
 create index idx_users_created_at on users(created_at);
 create index idx_users_updated_at on users(updated_at);
 
 create index idx_invites_group on invites(group_id);
 create index idx_invites_status on invites(status);
 create index idx_invites_token on invites(token);
+create index idx_invites_inviter_user on invites(inviter_user_id);
+create index idx_invites_invitee_email on invites(invitee_email);
+create index idx_invites_group_created on invites(group_id, created_at desc);
+create index idx_invites_expires_at on invites(expires_at);
+
+create index idx_units_group on units(group_id);
+create index idx_units_group_name on units(group_id, name);
+create index idx_units_group_short_name on units(group_id, short_name);
 
 create index idx_products_group on products(group_id);
+create index idx_products_title on products(title);
 
 create index idx_product_aliases_group on product_aliases(group_id);
 create index idx_product_aliases_products on product_aliases(product_id);
+create index idx_product_aliases_alias on product_aliases(alias);
 create unique index idx_product_aliases_unique_alias on product_aliases(product_id, lower(trim(alias)));
 
+create index idx_stores_group on stores(group_id);
 
 create index idx_orders_users on orders(user_id);
 create index idx_orders_stores on orders(store_id);
 create index idx_orders_group on orders(group_id);
 create index idx_orders_user_id_id on orders(user_id, id);
+create index idx_orders_group_created on orders(group_id, created_at desc);
 
 create index idx_order_items_group on order_items(group_id);
 create index idx_order_items_orders on order_items(order_id);

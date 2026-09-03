@@ -1,33 +1,52 @@
 package dto
 
 import (
+	"time"
+
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 )
 
 // UserRequest используется для создания пользователя.
 type UserRequest struct {
-	Name     string  `json:"name" validate:"required,min=1,max=50"`
-	Password string  `json:"password" validate:"required,min=8,max=100"`
-	Email    string  `json:"email" validate:"required,email"`
-	Role     *string `json:"role,omitempty" validate:"oneof=admin user"`
+	Name     string           `json:"name" validate:"required,min=1,max=50"`
+	Password string           `json:"password" validate:"required,min=8,max=100"`
+	Email    string           `json:"email" validate:"required,email"`
+	Role     *domain.UserRole `json:"role,omitempty" validate:"oneof=admin user"`
 }
 
 // UserUpdateRequest используется для обновления пользователя.
 type UserUpdateRequest struct {
-	Name     *string `json:"name,omitempty" validate:"min=1,max=50"`
-	Password *string `json:"password,omitempty" validate:"min=8,max=100"`
-	Email    *string `json:"email,omitempty" validate:"email"`
-	Role     *string `json:"role,omitempty" validate:"oneof=admin user"`
-	Status   *string `json:"status,omitempty" validate:"oneof=active blocked"`
+	Name     *string            `json:"name,omitempty" validate:"min=1,max=50"`
+	Password *string            `json:"password,omitempty" validate:"min=8,max=100"`
+	Email    *string            `json:"email,omitempty" validate:"email"`
+	Role     *domain.UserRole   `json:"role,omitempty" validate:"oneof=admin user"`
+	Status   *domain.UserStatus `json:"status,omitempty" validate:"oneof=active blocked"`
 }
 
 // UserResponse возвращает информацию о пользователе.
 type UserResponse struct {
-	ID     int    `json:"id"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-	Role   string `json:"role"`
-	Status string `json:"status"`
+	ID     int               `json:"id"`
+	Name   string            `json:"name"`
+	Email  string            `json:"email"`
+	Role   domain.UserRole   `json:"role"`
+	Status domain.UserStatus `json:"status"`
+}
+
+// UserFilterQuery – структура для биндинга query-параметров
+type UserFilterQuery struct {
+	GroupIDs    []int      `form:"group_ids" validate:"dive,int,gt=0"`          // ?group_ids=1&group_ids=2
+	Role        string     `form:"role" validate:"oneof=admin user"`            // admin / user
+	Status      string     `form:"status" validate:"oneof=active blocked"`      // active / blocked
+	CreatedFrom *time.Time `form:"created_from" validate:"daterange=CreatedTo"` // RFC3339
+	CreatedTo   *time.Time `form:"created_to"`
+	UpdatedFrom *time.Time `form:"updated_from" validate:"daterange=UpdatedTo"`
+	UpdatedTo   *time.Time `form:"updated_to"`
+	Limit       int        `form:"limit" default:"10" validate:"required,min=1,max=100"`
+	Offset      int        `form:"offset" default:"0" validate:"min=0"`
+}
+
+type CountResponse struct {
+	Count int `json:"count"`
 }
 
 // ToUserResponse преобразует domain.UserDetails в UserResponse.
@@ -50,6 +69,29 @@ func ToUserUpdateRequest(up UserUpdateRequest) domain.UserUpdate {
 		Role:     up.Role,
 		Status:   up.Status,
 	}
+}
+
+// ToUserFilterRequest преобразует dto.UserFilterRequest в domain.UserListFilter.
+func (q UserFilterQuery) ToUserFilterRequest() domain.UserListFilter {
+	filter := domain.UserListFilter{
+		GroupIDs:    q.GroupIDs,
+		CreatedFrom: q.CreatedFrom,
+		CreatedTo:   q.CreatedTo,
+		UpdatedFrom: q.UpdatedFrom,
+		UpdatedTo:   q.UpdatedTo,
+		Limit:       q.Limit,
+		Offset:      q.Offset,
+	}
+
+	if q.Role != "" {
+		role := domain.UserRole(q.Role)
+		filter.Role = &role
+	}
+	if q.Status != "" {
+		status := domain.UserStatus(q.Status)
+		filter.Status = &status
+	}
+	return filter
 }
 
 // ToUserListResponse преобразует слайс domain.UserDetails в слайс UserResponse.

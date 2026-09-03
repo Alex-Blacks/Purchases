@@ -14,7 +14,9 @@ import (
 	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/service"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler"
+	"github.com/Alex-Blacks/Purchases/internal/transport/handler/dto"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/wneessen/go-mail"
@@ -38,6 +40,9 @@ func main() {
 		syscall.SIGTERM,
 	)
 	defer stop()
+
+	validate := validator.New()
+	validate.RegisterValidation("daterange", dto.ValidateDateRange)
 
 	_ = godotenv.Load()
 

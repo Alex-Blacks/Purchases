@@ -16,13 +16,13 @@ import (
 )
 
 type ServiceUserInterface interface {
-	Create(ctx context.Context, name string, password string, email string, role string, status string) (domain.UserDetails, error)
+	Create(ctx context.Context, name string, password string, email string, role domain.UserRole, status domain.UserStatus) (domain.UserDetails, error)
 	GetByID(ctx context.Context, actor policy.Actor, userID int) (domain.UserDetails, error)
 	GetByEmail(ctx context.Context, email string) (domain.UserDetails, error)
 	UpdateByID(ctx context.Context, actor policy.Actor, userID int, updateUser domain.UserUpdate) (domain.UserDetails, error)
 	DeleteByID(ctx context.Context, actor policy.Actor, userID int) error
-	List(ctx context.Context, actor policy.Actor) ([]domain.UserDetails, error)
-	ListAll(ctx context.Context, actor policy.Actor) ([]domain.UserDetails, error)
+	List(ctx context.Context, actor policy.Actor, filter domain.UserListFilter) ([]domain.UserDetails, error)
+	Count(ctx context.Context, actor policy.Actor, filter domain.UserListFilter) (int, error)
 }
 
 type UserHandler struct {
@@ -47,6 +47,16 @@ func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	if !actor.HasRole(domain.RoleAdmin) {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	// 2. Декодирование и валидация тела запроса
 	var req dto.UserRequest
@@ -56,7 +66,7 @@ func (h UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Вызов сервиса для создания пользователя
-	user, err := h.userService.Create(ctx, req.Name, req.Password, req.Email, string(policy.RoleUser), domain.UserStatusActive)
+	user, err := h.userService.Create(ctx, req.Name, req.Password, req.Email, *req.Role, domain.UserStatusActive)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{
 			"name":       req.Name,
@@ -216,18 +226,26 @@ func (h UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListUsersHandler возвращает список всех пользователей, доступных пользователю (из его группы).
+// ListUsersHandler возвращает список пользователей с фильтрацией через query-параметры.
 //
 // @Security BearerAuth
 // @Summary list users
-// @Description list users
+// @Description list users with pagination and filters
 // @Tags users
 // @Produce json
+// @Param group_ids[] query []int false "Group IDs"
+// @Param role query string false "Role (admin/user)" Enums(admin, user)
+// @Param status query string false "Status (active/blocked)" Enums(active, blocked)
+// @Param created_from query string false "Created from (RFC3339)"
+// @Param created_to query string false "Created to (RFC3339)"
+// @Param updated_from query string false "Updated from (RFC3339)"
+// @Param updated_to query string false "Updated to (RFC3339)"
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
 // @Success 200 {array} dto.UserResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Failure 503 {object} dto.ErrorResponse
 // @Router /private/users [get]
 func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
@@ -239,31 +257,52 @@ func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Вызов сервиса для получения списка всех пользователей
-	user, err := h.userService.List(ctx, actor)
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.UserFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, "invalid query parameters: "+err.Error())
+		return
+	}
+
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 3. Вызываем сервис
+	users, err := h.userService.List(ctx, actor, queryFilter.ToUserFilterRequest())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
 	}
 
-	// 3. Формирование и отправка ответа
-	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToUserListResponse(user))
+	// 4. Отправляем ответ
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToUserListResponse(users))
 }
 
-// ListUsersHandler возвращает список всех пользователей (только для администраторов).
+// CountUsersHandler возвращает количество всех пользователей.
 //
 // @Security BearerAuth
 // @Summary list users
 // @Description list users
 // @Tags users
 // @Produce json
-// @Success 200 {array} dto.UserResponse
+// @Param group_ids[] query []int false "Group IDs"
+// @Param role query string false "Role (admin/user)" Enums(admin, user)
+// @Param status query string false "Status (active/blocked)" Enums(active, blocked)
+// @Param created_from query string false "Created from (RFC3339)"
+// @Param created_to query string false "Created to (RFC3339)"
+// @Param updated_from query string false "Updated from (RFC3339)"
+// @Param updated_to query string false "Updated to (RFC3339)"
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
+// @Success 200 {object} dto.CountResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
 // @Router /private/users/all [get]
-func (h UserHandler) ListAllUsersHandler(w http.ResponseWriter, r *http.Request) {
+func (h UserHandler) CountUsersHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -273,13 +312,25 @@ func (h UserHandler) ListAllUsersHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// 2. Вызов сервиса для получения списка всех пользователей
-	user, err := h.userService.ListAll(ctx, actor)
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.UserFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, "invalid query parameters: "+err.Error())
+		return
+	}
+
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 3. Вызов сервиса для получения количества всех пользователей
+	count, err := h.userService.Count(ctx, actor, queryFilter.ToUserFilterRequest())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
 	}
 
 	// 3. Формирование и отправка ответа
-	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToUserListResponse(user))
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.CountResponse{Count: count})
 }

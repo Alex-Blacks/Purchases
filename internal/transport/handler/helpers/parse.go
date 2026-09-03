@@ -2,14 +2,17 @@ package helpers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"log/slog"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/form/v4"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -70,4 +73,20 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, logger *slog.Logger, val
 		return err
 	}
 	return nil
+}
+
+var FormDecoder *form.Decoder
+
+func init() {
+	FormDecoder = form.NewDecoder()
+	FormDecoder.RegisterCustomTypeFunc(func(vals []string) (interface{}, error) {
+		if len(vals) == 0 || vals[0] == "" {
+			return nil, nil
+		}
+		t, err := time.Parse(time.RFC3339, vals[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid time format (RFC3339): %w", err)
+		}
+		return &t, nil
+	}, (*time.Time)(nil))
 }

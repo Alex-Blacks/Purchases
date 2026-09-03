@@ -242,6 +242,41 @@ func prepareInviteFilter(actor policy.Actor, filter *domain.InviteListFilter) er
 	return err
 }
 
+// prepareHistoryFilter валидирует и подготавливает фильтр для ChangeHistory.
+// Модифицирует filter.GroupIDs в зависимости от роли актора.
+func prepareHistoryFilter(actor policy.Actor, filter *domain.HistoryListFilter) error {
+	// 1. Валидация фильтра (если передано)
+	if filter.EntityType != nil &&
+		*filter.EntityType != domain.HistoryEntityOrder &&
+		*filter.EntityType != domain.HistoryEntityOrderItem &&
+		*filter.EntityType != domain.HistoryEntityStore &&
+		*filter.EntityType != domain.HistoryEntityUnit &&
+		*filter.EntityType != domain.HistoryEntityProduct &&
+		*filter.EntityType != domain.HistoryEntityProductAlias {
+		return domain.ErrInvalidInput
+	}
+
+	if filter.EntityID != nil && *filter.EntityID < 1 {
+		return domain.ErrInvalidInput
+	}
+	if filter.Action != nil &&
+		*filter.Action != domain.HistoryActionCreate &&
+		*filter.Action != domain.HistoryActionUpdate &&
+		*filter.Action != domain.HistoryActionDelete {
+		return domain.ErrInvalidInput
+	}
+	if filter.From != nil && filter.To != nil && filter.From.After(*filter.To) {
+		return domain.ErrInvalidInput
+	}
+	if filter.To != nil && filter.From != nil && filter.To.Before(*filter.From) {
+		return domain.ErrInvalidInput
+	}
+
+	var err error
+	filter.GroupIDs, err = prepareCommonFilter(actor, filter.GroupIDs, filter.Limit, filter.Offset)
+	return err
+}
+
 // validateGroupFilter валидирует фильтр для Group.
 func validateGroupFilter(filter domain.GroupListFilter) error {
 	// 1. Валидация фильтра (если передано)
