@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/Alex-Blacks/Purchases/internal/domain"
@@ -13,6 +14,7 @@ type ServiceOrderItem struct {
 	*BaseService
 	orderRepo domain.OrderRepository
 	itemRepo  domain.OrderItemRepository
+	history   domain.ChangeHistoryRepository
 }
 
 func NewServiceOrderItem(st domain.Storage, orderRepo domain.OrderRepository, itemRepo domain.OrderItemRepository, history domain.ChangeHistoryRepository) *ServiceOrderItem {
@@ -20,6 +22,7 @@ func NewServiceOrderItem(st domain.Storage, orderRepo domain.OrderRepository, it
 		BaseService: &BaseService{storage: st},
 		orderRepo:   orderRepo,
 		itemRepo:    itemRepo,
+		history:     history,
 	}
 }
 
@@ -48,6 +51,17 @@ func (s *ServiceOrderItem) Create(ctx context.Context, actor policy.Actor, store
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to create order", "error", err)
 			return fmt.Errorf("create order: %w", err)
+		}
+
+		// 2. Запись истории создания
+		newData, err := json.Marshal(order)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, domain.HistoryEntityOrder, order.ID, domain.HistoryActionCreate, nil, newData); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -94,10 +108,28 @@ func (s *ServiceOrderItem) DeleteByID(ctx context.Context, actor policy.Actor, o
 			return fmt.Errorf("access write order: %w", err)
 		}
 
+		// 2. Получение старой версии для истории
+		oldOrder, err := s.orderRepo.GetByID(ctx, q, orderID)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to get order for history", "error", err)
+			return fmt.Errorf("get order for history: %w", err)
+		}
+		oldData, err := json.Marshal(oldOrder)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
+
 		// 2. Удаление заказа в транзакции
 		if err := s.orderRepo.DeleteByID(ctx, q, orderID); err != nil {
 			logger.ErrorContext(ctx, "failed to delete order", "error", err)
 			return fmt.Errorf("delete order: %w", err)
+		}
+
+		// 4. Запись истории удаления
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, domain.HistoryEntityOrder, oldOrder.Order.ID, domain.HistoryActionDelete, oldData, nil); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -178,6 +210,17 @@ func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orde
 			logger.ErrorContext(ctx, "failed to add item", "error", err)
 			return fmt.Errorf("add item: %w", err)
 		}
+
+		// 3. Запись истории создания
+		newData, err := json.Marshal(item)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, domain.HistoryEntityOrderItem, item.ID, domain.HistoryActionCreate, nil, newData); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
+		}
 		return nil
 	}); err != nil {
 		return domain.OrderItemDetails{}, err
@@ -185,102 +228,6 @@ func (s *ServiceOrderItem) AddItem(ctx context.Context, actor policy.Actor, orde
 
 	logger.InfoContext(ctx, "item added/updated successfully", "new_quantity", item.Quantity)
 	return item, nil
-}
-
-// AddListItems добавляет несколько позиций в заказ (upsert). Проверяет права на запись заказа.
-func (s *ServiceOrderItem) AddListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemCreate, groupID *int) error {
-	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "count", len(items))
-	logger.InfoContext(ctx, "adding list items to order")
-
-	if orderID < 1 {
-		return domain.ErrInvalidInput
-	}
-
-	targetGroup, err := s.resolveGroupID(actor, groupID)
-	if err != nil {
-		return err
-	}
-	if err := s.withTx(ctx, func(q domain.Querier) error {
-		// 1. Проверка прав на запись заказа
-		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrderEntity); err != nil {
-			return fmt.Errorf("access write order: %w", err)
-		}
-		for _, item := range items {
-			if item.ProductID < 1 || item.UnitID < 1 || item.Quantity < 1 {
-				return domain.ErrInvalidInput
-			}
-			// 2. Upsert каждой позиции в транзакции
-			_, err := s.itemRepo.GetItemByOrderAndProduct(ctx, q, orderID, item.ProductID)
-			if err != nil {
-				if domain.IsNotFound(err) {
-					// Если позиции нет — добавляем
-					if _, err := s.itemRepo.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, targetGroup); err != nil {
-						return fmt.Errorf("add item %d: %w", item.ProductID, err)
-					}
-					continue
-				}
-				return fmt.Errorf("get item %d: %w", item.ProductID, err)
-			}
-			// Если есть — обновляем
-			if _, err := s.itemRepo.UpdateItem(ctx, q, orderID, item.ProductID, domain.OrderItemUpdate{UnitID: &item.UnitID, Quantity: &item.Quantity}); err != nil {
-				return fmt.Errorf("update item %d: %w", item.ProductID, err)
-			}
-		}
-		return nil
-	}); err != nil {
-		logger.ErrorContext(ctx, "failed to add list items", "error", err)
-		return err
-	}
-
-	logger.InfoContext(ctx, "all items upserted successfully")
-	return nil
-}
-
-// UpdateListItems обновляет список позиций (аналогично AddListItems — upsert). Проверяет права на запись заказа.
-func (s *ServiceOrderItem) UpdateListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemCreate, groupID *int) error {
-	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "count", len(items))
-	logger.InfoContext(ctx, "updating list items")
-
-	if orderID < 1 {
-		return domain.ErrInvalidInput
-	}
-
-	targetGroup, err := s.resolveGroupID(actor, groupID)
-	if err != nil {
-		return err
-	}
-	if err := s.withTx(ctx, func(q domain.Querier) error {
-		// 1. Проверка прав на запись заказа
-		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrderEntity); err != nil {
-			return fmt.Errorf("access write order: %w", err)
-		}
-		for _, item := range items {
-			if item.ProductID < 1 || item.UnitID < 1 || item.Quantity < 1 {
-				return domain.ErrInvalidInput
-			}
-			// 2. Upsert каждой позиции в транзакции
-			_, err := s.itemRepo.GetItemByOrderAndProduct(ctx, q, orderID, item.ProductID)
-			if err != nil {
-				if domain.IsNotFound(err) {
-					if _, err := s.itemRepo.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, targetGroup); err != nil {
-						return fmt.Errorf("add item %d: %w", item.ProductID, err)
-					}
-					continue
-				}
-				return fmt.Errorf("get item %d: %w", item.ProductID, err)
-			}
-			if _, err := s.itemRepo.UpdateItem(ctx, q, orderID, item.ProductID, domain.OrderItemUpdate{UnitID: &item.UnitID, Quantity: &item.Quantity}); err != nil {
-				return fmt.Errorf("update item %d: %w", item.ProductID, err)
-			}
-		}
-		return nil
-	}); err != nil {
-		logger.ErrorContext(ctx, "failed to update list items", "error", err)
-		return err
-	}
-
-	logger.InfoContext(ctx, "all items upserted successfully")
-	return nil
 }
 
 // UpdateItem обновляет количество или единицу измерения позиции. Проверяет права на запись заказа.
@@ -304,11 +251,35 @@ func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, o
 		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrderEntity); err != nil {
 			return fmt.Errorf("access write order: %w", err)
 		}
+
+		// 2. Получение старой версии для истории
+		oldOrder, err := s.orderRepo.GetByID(ctx, q, orderID)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to get order for history", "error", err)
+			return fmt.Errorf("get order for history: %w", err)
+		}
+		oldData, err := json.Marshal(oldOrder)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
+
 		// 2. Обновление позиции в БД
 		item, err = s.itemRepo.UpdateItem(ctx, q, orderID, productID, updateOrder)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to update item", "error", err)
 			return fmt.Errorf("update item: %w", err)
+		}
+
+		// 4. Запись истории обновления
+		newData, err := json.Marshal(item)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, domain.HistoryEntityOrderItem, item.ID, domain.HistoryActionUpdate, oldData, newData); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -317,6 +288,81 @@ func (s *ServiceOrderItem) UpdateItem(ctx context.Context, actor policy.Actor, o
 
 	logger.InfoContext(ctx, "item updated successfully", "new_quantity", item.Quantity)
 	return item, nil
+}
+
+// UpsertListItems добавляет несколько позиций в заказ (upsert). Проверяет права на запись заказа.
+func (s *ServiceOrderItem) UpsertListItems(ctx context.Context, actor policy.Actor, orderID int, items []domain.OrderItemCreate, groupID *int) error {
+	logger := logging.LoggerFromContext(ctx).With("order_id", orderID, "count", len(items))
+	logger.InfoContext(ctx, "adding list items to order")
+
+	if orderID < 1 {
+		return domain.ErrInvalidInput
+	}
+
+	targetGroup, err := s.resolveGroupID(actor, groupID)
+	if err != nil {
+		return err
+	}
+	if err := s.withTx(ctx, func(q domain.Querier) error {
+		// 1. Проверка прав на запись заказа
+		if err := s.accessWrite(ctx, q, actor, orderID, s.getOrderEntity); err != nil {
+			return fmt.Errorf("access write order: %w", err)
+		}
+		for _, item := range items {
+			if item.ProductID < 1 || item.UnitID < 1 || item.Quantity < 1 {
+				return domain.ErrInvalidInput
+			}
+			// 2. Upsert каждой позиции в транзакции
+			order, err := s.itemRepo.GetItemByOrderAndProduct(ctx, q, orderID, item.ProductID)
+			oldData, _ := json.Marshal(order)
+			if err != nil {
+				if domain.IsNotFound(err) {
+					// Если позиции нет — добавляем
+					item, err := s.itemRepo.AddItem(ctx, q, orderID, item.ProductID, item.UnitID, item.Quantity, targetGroup)
+					if err != nil {
+						return fmt.Errorf("add item %d: %w", item.ProductID, err)
+					}
+					// 3. Запись истории обновления
+					newData, err := json.Marshal(item)
+					if err != nil {
+						logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+						return fmt.Errorf("marshaling to json: %w", err)
+					}
+
+					if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, domain.HistoryEntityOrderItem, item.ID, domain.HistoryActionCreate, nil, newData); err != nil {
+						logger.ErrorContext(ctx, "failed to insert history", "error", err)
+						return fmt.Errorf("insert history: %w", err)
+					}
+					continue
+				}
+				return fmt.Errorf("get item %d: %w", item.ProductID, err)
+			}
+			// Если есть — обновляем
+			item, err := s.itemRepo.UpdateItem(ctx, q, orderID, item.ProductID, domain.OrderItemUpdate{UnitID: &item.UnitID, Quantity: &item.Quantity})
+			if err != nil {
+				return fmt.Errorf("update item %d: %w", item.ProductID, err)
+			}
+
+			// 3. Запись истории обновления
+			newData, err := json.Marshal(item)
+			if err != nil {
+				logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+				return fmt.Errorf("marshaling to json: %w", err)
+			}
+
+			if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, domain.HistoryEntityOrderItem, item.ID, domain.HistoryActionUpdate, oldData, newData); err != nil {
+				logger.ErrorContext(ctx, "failed to insert history", "error", err)
+				return fmt.Errorf("insert history: %w", err)
+			}
+		}
+		return nil
+	}); err != nil {
+		logger.ErrorContext(ctx, "failed to add list items", "error", err)
+		return err
+	}
+
+	logger.InfoContext(ctx, "all items upserted successfully")
+	return nil
 }
 
 // DeleteItem удаляет позицию из заказа. Проверяет права на запись заказа.
@@ -334,10 +380,28 @@ func (s *ServiceOrderItem) DeleteItem(ctx context.Context, actor policy.Actor, o
 			return fmt.Errorf("access write order: %w", err)
 		}
 
-		// 2. Удаление позиции в транзакции
+		// 2. Получение старой версии для истории
+		oldOrder, err := s.orderRepo.GetByID(ctx, q, orderID)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to get order for history", "error", err)
+			return fmt.Errorf("get order for history: %w", err)
+		}
+		oldData, err := json.Marshal(oldOrder)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
+
+		// 3. Удаление позиции в транзакции
 		if err := s.itemRepo.DeleteItemByOrderAndProduct(ctx, q, orderID, productID); err != nil {
 			logger.ErrorContext(ctx, "failed to delete item", "error", err)
 			return fmt.Errorf("delete item: %w", err)
+		}
+
+		// 3. Запись истории удаления
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, domain.HistoryEntityOrderItem, productID, domain.HistoryActionDelete, oldData, nil); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
 		}
 		return nil
 	}); err != nil {

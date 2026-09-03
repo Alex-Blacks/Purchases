@@ -148,7 +148,6 @@ func prepareStoreFilter(actor policy.Actor, filter *domain.StoreListFilter) erro
 	var err error
 	filter.GroupIDs, err = prepareCommonFilter(actor, filter.GroupIDs, filter.Limit, filter.Offset)
 	return err
-	return nil
 }
 
 // prepareProductFilter валидирует и подготавливает фильтр для Product.

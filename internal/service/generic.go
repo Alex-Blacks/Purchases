@@ -43,7 +43,11 @@ func (s *GenericService[T, C, U, F, R]) Create(ctx context.Context, actor policy
 		}
 
 		// Запись истории создания
-		newData, _ := json.Marshal(entity)
+		newData, err := json.Marshal(entity)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
 		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, s.entityType, entity.GetID(), domain.HistoryActionCreate, nil, newData); err != nil {
 			logger.ErrorContext(ctx, "failed to insert history", "error", err)
 			return fmt.Errorf("insert history: %w", err)
@@ -106,7 +110,11 @@ func (s *GenericService[T, C, U, F, R]) Update(ctx context.Context, actor policy
 			logger.ErrorContext(ctx, "failed to get entity for history", "error", err)
 			return fmt.Errorf("get entity for history: %w", err)
 		}
-		oldData, _ := json.Marshal(oldEntity)
+		oldData, err := json.Marshal(oldEntity)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
 
 		// 3. Обновление сущности в БД
 		entity, err = s.repo.UpdateByID(ctx, q, id, updates)
@@ -116,7 +124,11 @@ func (s *GenericService[T, C, U, F, R]) Update(ctx context.Context, actor policy
 		}
 
 		// 4. Запись истории изменения
-		newData, _ := json.Marshal(entity)
+		newData, err := json.Marshal(entity)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
 		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, s.entityType, entity.GetID(), domain.HistoryActionUpdate, oldData, newData); err != nil {
 			logger.ErrorContext(ctx, "failed to insert history", "error", err)
 			return fmt.Errorf("insert history: %w", err)

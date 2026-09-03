@@ -341,31 +341,21 @@ func (a *ProductAliasRepo) DeleteAllProductAliases(ctx context.Context, q domain
 
 func (a *ProductAliasRepo) FindProductByAlias(ctx context.Context, q domain.Querier, alias string, groupID []int) (domain.ProductDetails, error) {
 	var product domain.ProductDetails
-	if err := q.QueryRow(ctx, `
+	query := `
 		SELECT p.id, p.title, p.group_id, g.name
 		FROM product_aliases pa
 		JOIN products p ON pa.product_id = p.id
 		LEFT JOIN groups g ON p.group_id = g.id
-		WHERE pa.alias = $1 AND pa.group_id = ANY($2::int[])
-	`, alias, groupID).Scan(&product.ID, &product.Title, &product.GroupID, &product.Group); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.ProductDetails{}, domain.ErrNotFound
-		}
-		return domain.ProductDetails{}, fmt.Errorf("query product alias: %w", err)
+		WHERE pa.alias = $1`
+
+	args := []any{alias}
+	argPos := 2
+	if len(groupID) > 0 {
+		query += " AND " + fmt.Sprintf("pa.group_id = ANY($%d::int[])", argPos)
+		args = append(args, groupID)
+		argPos++
 	}
-
-	return product, nil
-}
-
-func (a *ProductAliasRepo) FindAllProductByAlias(ctx context.Context, q domain.Querier, alias string) (domain.ProductDetails, error) {
-	var product domain.ProductDetails
-	if err := q.QueryRow(ctx, `
-		SELECT p.id, p.title, p.group_id, g.name
-		FROM product_aliases pa
-		JOIN products p ON pa.product_id = p.id
-		LEFT JOIN groups g ON p.group_id = g.id
-		WHERE pa.alias = $1
-	`, alias).Scan(&product.ID, &product.Title, &product.GroupID, &product.Group); err != nil {
+	if err := q.QueryRow(ctx, query, args...).Scan(&product.ID, &product.Title, &product.GroupID, &product.Group); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ProductDetails{}, domain.ErrNotFound
 		}

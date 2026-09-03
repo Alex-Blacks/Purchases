@@ -10,10 +10,12 @@ type HistoryEntity string
 type HistoryAction string
 
 const (
-	HistoryEntityStore   HistoryEntity = "store"
-	HistoryEntityUnit    HistoryEntity = "unit"
-	HistoryEntityProduct HistoryEntity = "product"
-	HistoryEntityOrder   HistoryEntity = "order"
+	HistoryEntityStore        HistoryEntity = "store"
+	HistoryEntityUnit         HistoryEntity = "unit"
+	HistoryEntityProduct      HistoryEntity = "product"
+	HistoryEntityProductAlias HistoryEntity = "productAlias"
+	HistoryEntityOrder        HistoryEntity = "order"
+	HistoryEntityOrderItem    HistoryEntity = "orderItem"
 
 	HistoryActionCreate HistoryAction = "create"
 	HistoryActionUpdate HistoryAction = "update"

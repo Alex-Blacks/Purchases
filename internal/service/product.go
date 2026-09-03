@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -78,13 +79,15 @@ type ServiceProductAlias struct {
 	*BaseService
 	repo        domain.ProductAliasRepository
 	productRepo domain.ProductRepository
+	history     domain.ChangeHistoryRepository
 }
 
-func NewServiceProductAlias(st domain.Storage, repo domain.ProductAliasRepository, productRepo domain.ProductRepository) *ServiceProductAlias {
+func NewServiceProductAlias(st domain.Storage, repo domain.ProductAliasRepository, productRepo domain.ProductRepository, history domain.ChangeHistoryRepository) *ServiceProductAlias {
 	return &ServiceProductAlias{
 		BaseService: &BaseService{storage: st},
 		repo:        repo,
 		productRepo: productRepo,
+		history:     history,
 	}
 }
 
@@ -122,6 +125,17 @@ func (s *ServiceProductAlias) Create(ctx context.Context, actor policy.Actor, pr
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to create product alias", "error", err)
 			return fmt.Errorf("create product alias: %w", err)
+		}
+
+		// 3. Запись истории создания
+		newData, err := json.Marshal(productAlias)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, domain.HistoryEntityProductAlias, productAlias.ID, domain.HistoryActionCreate, nil, newData); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -174,11 +188,34 @@ func (s *ServiceProductAlias) UpdateByID(ctx context.Context, actor policy.Actor
 			return fmt.Errorf("access write product alias: %w", err)
 		}
 
-		// 2. Обновление алиаса в БД
+		// 2. Получение старой версии для истории
+		oldAlias, err := s.repo.GetByID(ctx, q, aliasID)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to get alias for history", "error", err)
+			return fmt.Errorf("get alias for history: %w", err)
+		}
+		oldData, err := json.Marshal(oldAlias)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
+
+		// 3. Обновление алиаса в БД
 		alias, err = s.repo.UpdateByID(ctx, q, aliasID, updates)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to update product alias", "error", err)
 			return fmt.Errorf("update product alias: %w", err)
+		}
+
+		// 4. Запись истории обновления
+		newData, err := json.Marshal(alias)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, domain.HistoryEntityProductAlias, alias.ID, domain.HistoryActionUpdate, oldData, newData); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -204,10 +241,28 @@ func (s *ServiceProductAlias) DeleteByID(ctx context.Context, actor policy.Actor
 			return fmt.Errorf("access write product alias: %w", err)
 		}
 
-		// 2. Удаление алиаса в транзакции
+		// 2. Получение старой версии для истории
+		oldAlias, err := s.repo.GetByID(ctx, q, aliasID)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to get alias for history", "error", err)
+			return fmt.Errorf("get alias for history: %w", err)
+		}
+		oldData, err := json.Marshal(oldAlias)
+		if err != nil {
+			logger.ErrorContext(ctx, "failed marshaling to json", "error", err)
+			return fmt.Errorf("marshaling to json: %w", err)
+		}
+
+		// 3. Удаление алиаса в транзакции
 		if err := s.repo.DeleteByID(ctx, q, aliasID); err != nil {
 			logger.ErrorContext(ctx, "failed to delete product alias", "error", err)
 			return fmt.Errorf("delete product alias: %w", err)
+		}
+
+		// 4. Запись истории удаления
+		if err := s.history.Insert(ctx, q, actor.GroupID, actor.UserID, domain.HistoryEntityProductAlias, oldAlias.ID, domain.HistoryActionDelete, oldData, nil); err != nil {
+			logger.ErrorContext(ctx, "failed to insert history", "error", err)
+			return fmt.Errorf("insert history: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -292,33 +347,13 @@ func (s *ServiceProductAlias) FindProductByAlias(ctx context.Context, actor poli
 		return domain.ProductDetails{}, domain.ErrEmptyName
 	}
 
-	// Поиск продукта по алиасу с фильтром по группам
-	product, err := s.repo.FindProductByAlias(ctx, s.storage, alias, []int{actor.GroupID, policy.CommonGroupID})
-	if err != nil {
-		logger.ErrorContext(ctx, "failed to find product by alias", "error", err)
-		return domain.ProductDetails{}, fmt.Errorf("find product by alias: %w", err)
-	}
-
-	logger.InfoContext(ctx, "product found by alias", "product_id", product.ID, "title", product.Title)
-	return product, nil
-}
-
-// FindAllProductByAlias ищет название продукта по алиасу в группах актора и общей группе.
-func (s *ServiceProductAlias) FindAllProductByAlias(ctx context.Context, actor policy.Actor, alias string) (domain.ProductDetails, error) {
-	logger := logging.LoggerFromContext(ctx).With("alias", alias)
-	logger.InfoContext(ctx, "finding all product by alias")
-
-	// 1. Проверка прав
+	var groupIDs []int
 	if !actor.HasRole(domain.RoleAdmin) {
-		return domain.ProductDetails{}, policy.ErrForbidden
+		groupIDs = []int{actor.GroupID, policy.CommonGroupID}
 	}
 
-	if strings.TrimSpace(alias) == "" {
-		return domain.ProductDetails{}, domain.ErrEmptyName
-	}
-
-	// 2. Поиск продукта по алиасу
-	product, err := s.repo.FindAllProductByAlias(ctx, s.storage, alias)
+	// Поиск продукта по алиасу с фильтром по группам
+	product, err := s.repo.FindProductByAlias(ctx, s.storage, alias, groupIDs)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to find product by alias", "error", err)
 		return domain.ProductDetails{}, fmt.Errorf("find product by alias: %w", err)
