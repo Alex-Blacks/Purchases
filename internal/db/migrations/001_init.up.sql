@@ -85,6 +85,7 @@ create table order_items(
     unit_id integer not null references units(id) on delete restrict,
     quantity numeric(10,3) check (quantity > 0) default 1,
     group_id integer not null references groups(id) on delete cascade
+    constraint unique_order_product unique(order_id, product_id);
 );
 
 

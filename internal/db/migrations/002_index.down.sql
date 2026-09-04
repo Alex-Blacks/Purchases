@@ -4,23 +4,50 @@ drop index if exists idx_purchase_items_group;
 drop index if exists idx_purchases_stores;
 drop index if exists idx_purchases_users;
 drop index if exists idx_purchases_group;
+
 drop index if exists idx_unique_order_product;
 drop index if exists idx_order_items_unit_id;
 drop index if exists idx_order_items_products;
 drop index if exists idx_order_items_orders;
 drop index if exists idx_order_items_group;
+
+drop index if exists idx_orders_group_created;
 drop index if exists idx_orders_user_id_id;
 drop index if exists idx_orders_group;
 drop index if exists idx_orders_stores;
 drop index if exists idx_orders_users;
+
+drop index if exists idx_stores_group;
+
 drop index if exists idx_product_aliases_unique_alias;
+drop index if exists idx_product_aliases_alias;
 drop index if exists idx_product_aliases_products;
-drop index if exists idx_products_aliases_group;
+drop index if exists idx_product_aliases_group;
+
+
+drop index if exists idx_products_title;
 drop index if exists idx_products_group;
+
+drop index if exists idx_units_group_short_name;
+drop index if exists idx_units_group_name;
+drop index if exists idx_units_group;
+
+drop index if exists idx_invites_expires_at;
+drop index if exists idx_invites_group_created;
+drop index if exists idx_invites_invitee_email;
+drop index if exists idx_invites_inviter_user;
 drop index if exists idx_invites_token;
 drop index if exists idx_invites_status;
 drop index if exists idx_invites_group;
+
+drop index if exists idx_users_updated_at;
+drop index if exists idx_users_created_at;
+drop index if exists idx_users_group_created;
 drop index if exists idx_users_group;
+drop index if exists idx_users_status;
+drop index if exists idx_users_role;
 drop index if exists idx_users_email;
+
 drop index if exists idx_groups_admin_user;
+drop index if exists idx_groups_name;
 

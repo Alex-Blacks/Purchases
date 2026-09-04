@@ -16,7 +16,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// ParsePositiveIntParam парсит целочисленный параметр из URL (например, /users/{id})
+// ParsePositiveIntParam парсит и валидирует целочисленный параметр из URL (например, /users/{id})
 // Возвращает ошибку, обёрнутую в domain.ErrInvalidInput.
 func ParsePositiveIntParam(r *http.Request, name string) (int, error) {
 	valStr := chi.URLParam(r, name)
@@ -28,6 +28,30 @@ func ParsePositiveIntParam(r *http.Request, name string) (int, error) {
 		return 0, domain.ErrInvalidInput
 	}
 	return val, nil
+}
+
+// ParsePositiveIntQuery парсит и валидирует целочисленный параметр из Query (например, /users/by-product?productId)
+// Возвращает ошибку, обёрнутую в domain.ErrInvalidInput.
+func ParsePositiveIntQuery(r *http.Request, name string) (int, error) {
+	valStr := r.URL.Query().Get(name)
+	if strings.TrimSpace(valStr) == "" {
+		return 0, domain.ErrInvalidInput
+	}
+	val, err := strconv.Atoi(valStr)
+	if err != nil || val <= 0 {
+		return 0, domain.ErrInvalidInput
+	}
+	return val, nil
+}
+
+// ParsePositiveStrQuery парсит и валидирует строчный параметр из Query (например, /users/by-product?productId)
+// Возвращает ошибку, обёрнутую в domain.ErrInvalidInput.
+func ParsePositiveStrQuery(r *http.Request, name string) (string, error) {
+	valStr := r.URL.Query().Get(name)
+	if strings.TrimSpace(valStr) == "" {
+		return "", domain.ErrInvalidInput
+	}
+	return valStr, nil
 }
 
 // ParseOptionalIntParam парсит опциональный целочисленный параметр из query (например, ?limit=10)

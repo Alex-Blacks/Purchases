@@ -302,7 +302,7 @@ func (h UserHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/users/all [get]
+// @Router /private/users/count [get]
 func (h UserHandler) CountUsersHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()

@@ -262,8 +262,8 @@ func (h *UnitHandler) ListUnitsHandler(w http.ResponseWriter, r *http.Request) {
 // CountUnitsHandler возвращает количество всех единиц измерения.
 //
 // @Security BearerAuth
-// @Summary Count all units (admin only)
-// @Description Get count of all units (requires admin role)
+// @Summary Count all units
+// @Description Get count of all units
 // @Tags units
 // @Produce json
 // @Param group_ids[] query []int false "Group IDs"
@@ -275,7 +275,7 @@ func (h *UnitHandler) ListUnitsHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 403 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /private/units/all [get]
+// @Router /private/units/count [get]
 func (h *UnitHandler) CountUnitsHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()

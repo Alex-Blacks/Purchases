@@ -21,6 +21,24 @@ type ProductResponse struct {
 	Group   string `json:"group"` // название группы
 }
 
+// ProductFilterQuery – структура для биндинга query-параметров
+type ProductFilterQuery struct {
+	GroupIDs []int   `form:"group_ids" validate:"dive,int,gt=0"`
+	Title    *string `form:"title,omitempty" validate:"min=1,max=50"`
+	Limit    int     `form:"limit" default:"10" validate:"required,min=1,max=100"`
+	Offset   int     `form:"offset" default:"0" validate:"min=0"`
+}
+
+// ToDomainFilter преобразует dto.ProductFilterQuery в domain.ProductListFilter.
+func (q ProductFilterQuery) ToDomainFilter() domain.ProductListFilter {
+	return domain.ProductListFilter{
+		GroupIDs: q.GroupIDs,
+		Title:    q.Title,
+		Limit:    q.Limit,
+		Offset:   q.Offset,
+	}
+}
+
 // ToProductResponse преобразует domain.ProductDetails в ProductResponse.
 func ToProductResponse(product domain.ProductDetails) ProductResponse {
 	return ProductResponse{
@@ -59,8 +77,9 @@ func ToProductListResponse(products []domain.ProductDetails) []ProductResponse {
 
 // ProductAliasRequest используется для создания алиаса продукта.
 type ProductAliasRequest struct {
-	Alias   string `json:"alias" validate:"required,min=1,max=50"`
-	GroupID *int   `json:"groupId,omitempty" validate:"gt=0"` // опционально, для админов
+	ProductID int    `json:"productId" validate:"required,gt=0"`
+	Alias     string `json:"alias" validate:"required,min=1,max=50"`
+	GroupID   *int   `json:"groupId,omitempty" validate:"gt=0"` // опционально, для админов
 }
 
 // ProductAliasUpdateRequest используется для обновления алиаса продукта.
@@ -76,6 +95,26 @@ type ProductAliasResponse struct {
 	Alias     string `json:"alias"`
 	GroupID   int    `json:"groupId"`
 	Group     string `json:"group"`
+}
+
+// ProductAliasFilterQuery – структура для биндинга query-параметров
+type ProductAliasFilterQuery struct {
+	GroupIDs  []int   `form:"group_ids" validate:"dive,int,gt=0"`
+	ProductID int     `form:"productId,omitempty" validate:"gt=0"`
+	Alias     *string `form:"alias,omitempty" validate:"min=1,max=50"`
+	Limit     int     `form:"limit" default:"10" validate:"required,min=1,max=100"`
+	Offset    int     `form:"offset" default:"0" validate:"min=0"`
+}
+
+// ToDomainFilter преобразует dto.ProductAliasFilterQuery в domain.ProductAliasListFilter.
+func (q ProductAliasFilterQuery) ToDomainFilter() domain.ProductAliasListFilter {
+	return domain.ProductAliasListFilter{
+		GroupIDs:  q.GroupIDs,
+		ProductID: q.ProductID,
+		Alias:     q.Alias,
+		Limit:     q.Limit,
+		Offset:    q.Offset,
+	}
 }
 
 // ToProductAliasResponse преобразует domain.ProductAliasDetails в ProductAliasResponse.

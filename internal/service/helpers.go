@@ -208,6 +208,28 @@ func prepareOrderFilter(actor policy.Actor, filter *domain.OrderListFilter) erro
 	return err
 }
 
+// prepareOrderItemFilter валидирует и подготавливает фильтр для OrderItem.
+// Модифицирует filter.GroupIDs в зависимости от роли актора.
+func prepareOrderItemFilter(actor policy.Actor, filter *domain.OrderItemListFilter) error {
+	// 1. Валидация фильтра (если передано)
+	if filter.OrderID < 1 {
+		return domain.ErrInvalidInput
+	}
+	if filter.ProductID != nil && *filter.ProductID < 1 {
+		return domain.ErrInvalidInput
+	}
+	if filter.UnitID != nil && *filter.UnitID < 1 {
+		return domain.ErrInvalidInput
+	}
+	if filter.QuantityMin != nil && filter.QuantityMax != nil && *filter.QuantityMin > *filter.QuantityMax {
+		return domain.ErrInvalidInput
+	}
+
+	var err error
+	filter.GroupIDs, err = prepareCommonFilter(actor, filter.GroupIDs, filter.Limit, filter.Offset)
+	return err
+}
+
 // prepareInviteFilter валидирует и подготавливает фильтр для Invite.
 // Модифицирует filter.GroupIDs в зависимости от роли актора.
 func prepareInviteFilter(actor policy.Actor, filter *domain.InviteListFilter) error {

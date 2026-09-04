@@ -296,9 +296,14 @@ func buildOrderItemWhere(filter domain.OrderItemListFilter) (string, []any, int)
 		argPos++
 	}
 
-	if filter.Quantity != nil {
-		setPath = append(setPath, fmt.Sprintf("oi.quantity = $%d", argPos))
-		args = append(args, filter.Quantity)
+	if filter.QuantityMin != nil {
+		setPath = append(setPath, fmt.Sprintf("oi.quantity >= $%d", argPos))
+		args = append(args, *filter.QuantityMin)
+		argPos++
+	}
+	if filter.QuantityMax != nil {
+		setPath = append(setPath, fmt.Sprintf("oi.quantity <= $%d", argPos))
+		args = append(args, *filter.QuantityMax)
 		argPos++
 	}
 

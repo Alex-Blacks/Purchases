@@ -77,13 +77,14 @@ type OrderWithItemDetails struct {
 }
 
 type OrderItemListFilter struct {
-	GroupIDs  []int
-	OrderID   int
-	ProductID *int
-	UnitID    *int
-	Quantity  *int
-	Limit     int
-	Offset    int
+	GroupIDs    []int
+	OrderID     int
+	ProductID   *int
+	UnitID      *int
+	QuantityMin *int
+	QuantityMax *int
+	Limit       int
+	Offset      int
 }
 
 func (o OrderWithItemDetails) GetGroupID() int { return o.Order.GroupID }

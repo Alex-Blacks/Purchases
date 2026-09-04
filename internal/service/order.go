@@ -412,6 +412,45 @@ func (s *ServiceOrderItem) DeleteItem(ctx context.Context, actor policy.Actor, o
 	return nil
 }
 
+// ListItems возвращает список продуктов в заказе.
+func (s *ServiceOrderItem) ListItems(ctx context.Context, actor policy.Actor, filter domain.OrderItemListFilter) ([]domain.OrderItemDetails, error) {
+	logger := logging.LoggerFromContext(ctx).With("user_id", actor.UserID, "group_id", actor.GroupID)
+	logger.InfoContext(ctx, "listing order items")
+
+	if err := prepareOrderItemFilter(actor, &filter); err != nil {
+		return nil, err
+	}
+
+	// 1. Получение списка заказов из БД (без транзакции)
+	orders, err := s.itemRepo.List(ctx, s.storage, filter)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to list order items", "error", err)
+		return nil, fmt.Errorf("list order items: %w", err)
+	}
+
+	logger.InfoContext(ctx, "order items listed successfully", "count", len(orders))
+	return orders, nil
+}
+
+// CountItems возвращает количество продуктов в заказе.
+func (s *ServiceOrderItem) CountItems(ctx context.Context, actor policy.Actor, filter domain.OrderItemListFilter) (int, error) {
+	logger := logging.LoggerFromContext(ctx)
+	logger.InfoContext(ctx, "counting order items")
+
+	if err := prepareOrderItemFilter(actor, &filter); err != nil {
+		return 0, err
+	}
+	// 1. Получение количества продуктов из БД (без транзакции)
+	count, err := s.itemRepo.Count(ctx, s.storage, filter)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to count order items", "error", err)
+		return 0, fmt.Errorf("count order items: %w", err)
+	}
+
+	logger.InfoContext(ctx, "order items counted successfully", "count", count)
+	return count, nil
+}
+
 // FindProductInOrders ищет продукт в заказах и возвращает список магазинов в которых он встречается, с проверкой прав на чтение.
 func (s *ServiceOrderItem) FindProductInOrders(ctx context.Context, actor policy.Actor, productID int, groupID *int) ([]domain.OrderItemFindDetails, error) {
 	logger := logging.LoggerFromContext(ctx).With("productId", productID)

@@ -35,7 +35,7 @@ type UnitFilterQuery struct {
 	Offset    int     `form:"offset" default:"0" validate:"min=0"`
 }
 
-// ToUserFilterRequest преобразует dto.UserFilterRequest в domain.UserListFilter.
+// ToDomainFilter преобразует dto.UnitFilterQuery в domain.UnitListFilter.
 func (q UnitFilterQuery) ToDomainFilter() domain.UnitListFilter {
 	return domain.UnitListFilter{
 		GroupIDs:  q.GroupIDs,

@@ -15,12 +15,12 @@ import (
 )
 
 type ServiceStoreInterface interface {
-	Create(ctx context.Context, actor policy.Actor, params any, groupID *int) (domain.StoreDetails, error)
+	Create(ctx context.Context, actor policy.Actor, params domain.StoreCreate, groupID *int) (domain.StoreDetails, error)
 	Get(ctx context.Context, actor policy.Actor, id int) (domain.StoreDetails, error)
-	Update(ctx context.Context, actor policy.Actor, id int, updates any) (domain.StoreDetails, error)
+	Update(ctx context.Context, actor policy.Actor, id int, updates domain.StoreUpdate) (domain.StoreDetails, error)
 	Delete(ctx context.Context, actor policy.Actor, id int) error
-	List(ctx context.Context, actor policy.Actor) ([]domain.StoreDetails, error)
-	ListAll(ctx context.Context, actor policy.Actor) ([]domain.StoreDetails, error)
+	List(ctx context.Context, actor policy.Actor, filter domain.StoreListFilter) ([]domain.StoreDetails, error)
+	Count(ctx context.Context, actor policy.Actor, filter domain.StoreListFilter) (int, error)
 }
 
 type StoreHandler struct {
@@ -208,13 +208,17 @@ func (h StoreHandler) DeleteStoreHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListStoresHandler возвращает список магазинов, доступных пользователю (из его группы).
+// ListStoresHandler возвращает список магазинов.
 //
 // @Security BearerAuth
 // @Summary List user's stores
 // @Description Get list of stores belonging to user's group
 // @Tags stores
 // @Produce json
+// @Param group_ids[] query []int false "Group IDs"
+// @Param name query string false "Name" minimum(1) maximum(50)
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
 // @Success 200 {array} dto.StoreResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 403 {object} dto.ErrorResponse
@@ -230,30 +234,47 @@ func (h StoreHandler) ListStoresHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 2. Вызов сервиса для получения списка
-	list, err := h.storeService.List(ctx, actor)
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.StoreFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
+		return
+	}
+
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 3. Вызов сервиса для получения списка
+	list, err := h.storeService.List(ctx, actor, queryFilter.ToDomainFilter())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
 	}
 
-	// 3. Преобразование и отправка ответа
+	// 4. Преобразование и отправка ответа
 	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToStoreListResponse(list))
 }
 
-// ListAllStoresHandler возвращает список всех магазинов (только для администраторов).
+// CountStoresHandler возвращает количество всех магазинов.
 //
 // @Security BearerAuth
-// @Summary List all stores (admin only)
-// @Description Get list of all stores (requires admin role)
+// @Summary Count all stores
+// @Description Get count of all stores
 // @Tags stores
 // @Produce json
-// @Success 200 {array} dto.StoreResponse
+// @Param group_ids[] query []int false "Group IDs"
+// @Param name query string false "Name" minimum(1) maximum(50)
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
+// @Success 200 {object} dto.CountResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 403 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /private/stores/all [get]
-func (h StoreHandler) ListAllStoresHandler(w http.ResponseWriter, r *http.Request) {
+// @Router /private/stores/count [get]
+func (h StoreHandler) CountStoresHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -263,13 +284,26 @@ func (h StoreHandler) ListAllStoresHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// 2. Вызов сервиса для получения списка всех магазинов
-	list, err := h.storeService.ListAll(ctx, actor)
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.StoreFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
+		return
+	}
+
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 3. Вызов сервиса для получения количества всех магазинов
+	count, err := h.storeService.Count(ctx, actor, queryFilter.ToDomainFilter())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
 	}
 
 	// 3. Преобразование и отправка ответа
-	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToStoreListResponse(list))
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.CountResponse{Count: count})
 }

@@ -67,7 +67,7 @@ func ToUserUpdateRequest(up UserUpdateRequest) domain.UserUpdate {
 	}
 }
 
-// ToUserFilterRequest преобразует dto.UserFilterRequest в domain.UserListFilter.
+// ToDomainFilter преобразует dto.UserFilterQuery в domain.UserListFilter.
 func (q UserFilterQuery) ToDomainFilter() domain.UserListFilter {
 	filter := domain.UserListFilter{
 		GroupIDs:    q.GroupIDs,

@@ -12,6 +12,34 @@ type OrderRequest struct {
 	GroupID *int `json:"groupId,omitempty" validate:"gt=0"` // опционально, для админов
 }
 
+// OrderFilterQuery – структура для биндинга query-параметров
+type OrderFilterQuery struct {
+	GroupIDs    []int      `form:"group_ids" validate:"dive,int,gt=0"`
+	UserID      *int       `form:"userId" validate:"gt=0"`
+	StoreID     *int       `form:"storeId" validate:"gt=0"`
+	CreatedFrom *time.Time `form:"created_from" validate:"daterange=CreatedTo"` // RFC3339
+	CreatedTo   *time.Time `form:"created_to"`
+	UpdatedFrom *time.Time `form:"updated_from" validate:"daterange=UpdatedTo"`
+	UpdatedTo   *time.Time `form:"updated_to"`
+	Limit       int        `form:"limit" default:"10" validate:"required,min=1,max=100"`
+	Offset      int        `form:"offset" default:"0" validate:"min=0"`
+}
+
+// ToDomainFilter преобразует dto.OrderFilterQuery в domain.OrderListFilter.
+func (q OrderFilterQuery) ToDomainFilter() domain.OrderListFilter {
+	return domain.OrderListFilter{
+		GroupIDs:    q.GroupIDs,
+		UserID:      q.UserID,
+		StoreID:     q.StoreID,
+		CreatedFrom: q.CreatedFrom,
+		CreatedTo:   q.CreatedTo,
+		UpdatedFrom: q.UpdatedFrom,
+		UpdatedTo:   q.UpdatedTo,
+		Limit:       q.Limit,
+		Offset:      q.Offset,
+	}
+}
+
 // OrderDetailsResponse возвращает детальную информацию о заказе.
 type OrderDetailsResponse struct {
 	ID        int       `json:"id"`
@@ -103,6 +131,32 @@ func ToItemUpdateRequest(item ItemUpdateRequest) domain.OrderItemUpdate {
 	}
 }
 
+// OrderItemFilterQuery – структура для биндинга query-параметров
+type OrderItemFilterQuery struct {
+	GroupIDs    []int `form:"group_ids" validate:"dive,int,gt=0"`
+	OrderID     int   `form:"order_id" validate:"gt=0"`
+	ProductID   *int  `form:"product_id,omitempty" validate:"gt=0"`
+	UnitID      *int  `form:"unit_id,omitempty" validate:"gt=0"`
+	QuantityMin *int  `form:"quantity_min,omitempty" validate:"gt=0"`
+	QuantityMax *int  `form:"quantity_max,omitempty" validate:"gt=0"`
+	Limit       int   `form:"limit" default:"10" validate:"required,min=1,max=100"`
+	Offset      int   `form:"offset" default:"0" validate:"min=0"`
+}
+
+// ToDomainFilter преобразует dto.OrderItemFilterQuery в domain.OrderItemListFilter.
+func (q OrderItemFilterQuery) ToDomainFilter() domain.OrderItemListFilter {
+	return domain.OrderItemListFilter{
+		GroupIDs:    q.GroupIDs,
+		OrderID:     q.OrderID,
+		ProductID:   q.ProductID,
+		UnitID:      q.UnitID,
+		QuantityMin: q.QuantityMin,
+		QuantityMax: q.QuantityMax,
+		Limit:       q.Limit,
+		Offset:      q.Offset,
+	}
+}
+
 type OrderWithItemDetailsResponse struct {
 	ID         int                   `json:"id"`
 	UserID     int                   `json:"userId"`
@@ -160,6 +214,23 @@ func ToOrderListResponse(order []domain.OrderDetails) []OrderDetailsResponse {
 			Group:     o.Group,
 			CreatedAt: o.CreatedAt,
 			UpdatedAt: o.UpdatedAt,
+		}
+	}
+	return resp
+}
+
+func ToOrderItemListResponse(order []domain.OrderItemDetails) []ItemDetailsResponse {
+	resp := make([]ItemDetailsResponse, len(order))
+
+	for i, o := range order {
+		resp[i] = ItemDetailsResponse{
+			ID:        o.ID,
+			OrderID:   o.OrderID,
+			ProductID: o.ProductID,
+			Title:     o.Title,
+			UnitID:    o.UnitID,
+			Unit:      o.Unit,
+			Quantity:  o.Quantity,
 		}
 	}
 	return resp

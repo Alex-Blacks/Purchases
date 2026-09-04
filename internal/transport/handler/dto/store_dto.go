@@ -21,6 +21,24 @@ type StoreResponse struct {
 	Group   string `json:"group"` // название группы
 }
 
+// StoreFilterQuery – структура для биндинга query-параметров
+type StoreFilterQuery struct {
+	GroupIDs []int   `form:"group_ids" validate:"dive,int,gt=0"`
+	Name     *string `form:"name,omitempty" validate:"min=1,max=50"`
+	Limit    int     `form:"limit" default:"10" validate:"required,min=1,max=100"`
+	Offset   int     `form:"offset" default:"0" validate:"min=0"`
+}
+
+// ToDomainFilter преобразует dto.UserFilterRequest в domain.UserListFilter.
+func (q StoreFilterQuery) ToDomainFilter() domain.StoreListFilter {
+	return domain.StoreListFilter{
+		GroupIDs: q.GroupIDs,
+		Name:     q.Name,
+		Limit:    q.Limit,
+		Offset:   q.Offset,
+	}
+}
+
 // ToStoreResponse преобразует domain.StoreDetails в StoreResponse.
 func ToStoreResponse(store domain.StoreDetails) StoreResponse {
 	return StoreResponse{

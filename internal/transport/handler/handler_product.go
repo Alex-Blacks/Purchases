@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
-	"strings"
+	"strconv"
 
 	"github.com/Alex-Blacks/Purchases/internal/actorctx"
 	"github.com/Alex-Blacks/Purchases/internal/domain"
@@ -15,12 +15,12 @@ import (
 )
 
 type ServiceProductInterface interface {
-	Create(ctx context.Context, actor policy.Actor, params any, groupID *int) (domain.ProductDetails, error)
+	Create(ctx context.Context, actor policy.Actor, params domain.ProductCreate, groupID *int) (domain.ProductDetails, error)
 	Get(ctx context.Context, actor policy.Actor, id int) (domain.ProductDetails, error)
-	Update(ctx context.Context, actor policy.Actor, id int, updates any) (domain.ProductDetails, error)
+	Update(ctx context.Context, actor policy.Actor, id int, updates domain.ProductUpdate) (domain.ProductDetails, error)
 	Delete(ctx context.Context, actor policy.Actor, id int) error
-	List(ctx context.Context, actor policy.Actor) ([]domain.ProductDetails, error)
-	ListAll(ctx context.Context, actor policy.Actor) ([]domain.ProductDetails, error)
+	List(ctx context.Context, actor policy.Actor, filter domain.ProductListFilter) ([]domain.ProductDetails, error)
+	Count(ctx context.Context, actor policy.Actor, filter domain.ProductListFilter) (int, error)
 }
 
 type ProductHandler struct {
@@ -59,7 +59,7 @@ func (h ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// 3. Вызов сервиса для создания магазина
+	// 3. Вызов сервиса для создания продукта
 	params := domain.ProductCreate{Title: req.Title}
 	product, err := h.productService.Create(ctx, actor, params, req.GroupID)
 	if err != nil {
@@ -103,7 +103,7 @@ func (h ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// 3. Вызов сервиса для получения магазина
+	// 3. Вызов сервиса для получения продукта
 	product, err := h.productService.Get(r.Context(), actor, productID)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"productId": productID})
@@ -165,7 +165,7 @@ func (h ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Requ
 	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToProductResponse(product))
 }
 
-// DeleteProductHandler удаляет магазин по ID.
+// DeleteProductHandler удаляет продукт по ID.
 //
 // @Security BearerAuth
 // @Summary Delete product
@@ -207,13 +207,17 @@ func (h ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListProductsHandler возвращает список магазинов, доступных пользователю (из его группы).
+// ListProductsHandler возвращает список продуктов.
 //
 // @Security BearerAuth
 // @Summary List user's products
 // @Description Get list of products belonging to user's group
 // @Tags products
 // @Produce json
+// @Param group_ids[] query []int false "Group IDs"
+// @Param title query string false "Title" minimum(1) maximum(50)
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
 // @Success 200 {array} dto.ProductResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 403 {object} dto.ErrorResponse
@@ -229,30 +233,47 @@ func (h ProductHandler) ListProductsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// 2. Вызов сервиса для получения списка
-	list, err := h.productService.List(ctx, actor)
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.ProductFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
+		return
+	}
+
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 3. Вызов сервиса для получения списка
+	list, err := h.productService.List(ctx, actor, queryFilter.ToDomainFilter())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
 	}
 
-	// 3. Преобразование и отправка ответа
+	// 4. Преобразование и отправка ответа
 	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToProductListResponse(list))
 }
 
-// ListAllProductsHandler возвращает список всех магазинов (только для администраторов).
+// CountProductsHandler возвращает список всех продуктов (только для администраторов).
 //
 // @Security BearerAuth
-// @Summary List all products (admin only)
-// @Description Get list of all products (requires admin role)
+// @Summary Count all products
+// @Description Get count of all products
 // @Tags products
 // @Produce json
-// @Success 200 {array} dto.ProductResponse
+// @Param group_ids[] query []int false "Group IDs"
+// @Param title query string false "Title" minimum(1) maximum(50)
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
+// @Success 200 {object} dto.CountResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 403 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /private/products/all [get]
-func (h ProductHandler) ListAllProductsHandler(w http.ResponseWriter, r *http.Request) {
+// @Router /private/products/count [get]
+func (h ProductHandler) CountProductsHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -262,15 +283,28 @@ func (h ProductHandler) ListAllProductsHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// 2. Вызов сервиса для получения списка всех магазинов
-	list, err := h.productService.ListAll(ctx, actor)
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.ProductFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
+		return
+	}
+
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 3. Вызов сервиса для получения списка всех продуктов
+	count, err := h.productService.Count(ctx, actor, queryFilter.ToDomainFilter())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
 	}
 
-	// 3. Преобразование и отправка ответа
-	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToProductListResponse(list))
+	// 4. Преобразование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.CountResponse{Count: count})
 }
 
 // ---------------------------------------------------------------------------------
@@ -283,17 +317,16 @@ type ServiceProductAliasInterface interface {
 	UpdateByID(ctx context.Context, actor policy.Actor, aliasID int, updates domain.ProductAliasUpdate) (domain.ProductAliasDetails, error)
 	DeleteByID(ctx context.Context, actor policy.Actor, aliasID int) error
 	DeleteAllProductAliases(ctx context.Context, actor policy.Actor, productID int) error
-	List(ctx context.Context, actor policy.Actor, productID int) ([]domain.ProductAliasDetails, error)
-	ListAll(ctx context.Context, actor policy.Actor, productID int) ([]domain.ProductAliasDetails, error)
+	List(ctx context.Context, actor policy.Actor, filter domain.ProductAliasListFilter) ([]domain.ProductAliasDetails, error)
+	Count(ctx context.Context, actor policy.Actor, filter domain.ProductAliasListFilter) (int, error)
 	FindProductByAlias(ctx context.Context, actor policy.Actor, alias string) (domain.ProductDetails, error)
-	FindAllProductByAlias(ctx context.Context, actor policy.Actor, alias string) (domain.ProductDetails, error)
 }
 type ProductAliasHandler struct {
 	aliasService ServiceProductAliasInterface
 	validate     *validator.Validate
 }
 
-// CreateProductAliasHandler обрабатывает создание нового алиаса для магазина
+// CreateProductAliasHandler обрабатывает создание нового алиаса для продукта
 //
 // @Security BearerAuth
 // @Summary Create product alias
@@ -301,13 +334,12 @@ type ProductAliasHandler struct {
 // @Tags products
 // @Accept json
 // @Produce json
-// @Param productId path int true "product ID"
 // @Param request body dto.ProductAliasRequest true "product alias payload"
 // @Success 201 {object} dto.ProductAliasResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/products/{productId}/aliases [post]
+// @Router /private/products/aliases [post]
 func (h ProductAliasHandler) CreateProductAliasHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
@@ -318,14 +350,7 @@ func (h ProductAliasHandler) CreateProductAliasHandler(w http.ResponseWriter, r 
 		return
 	}
 
-	// 2. Парсинг ID
-	productID, err := helpers.ParsePositiveIntParam(r, "id")
-	if err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// 3. Декодирование и валидация тела запроса
+	// 2. Декодирование и валидация тела запроса
 	var req dto.ProductAliasRequest
 	if err := helpers.DecodeJSON(w, r, logger, h.validate, &req); err != nil {
 		helpers.WriteDomainError(w, logger, err, req)
@@ -333,9 +358,9 @@ func (h ProductAliasHandler) CreateProductAliasHandler(w http.ResponseWriter, r 
 	}
 
 	// 3. Вызов сервиса для создания алиаса проудукта
-	productAlias, err := h.aliasService.Create(ctx, actor, productID, req.Alias, req.GroupID)
+	productAlias, err := h.aliasService.Create(ctx, actor, req.ProductID, req.Alias, req.GroupID)
 	if err != nil {
-		helpers.WriteDomainError(w, logger, err, map[string]any{"productId": productID, "alias": req.Alias, "groupId": req.GroupID})
+		helpers.WriteDomainError(w, logger, err, map[string]any{"productId": req.ProductID, "alias": req.Alias, "groupId": req.GroupID})
 		return
 	}
 
@@ -350,14 +375,13 @@ func (h ProductAliasHandler) CreateProductAliasHandler(w http.ResponseWriter, r 
 // @Description Get product alias by ID
 // @Tags products
 // @Produce json
-// @Param productId path int true "product ID"
 // @Param id path int true "alias ID"
 // @Success 200 {object} dto.ProductAliasResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/products/{productId}/aliases/{id} [get]
+// @Router /private/products/aliases/{id} [get]
 func (h ProductAliasHandler) GetProductAliasHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
@@ -394,14 +418,14 @@ func (h ProductAliasHandler) GetProductAliasHandler(w http.ResponseWriter, r *ht
 // @Tags products
 // @Produce json
 // @Param id path int true "alias ID"
-// @Param request body dto.ProductUpdateRequest true "product alias payload"
+// @Param request body dto.ProductAliasUpdateRequest true "product alias payload"
 // @Success 200 {object} dto.ProductAliasResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 403 {object} dto.ErrorResponse
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /private/products/{id} [patch]
+// @Router /private/products/aliases/{id} [patch]
 func (h ProductAliasHandler) UpdateProductAliasHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
@@ -444,14 +468,13 @@ func (h ProductAliasHandler) UpdateProductAliasHandler(w http.ResponseWriter, r 
 // @Description Delete product alias
 // @Tags products
 // @Produce json
-// @Param productId path int true "product ID"
 // @Param id path int true "alias ID"
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/products/{productId}/aliases/{id} [delete]
+// @Router /private/products/aliases/{id} [delete]
 func (h ProductAliasHandler) DeleteProductAliasHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
@@ -486,13 +509,13 @@ func (h ProductAliasHandler) DeleteProductAliasHandler(w http.ResponseWriter, r 
 // @Description Delete all product aliases
 // @Tags products
 // @Produce json
-// @Param productId path int true "product ID"
+// @Param productId query int true "product ID"
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/products/{productId}/aliases [delete]
+// @Router /private/products/aliases [delete]
 func (h ProductAliasHandler) DeleteAllProductAliasesHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
@@ -503,10 +526,17 @@ func (h ProductAliasHandler) DeleteAllProductAliasesHandler(w http.ResponseWrite
 		return
 	}
 
-	// 2. Парсинг ID
-	productID, err := helpers.ParsePositiveIntParam(r, "productId")
+	// 2. Парсинг продукта из запроса
+	productIDString := r.URL.Query().Get("productId")
+	productID, err := strconv.Atoi(productIDString)
 	if err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
+		helpers.WriteDomainError(w, logger, err, map[string]any{"productId": productIDString})
+		return
+	}
+
+	// 3. Валидация продукта
+	if productID < 1 {
+		helpers.WriteDomainError(w, logger, domain.ErrInvalidInput, map[string]any{"productId": productIDString})
 		return
 	}
 
@@ -527,12 +557,16 @@ func (h ProductAliasHandler) DeleteAllProductAliasesHandler(w http.ResponseWrite
 // @Description List product aliases
 // @Tags products
 // @Produce json
-// @Param productId path int true "product ID"
+// @Param group_ids[] query []int false "Group IDs"
+// @Param productId query int false "product ID" minimum(1)
+// @Param alias query string false "Alias" minimum(1) maximum(50)
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
 // @Success 200 {array} dto.ProductAliasResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/products/{productId}/aliases [get]
+// @Router /private/products/aliases [get]
 func (h ProductAliasHandler) ListProductAliasesHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
@@ -543,37 +577,49 @@ func (h ProductAliasHandler) ListProductAliasesHandler(w http.ResponseWriter, r 
 		return
 	}
 
-	// 2. Парсинг ID
-	productID, err := helpers.ParsePositiveIntParam(r, "productId")
-	if err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-	// 2. Вызов сервиса для получения списка
-	aliases, err := h.aliasService.List(ctx, actor, productID)
-	if err != nil {
-		helpers.WriteDomainError(w, logger, err, map[string]any{"productId": productID})
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.ProductAliasFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
 
-	// 3. Преобразование и отправка ответа
+	// 3. Валидация
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 4. Вызов сервиса для получения списка
+	aliases, err := h.aliasService.List(ctx, actor, queryFilter.ToDomainFilter())
+	if err != nil {
+		helpers.WriteDomainError(w, logger, err, map[string]any{"filter": queryFilter})
+		return
+	}
+
+	// 5. Преобразование и отправка ответа
 	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToProductAliasListResponse(aliases))
 }
 
-// ListAllProductAliasesHandler возвращает список алиасов продукта (только для администраторов).
+// CountProductAliasesHandler возвращает количество алиасов продукта.
 //
 // @Security BearerAuth
-// @Summary List product aliases
-// @Description List product aliases
+// @Summary Count product aliases
+// @Description Count product aliases
 // @Tags products
 // @Produce json
-// @Param productId path int true "product ID"
-// @Success 200 {array} dto.ProductAliasResponse
+// @Param group_ids[] query []int false "Group IDs"
+// @Param productId query int false "product ID" minimum(1)
+// @Param alias query string false "Alias" minimum(1) maximum(50)
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
+// @Success 200 {object} dto.CountResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/products/{productId}/aliases/all [get]
-func (h ProductAliasHandler) ListAllProductAliasesHandler(w http.ResponseWriter, r *http.Request) {
+// @Router /private/products/aliases/count [get]
+func (h ProductAliasHandler) CountProductAliasesHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -583,21 +629,29 @@ func (h ProductAliasHandler) ListAllProductAliasesHandler(w http.ResponseWriter,
 		return
 	}
 
-	// 2. Парсинг ID
-	productID, err := helpers.ParsePositiveIntParam(r, "productId")
-	if err != nil {
-		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
-		return
-	}
-	// 2. Вызов сервиса для получения списка
-	aliases, err := h.aliasService.ListAll(ctx, actor, productID)
-	if err != nil {
-		helpers.WriteDomainError(w, logger, err, map[string]any{"productId": productID})
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.ProductAliasFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
 
-	// 3. Преобразование и отправка ответа
-	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToProductAliasListResponse(aliases))
+	// 3. Валидация
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 4. Вызов сервиса для получения количества
+	count, err := h.aliasService.Count(ctx, actor, queryFilter.ToDomainFilter())
+	if err != nil {
+		helpers.WriteDomainError(w, logger, err, map[string]any{"filter": queryFilter})
+		return
+	}
+
+	// 5. Преобразование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.CountResponse{Count: count})
 }
 
 // FindProductByAliasHandler возвращает продукт по алиасу
@@ -625,67 +679,20 @@ func (h ProductAliasHandler) FindProductByAliasHandler(w http.ResponseWriter, r 
 		return
 	}
 
-	// 2. Парсинг алиаса из запроса
-	alias := r.URL.Query().Get("alias")
-
-	// 3. Валидация алиаса
-	if strings.TrimSpace(alias) == "" {
-		helpers.WriteError(w, logger, http.StatusBadRequest, "alias is required")
+	// 2. Парсинг и валидация алиаса из запроса
+	alias, err := helpers.ParsePositiveStrQuery(r, "alias")
+	if err != nil {
+		helpers.WriteError(w, logger, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// 4. Вызов сервиса для поиска продукта
+	// 3. Вызов сервиса для поиска продукта
 	product, err := h.aliasService.FindProductByAlias(ctx, actor, alias)
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, map[string]any{"alias": alias})
 		return
 	}
 
-	// 5. Преобразование и отправка ответа
-	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToProductResponse(product))
-}
-
-// FindAllProductByAliasHandler возвращает продукт по алиасу (только для администраторов).
-//
-// @Security BearerAuth
-// @Summary Find product by alias
-// @Description Find product by alias
-// @Tags products
-// @Accept json
-// @Produce json
-// @Param alias query string true "alias"
-// @Success 200 {object} dto.ProductResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Failure 503 {object} dto.ErrorResponse
-// @Router /private/products/all/by-alias [get]
-func (h ProductAliasHandler) FindAllProductByAliasHandler(w http.ResponseWriter, r *http.Request) {
-	// 1. Получение данных из контекста
-	ctx := r.Context()
-	logger := logging.LoggerFromContext(ctx)
-	actor, ok := actorctx.ActorFromContext(ctx)
-	if !ok {
-		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	// 2. Парсинг алиаса из запроса
-	alias := r.URL.Query().Get("alias")
-
-	// 3. Валидация алиаса
-	if strings.TrimSpace(alias) == "" {
-		helpers.WriteError(w, logger, http.StatusBadRequest, "alias is required")
-		return
-	}
-
-	// 4. Вызов сервиса для поиска продукта
-	product, err := h.aliasService.FindAllProductByAlias(ctx, actor, alias)
-	if err != nil {
-		helpers.WriteDomainError(w, logger, err, map[string]any{"alias": alias})
-		return
-	}
-
-	// 5. Преобразование и отправка ответа
+	// 4. Преобразование и отправка ответа
 	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToProductResponse(product))
 }
