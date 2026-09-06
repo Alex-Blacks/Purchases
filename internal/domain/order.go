@@ -78,7 +78,7 @@ type OrderWithItemDetails struct {
 
 type OrderItemListFilter struct {
 	GroupIDs    []int
-	OrderID     int
+	OrderID     *int
 	ProductID   *int
 	UnitID      *int
 	QuantityMin *int

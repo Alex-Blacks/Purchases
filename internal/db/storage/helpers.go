@@ -280,7 +280,7 @@ func buildOrderItemWhere(filter domain.OrderItemListFilter) (string, []any, int)
 		argPos++
 	}
 
-	if filter.OrderID > 0 {
+	if filter.OrderID != nil {
 		setPath = append(setPath, fmt.Sprintf("oi.order_id = $%d", argPos))
 		args = append(args, filter.OrderID)
 		argPos++

@@ -509,7 +509,7 @@ func (h OrderHandler) DeleteItemHandler(w http.ResponseWriter, r *http.Request) 
 // @Tags orders
 // @Produce json
 // @Param group_ids[] query []int false "Group IDs"
-// @Param order_id query string true "Order ID" minimum(1)
+// @Param order_id query string false "Order ID" minimum(1)
 // @Param product_id query string false "Product ID" minimum(1)
 // @Param unit_id query string false "Unit ID" minimum(1)
 // @Param quantity_min query int false "Minimum quantity"
@@ -565,7 +565,7 @@ func (h OrderHandler) ListOrderItemHandler(w http.ResponseWriter, r *http.Reques
 // @Tags orders
 // @Produce json
 // @Param group_ids[] query []int false "Group IDs"
-// @Param order_id query string true "Order ID" minimum(1)
+// @Param order_id query string false "Order ID" minimum(1)
 // @Param product_id query string false "Product ID" minimum(1)
 // @Param unit_id query string false "Unit ID" minimum(1)
 // @Param quantity_min query int false "Minimum quantity"
@@ -620,7 +620,7 @@ func (h OrderHandler) CountOrderItemsHandler(w http.ResponseWriter, r *http.Requ
 // @Description Find product in orders
 // @Tags orders
 // @Produce json
-// @Param productId query string true "productId"
+// @Param productId query int  true "product ID"
 // @Success 200 {array} dto.OrderItemFindResponse
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse

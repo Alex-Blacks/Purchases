@@ -212,7 +212,7 @@ func prepareOrderFilter(actor policy.Actor, filter *domain.OrderListFilter) erro
 // Модифицирует filter.GroupIDs в зависимости от роли актора.
 func prepareOrderItemFilter(actor policy.Actor, filter *domain.OrderItemListFilter) error {
 	// 1. Валидация фильтра (если передано)
-	if filter.OrderID < 1 {
+	if filter.OrderID != nil && *filter.OrderID < 1 {
 		return domain.ErrInvalidInput
 	}
 	if filter.ProductID != nil && *filter.ProductID < 1 {

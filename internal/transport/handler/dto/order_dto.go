@@ -134,7 +134,7 @@ func ToItemUpdateRequest(item ItemUpdateRequest) domain.OrderItemUpdate {
 // OrderItemFilterQuery – структура для биндинга query-параметров
 type OrderItemFilterQuery struct {
 	GroupIDs    []int `form:"group_ids" validate:"dive,int,gt=0"`
-	OrderID     int   `form:"order_id" validate:"gt=0"`
+	OrderID     *int  `form:"order_id,omitempty" validate:"gt=0"`
 	ProductID   *int  `form:"product_id,omitempty" validate:"gt=0"`
 	UnitID      *int  `form:"unit_id,omitempty" validate:"gt=0"`
 	QuantityMin *int  `form:"quantity_min,omitempty" validate:"gt=0"`
