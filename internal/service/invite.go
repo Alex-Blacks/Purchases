@@ -52,13 +52,13 @@ func (s *ServiceInvite) getValidPendingInvite(ctx context.Context, q domain.Quer
 
 	// 2. Проверка статуса
 	switch existing.Status {
-	case "accepted":
+	case domain.StatusAccepted:
 		logger.InfoContext(ctx, "invite already accepted", "invite_id", existing.ID)
 		return domain.InviteDetails{}, domain.ErrUserAlreadyInGroup
-	case "rejected":
+	case domain.StatusRejected:
 		logger.InfoContext(ctx, "invite rejected", "invite_id", existing.ID)
 		return domain.InviteDetails{}, domain.ErrInviteRejected
-	case "pending":
+	case domain.StatusPending:
 		// 3. Проверка срока действия
 		if existing.ExpiresAt.Before(time.Now()) {
 			logger.InfoContext(ctx, "invite expired", "invite_id", existing.ID)

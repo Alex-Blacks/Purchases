@@ -19,8 +19,8 @@ type ServiceInviteInterface interface {
 	Create(ctx context.Context, actor policy.Actor, inviteeEmail string) (domain.InviteDetails, error)
 	GetByID(ctx context.Context, actor policy.Actor, inviteID int) (domain.InviteDetails, error)
 	DeleteByID(ctx context.Context, actor policy.Actor, inviteID int) error
-	List(ctx context.Context, actor policy.Actor) ([]domain.InviteDetails, error)
-	ListAll(ctx context.Context, actor policy.Actor) ([]domain.InviteDetails, error)
+	List(ctx context.Context, actor policy.Actor, filter domain.InviteListFilter) ([]domain.InviteDetails, error)
+	Count(ctx context.Context, actor policy.Actor, filter domain.InviteListFilter) (int, error)
 	Accept(ctx context.Context, actor policy.Actor, token string) error
 	Reject(ctx context.Context, actor policy.Actor, token string) error
 }
@@ -158,13 +158,24 @@ func (h InviteHandler) DeleteInviteHandler(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListInvitesHandler возвращает список приглашений, доступных пользователю (из его группы).
+// ListInvitesHandler возвращает список приглашений.
 //
 // @Security BearerAuth
 // @Summary List user's invites
 // @Description Get list of invites belonging to user's group
 // @Tags invites
 // @Produce json
+// @Param group_ids[] query []int false "Group IDs"
+// @Param inviter_user_id query int false "Inviter user ID"
+// @Param invitee_email query string false "Invitee email" minimum(1)
+// @Param status query string false "Status(pending,rejected,accepted)" Enums(pending,rejected,accepted)
+// @Param token query string false "Token" minimum(1)
+// @Param created_from query string false "Created from (RFC3339)"
+// @Param created_to query string false "Created to (RFC3339)"
+// @Param expires_from query string false "Expires from (RFC3339)"
+// @Param expires_to query string false "Expires to (RFC3339)"
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
 // @Success 200 {array} dto.InviteResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 403 {object} dto.ErrorResponse
@@ -180,30 +191,55 @@ func (h InviteHandler) ListInvitesHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// 2. Вызов сервиса для получения списка
-	list, err := h.inviteService.List(ctx, actor)
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.InviteFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
+		return
+	}
+
+	// 3. Валидация
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 4. Вызов сервиса для получения списка
+	list, err := h.inviteService.List(ctx, actor, queryFilter.ToDomainFilter())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
 	}
 
-	// 3. Преобразование и отправка ответа
+	// 5. Преобразование и отправка ответа
 	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToInviteListResponse(list))
 }
 
-// ListAllInvitesHandler возвращает список всех приглашений (только для администраторов).
+// CountInvitesHandler возвращает количество всех приглашений.
 //
 // @Security BearerAuth
-// @Summary List all invites
-// @Description Get list of invites
+// @Summary Count all invites
+// @Description Get count of invites
 // @Tags invites
 // @Produce json
-// @Success 200 {array} dto.InviteResponse
+// @Param group_ids[] query []int false "Group IDs"
+// @Param inviter_user_id query int false "Inviter user ID"
+// @Param invitee_email query string false "Invitee email" minimum(1)
+// @Param status query string false "Status(pending,rejected,accepted)" Enums(pending,rejected,accepted)
+// @Param token query string false "Token" minimum(1)
+// @Param created_from query string false "Created from (RFC3339)"
+// @Param created_to query string false "Created to (RFC3339)"
+// @Param expires_from query string false "Expires from (RFC3339)"
+// @Param expires_to query string false "Expires to (RFC3339)"
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
+// @Success 200 {object} dto.CountResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 403 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /private/invites/all [get]
-func (h InviteHandler) ListAllInvitesHandler(w http.ResponseWriter, r *http.Request) {
+// @Router /private/invites/count [get]
+func (h InviteHandler) CountInvitesHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -213,15 +249,29 @@ func (h InviteHandler) ListAllInvitesHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// 2. Вызов сервиса для получения списка
-	list, err := h.inviteService.ListAll(ctx, actor)
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.InviteFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
+		return
+	}
+
+	// 3. Валидация
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 4. Вызов сервиса для получения количества
+	count, err := h.inviteService.Count(ctx, actor, queryFilter.ToDomainFilter())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
 	}
 
-	// 3. Преобразование и отправка ответа
-	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToInviteListResponse(list))
+	// 5. Преобразование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.CountResponse{Count: count})
 }
 
 // AcceptInviteHandler принимает приглашение по токену.
