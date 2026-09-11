@@ -194,7 +194,7 @@ func (h InviteHandler) ListInvitesHandler(w http.ResponseWriter, r *http.Request
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.InviteFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
@@ -252,7 +252,7 @@ func (h InviteHandler) CountInvitesHandler(w http.ResponseWriter, r *http.Reques
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.InviteFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}

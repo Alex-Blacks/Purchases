@@ -197,7 +197,7 @@ func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) 
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.OrderFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
@@ -240,7 +240,7 @@ func (h OrderHandler) ListOrdersHandler(w http.ResponseWriter, r *http.Request) 
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/orders/all [get]
+// @Router /private/orders/count [get]
 func (h OrderHandler) CountOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
@@ -254,7 +254,7 @@ func (h OrderHandler) CountOrdersHandler(w http.ResponseWriter, r *http.Request)
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.OrderFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
@@ -394,7 +394,7 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToItemResponse(item))
 }
 
-// UpdateListItemsHandler обрабатывает обновление слайса элементов в заказе.
+// UpsertListItemsHandler обрабатывает обновление слайса элементов в заказе.
 //
 // @Security BearerAuth
 // @Summary Update order list items
@@ -410,8 +410,8 @@ func (h OrderHandler) UpdateItemHandler(w http.ResponseWriter, r *http.Request) 
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Failure 503 {object} dto.ErrorResponse
-// @Router /private/orders/{orderId}/list [put]
-func (h OrderHandler) UpdateListItemsHandler(w http.ResponseWriter, r *http.Request) {
+// @Router /private/orders/{orderId}/items/list [put]
+func (h OrderHandler) UpsertListItemsHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -535,7 +535,7 @@ func (h OrderHandler) ListOrderItemHandler(w http.ResponseWriter, r *http.Reques
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.OrderItemFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
@@ -591,7 +591,7 @@ func (h OrderHandler) CountOrderItemsHandler(w http.ResponseWriter, r *http.Requ
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.OrderItemFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
@@ -620,6 +620,7 @@ func (h OrderHandler) CountOrderItemsHandler(w http.ResponseWriter, r *http.Requ
 // @Description Find product in orders
 // @Tags orders
 // @Produce json
+// @Param groupId query int false "Group ID (optional)"
 // @Param productId query int  true "product ID"
 // @Success 200 {array} dto.OrderItemFindResponse
 // @Failure 400 {object} dto.ErrorResponse

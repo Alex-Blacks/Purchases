@@ -18,7 +18,8 @@ type ServiceGroupInterface interface {
 	GetByID(ctx context.Context, actor policy.Actor, groupID int) (domain.GroupDetails, error)
 	UpdateByID(ctx context.Context, actor policy.Actor, groupID int, updateGroup domain.GroupUpdate) (domain.GroupDetails, error)
 	DeleteByID(ctx context.Context, actor policy.Actor, groupID int) error
-	ListAll(ctx context.Context, actor policy.Actor) ([]domain.GroupDetails, error)
+	List(ctx context.Context, actor policy.Actor, filter domain.GroupListFilter) ([]domain.GroupDetails, error)
+	Count(ctx context.Context, actor policy.Actor, filter domain.GroupListFilter) (int, error)
 }
 
 type GroupHandler struct {
@@ -84,7 +85,7 @@ func (h *GroupHandler) CreateGroupHandler(w http.ResponseWriter, r *http.Request
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/groups/{id} [get]
-func (h GroupHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
+func (h *GroupHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -128,7 +129,7 @@ func (h GroupHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/groups/{id} [patch]
-func (h GroupHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
+func (h *GroupHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -178,7 +179,7 @@ func (h GroupHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request)
 // @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/groups/{id} [delete]
-func (h GroupHandler) DeleteGroupHandler(w http.ResponseWriter, r *http.Request) {
+func (h *GroupHandler) DeleteGroupHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -205,19 +206,23 @@ func (h GroupHandler) DeleteGroupHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListAllGroupsHandler возвращает список всех групп (только для администраторов).
+// ListGroupsHandler возвращает список всех групп.
 //
 // @Security BearerAuth
 // @Summary List all groups
 // @Description Get list of groups
 // @Tags groups
 // @Produce json
+// @Param name query string false "Name" minimum(1)
+// @Param admin_user_id query int false "Admin User ID"
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
 // @Success 200 {array} dto.GroupResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 403 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /private/groups [get]
-func (h GroupHandler) ListAllGroupsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *GroupHandler) ListGroupsHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Получение данных из контекста
 	ctx := r.Context()
 	logger := logging.LoggerFromContext(ctx)
@@ -227,13 +232,78 @@ func (h GroupHandler) ListAllGroupsHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// 2. Вызов сервиса для получения списка
-	list, err := h.groupService.ListAll(ctx, actor)
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.GroupFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
+		return
+	}
+
+	// 3. Валидация
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 4. Вызов сервиса для получения списка
+	list, err := h.groupService.List(ctx, actor, queryFilter.ToDomainFilter())
 	if err != nil {
 		helpers.WriteDomainError(w, logger, err, nil)
 		return
 	}
 
-	// 3. Преобразование и отправка ответа
+	// 5. Преобразование и отправка ответа
 	helpers.WriteJSON(w, logger, http.StatusOK, dto.ToGroupListResponse(list))
+}
+
+// CountGroupsHandler возвращает количество всех групп.
+//
+// @Security BearerAuth
+// @Summary Count all groups
+// @Description Get count of groups
+// @Tags groups
+// @Produce json
+// @Param name query string false "Name" minimum(1)
+// @Param admin_user_id query int false "Admin User ID"
+// @Param limit query int false "Limit" default(10) minimum(1) maximum(100)
+// @Param offset query int false "Offset" default(0) minimum(0)
+// @Success 200 {object} dto.CountResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /private/groups/count [get]
+func (h *GroupHandler) CountGroupsHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Получение данных из контекста
+	ctx := r.Context()
+	logger := logging.LoggerFromContext(ctx)
+	actor, ok := actorctx.ActorFromContext(ctx)
+	if !ok {
+		helpers.WriteError(w, logger, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	// 2. Биндим query-параметры в структуру
+	var queryFilter dto.GroupFilterQuery
+	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
+		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
+		return
+	}
+
+	// 3. Валидация
+	if err := h.validate.Struct(queryFilter); err != nil {
+		helpers.WriteDomainError(w, logger, err, queryFilter)
+		return
+	}
+
+	// 4. Вызов сервиса для получения количества
+	count, err := h.groupService.Count(ctx, actor, queryFilter.ToDomainFilter())
+	if err != nil {
+		helpers.WriteDomainError(w, logger, err, nil)
+		return
+	}
+
+	// 5. Преобразование и отправка ответа
+	helpers.WriteJSON(w, logger, http.StatusOK, dto.CountResponse{Count: count})
 }

@@ -236,7 +236,7 @@ func (h ProductHandler) ListProductsHandler(w http.ResponseWriter, r *http.Reque
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.ProductFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
@@ -286,7 +286,7 @@ func (h ProductHandler) CountProductsHandler(w http.ResponseWriter, r *http.Requ
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.ProductFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
@@ -580,7 +580,7 @@ func (h ProductAliasHandler) ListProductAliasesHandler(w http.ResponseWriter, r 
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.ProductAliasFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
@@ -632,7 +632,7 @@ func (h ProductAliasHandler) CountProductAliasesHandler(w http.ResponseWriter, r
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.ProductAliasFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}

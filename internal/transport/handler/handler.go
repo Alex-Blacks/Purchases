@@ -9,6 +9,7 @@ type Handlers struct {
 	Order        *OrderHandler
 	Group        *GroupHandler
 	Invite       *InviteHandler
+	History      *HistoryHandler
 	Auth         *AuthHandler
 }
 
@@ -21,6 +22,7 @@ func NewHandlers(
 	orderSvc ServiceOrderInterface,
 	groupSvc ServiceGroupInterface,
 	inviteSvc ServiceInviteInterface,
+	historySvc ServiceChangeHistory,
 	authSvc ServiceAuthInterface,
 ) *Handlers {
 	if userSvc == nil {
@@ -47,6 +49,9 @@ func NewHandlers(
 	if inviteSvc == nil {
 		panic("inviteSvc is nil")
 	}
+	if historySvc == nil {
+		panic("historySvc is nil")
+	}
 	if authSvc == nil {
 		panic("authSvc is nil")
 	}
@@ -59,6 +64,7 @@ func NewHandlers(
 		Order:        &OrderHandler{orderService: orderSvc},
 		Group:        &GroupHandler{groupService: groupSvc},
 		Invite:       &InviteHandler{inviteService: inviteSvc},
+		History:      &HistoryHandler{historyService: historySvc},
 		Auth:         &AuthHandler{authService: authSvc},
 	}
 }

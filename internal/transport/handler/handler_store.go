@@ -237,7 +237,7 @@ func (h StoreHandler) ListStoresHandler(w http.ResponseWriter, r *http.Request) 
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.StoreFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}
@@ -287,7 +287,7 @@ func (h StoreHandler) CountStoresHandler(w http.ResponseWriter, r *http.Request)
 	// 2. Биндим query-параметры в структуру
 	var queryFilter dto.StoreFilterQuery
 	if err := helpers.FormDecoder.Decode(&queryFilter, r.URL.Query()); err != nil {
-		logger.WarnContext(ctx, "invalid query parameters: %w", err)
+		logger.WarnContext(ctx, "invalid query parameters", "error", err)
 		helpers.WriteError(w, logger, http.StatusBadRequest, "недопустимые параметры запроса")
 		return
 	}

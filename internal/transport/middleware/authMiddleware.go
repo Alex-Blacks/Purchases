@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Alex-Blacks/Purchases/internal/actorctx"
+	"github.com/Alex-Blacks/Purchases/internal/domain"
 	"github.com/Alex-Blacks/Purchases/internal/logging"
 	"github.com/Alex-Blacks/Purchases/internal/policy"
 	"github.com/Alex-Blacks/Purchases/internal/transport/handler/helpers"
@@ -70,7 +71,7 @@ func AuthMiddleware(secret string) func(http.Handler) http.Handler {
 				return
 			}
 
-			actor := policy.ToActor(int(userIDFloat), int(groupIDFloat), policy.Role(role))
+			actor := policy.ToActor(int(userIDFloat), int(groupIDFloat), domain.UserRole(role))
 
 			logger = logger.With("actor", actor)
 

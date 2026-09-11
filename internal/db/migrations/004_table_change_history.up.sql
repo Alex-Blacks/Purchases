@@ -1,4 +1,4 @@
-create type history_entity as enum('store', 'unit', 'product', 'order');
+create type history_entity as enum('store', 'unit', 'product', 'productAlias ', 'order', 'orderItem');
 create type history_action as enum('create', 'update', 'delete');
 
 create table change_history(

@@ -83,21 +83,23 @@ func main() {
 	productAliasRepo := storage.NewProductAliasRepo()
 	groupRepo := storage.NewGroupRepo()
 	inviteRepo := storage.NewInviteRepo()
+	historyRepo := storage.NewHistoryRepo()
 
 	// services
 	userSvc := service.NewServiceUser(st, userRepo, groupRepo)
-	orderSvc := service.NewServiceOrderItem(st, orderRepo, orderItemRepo)
-	storeSvc := service.NewServiceStore(st, storeRepo)
-	unitSvc := service.NewServiceUnit(st, unitRepo)
-	productSvc := service.NewServiceProduct(st, productRepo)
-	productAliasSvc := service.NewServiceProductAlias(st, productAliasRepo)
+	orderSvc := service.NewServiceOrderItem(st, orderRepo, orderItemRepo, historyRepo)
+	storeSvc := service.NewServiceStore(st, storeRepo, historyRepo)
+	unitSvc := service.NewServiceUnit(st, unitRepo, historyRepo)
+	productSvc := service.NewServiceProduct(st, productRepo, historyRepo)
+	productAliasSvc := service.NewServiceProductAlias(st, productAliasRepo, productRepo, historyRepo)
 	groupSvc := service.NewServiceGroup(st, groupRepo)
 	inviteSvc := service.NewServiceInvite(st, inviteRepo, groupRepo, userRepo, smtpClient, cfg.SMTPFrom)
+	historySvc := service.NewServiceHistory(st, historyRepo)
 
 	authSvc := service.NewAuthService(userSvc, cfg.JWTSecret, cfg.TokenLifetime)
 
 	// handlers
-	handlers := handler.NewHandlers(userSvc, storeSvc, unitSvc, productSvc, productAliasSvc, orderSvc, groupSvc, inviteSvc, authSvc)
+	handlers := handler.NewHandlers(userSvc, storeSvc, unitSvc, productSvc, productAliasSvc, orderSvc, groupSvc, inviteSvc, historySvc, authSvc)
 
 	// routers
 	publicRouter := handler.PublicRouter(handlers, time.Second*time.Duration(timeout), logger)

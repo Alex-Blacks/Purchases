@@ -28,6 +28,24 @@ func ToGroupResponse(group domain.GroupDetails) GroupResponse {
 	}
 }
 
+// GroupFilterQuery – структура для биндинга query-параметров
+type GroupFilterQuery struct {
+	AdminUserID *int    `form:"admin_user_id,omitempty" validate:"gt=0"`
+	Name        *string `form:"name,omitempty" validate:"min=1,max=50"`
+	Limit       int     `form:"limit" default:"10" validate:"required,min=1,max=100"`
+	Offset      int     `form:"offset" default:"0" validate:"min=0"`
+}
+
+// ToDomainFilter преобразует dto.GroupFilterQuery в domain.GroupListFilter.
+func (q GroupFilterQuery) ToDomainFilter() domain.GroupListFilter {
+	return domain.GroupListFilter{
+		Name:        q.Name,
+		AdminUserID: q.AdminUserID,
+		Limit:       q.Limit,
+		Offset:      q.Offset,
+	}
+}
+
 func ToGroupUpdateRequest(group GroupUpdateRequest) domain.GroupUpdate {
 	return domain.GroupUpdate{
 		Name:        group.Name,
